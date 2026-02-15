@@ -30,6 +30,7 @@ const templateTypes = [
   { value: "vencendo_hoje", label: "Vencendo Hoje" },
   { value: "vencido", label: "Vencido" },
   { value: "proximos_3_dias", label: "Próximos 3 Dias" },
+  { value: "confirmacao_pagamento", label: "Confirmação de Pagamento" },
 ];
 
 const variables = [
@@ -37,6 +38,8 @@ const variables = [
   { tag: "{servico}", description: "Serviço contratado" },
   { tag: "{plano}", description: "Nome do plano" },
   { tag: "{data_vencimento}", description: "Data de vencimento" },
+  { tag: "{data_pagamento}", description: "Data do pagamento" },
+  { tag: "{proximo_vencimento}", description: "Data do próximo vencimento" },
 ];
 
 const sampleData: Record<string, string> = {
@@ -44,6 +47,8 @@ const sampleData: Record<string, string> = {
   "{servico}": "IPTV Premium",
   "{plano}": "Mensal",
   "{data_vencimento}": "15/03/2026",
+  "{data_pagamento}": "14/03/2026",
+  "{proximo_vencimento}": "15/04/2026",
 };
 
 const replaceVariables = (content: string) => {
@@ -63,6 +68,7 @@ const getTypeBadgeVariant = (type: string) => {
     case "vencendo_hoje": return "secondary" as const;
     case "vencido": return "destructive" as const;
     case "proximos_3_dias": return "default" as const;
+    case "confirmacao_pagamento": return "outline" as const;
     default: return "outline" as const;
   }
 };
