@@ -1,0 +1,399 @@
+import { useEffect, useState, useMemo } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import { Plus, Pencil, Trash2, Users, Search } from "lucide-react";
+import type { Tables } from "@/integrations/supabase/types";
+
+type Client = Tables<"clients">;
+type Service = Tables<"services">;
+type Plan = Tables<"plans">;
+
+type ClientWithRelations = Client & {
+  services: { name: string } | null;
+  plans: { name: string; duration_months: number } | null;
+};
+
+const getStatus = (dueDate: string) => {
+  const today = new Date().toISOString().split("T")[0];
+  if (dueDate === today) return "vencendo";
+  if (dueDate < today) return "vencido";
+  return "ativo";
+};
+
+const statusConfig = {
+  ativo: { label: "Ativo", variant: "default" as const },
+  vencendo: { label: "Vencendo Hoje", variant: "secondary" as const },
+  vencido: { label: "Vencido", variant: "destructive" as const },
+};
+
+const Clients = () => {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const [clients, setClients] = useState<ClientWithRelations[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<ClientWithRelations | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Form state
+  const [formName, setFormName] = useState("");
+  const [formPhone, setFormPhone] = useState("");
+  const [formUsername, setFormUsername] = useState("");
+  const [formServiceId, setFormServiceId] = useState<string>("");
+  const [formPlanId, setFormPlanId] = useState<string>("");
+  const [formDueDate, setFormDueDate] = useState("");
+
+  const fetchData = async () => {
+    if (!user) return;
+    const [clientsRes, servicesRes, plansRes] = await Promise.all([
+      supabase.from("clients").select("*, services(name), plans(name, duration_months)").order("created_at", { ascending: false }),
+      supabase.from("services").select("*").order("name"),
+      supabase.from("plans").select("*").order("name"),
+    ]);
+    setClients((clientsRes.data as ClientWithRelations[]) || []);
+    setServices(servicesRes.data || []);
+    setPlans(plansRes.data || []);
+    setLoading(false);
+  };
+
+  useEffect(() => { fetchData(); }, [user]);
+
+  const filteredClients = useMemo(() => {
+    return clients.filter((c) => {
+      const status = getStatus(c.due_date);
+      if (statusFilter !== "all" && status !== statusFilter) return false;
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        return (
+          c.name.toLowerCase().includes(q) ||
+          c.phone.includes(q) ||
+          (c.username || "").toLowerCase().includes(q)
+        );
+      }
+      return true;
+    });
+  }, [clients, statusFilter, searchQuery]);
+
+  const calcDueDate = (planId: string) => {
+    const plan = plans.find((p) => p.id === planId);
+    if (!plan) return new Date().toISOString().split("T")[0];
+    const d = new Date();
+    d.setMonth(d.getMonth() + plan.duration_months);
+    return d.toISOString().split("T")[0];
+  };
+
+  const openCreate = () => {
+    setEditing(null);
+    setFormName("");
+    setFormPhone("");
+    setFormUsername("");
+    setFormServiceId("");
+    setFormPlanId("");
+    setFormDueDate(new Date().toISOString().split("T")[0]);
+    setDialogOpen(true);
+  };
+
+  const openEdit = (c: ClientWithRelations) => {
+    setEditing(c);
+    setFormName(c.name);
+    setFormPhone(c.phone);
+    setFormUsername(c.username || "");
+    setFormServiceId(c.service_id || "");
+    setFormPlanId(c.plan_id || "");
+    setFormDueDate(c.due_date);
+    setDialogOpen(true);
+  };
+
+  const handlePlanChange = (planId: string) => {
+    setFormPlanId(planId);
+    if (!editing) {
+      setFormDueDate(calcDueDate(planId));
+    }
+  };
+
+  const handleSave = async () => {
+    const trimmedName = formName.trim();
+    const trimmedPhone = formPhone.trim();
+    if (!trimmedName || !trimmedPhone || !user) return;
+    setSaving(true);
+    const payload = {
+      name: trimmedName,
+      phone: trimmedPhone,
+      username: formUsername.trim() || null,
+      service_id: formServiceId || null,
+      plan_id: formPlanId || null,
+      due_date: formDueDate,
+    };
+    try {
+      if (editing) {
+        const { error } = await supabase.from("clients").update(payload).eq("id", editing.id);
+        if (error) throw error;
+        toast({ title: "Cliente atualizado!" });
+      } else {
+        const { error } = await supabase.from("clients").insert({ ...payload, user_id: user.id });
+        if (error) throw error;
+        toast({ title: "Cliente criado!" });
+      }
+      setDialogOpen(false);
+      fetchData();
+    } catch (error: any) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    const { error } = await supabase.from("clients").delete().eq("id", deleteId);
+    if (error) {
+      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Cliente excluído!" });
+      setSelected((prev) => { const n = new Set(prev); n.delete(deleteId); return n; });
+      fetchData();
+    }
+    setDeleteId(null);
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelected((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selected.size === filteredClients.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(filteredClients.map((c) => c.id)));
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Clientes</h1>
+          <p className="text-muted-foreground">{clients.length} clientes cadastrados</p>
+        </div>
+        <Button onClick={openCreate}>
+          <Plus className="mr-2 h-4 w-4" /> Novo Cliente
+        </Button>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por nome, telefone ou username..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue placeholder="Filtrar por status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos</SelectItem>
+            <SelectItem value="ativo">Ativos</SelectItem>
+            <SelectItem value="vencendo">Vencendo Hoje</SelectItem>
+            <SelectItem value="vencido">Vencidos</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {selected.size > 0 && (
+        <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
+          <span className="text-sm font-medium">{selected.size} selecionado(s)</span>
+          <Button variant="outline" size="sm" onClick={() => setSelected(new Set())}>
+            Limpar seleção
+          </Button>
+        </div>
+      )}
+
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-10">
+                  <Checkbox
+                    checked={filteredClients.length > 0 && selected.size === filteredClients.length}
+                    onCheckedChange={toggleSelectAll}
+                  />
+                </TableHead>
+                <TableHead>Nome</TableHead>
+                <TableHead>Telefone</TableHead>
+                <TableHead className="hidden md:table-cell">Serviço</TableHead>
+                <TableHead className="hidden md:table-cell">Plano</TableHead>
+                <TableHead>Vencimento</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="w-24 text-right">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    Carregando...
+                  </TableCell>
+                </TableRow>
+              ) : filteredClients.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={8} className="text-center py-8">
+                    <Users className="mx-auto mb-2 h-8 w-8 text-muted-foreground/50" />
+                    <p className="text-muted-foreground">Nenhum cliente encontrado</p>
+                  </TableCell>
+                </TableRow>
+              ) : (
+                filteredClients.map((c) => {
+                  const status = getStatus(c.due_date);
+                  const cfg = statusConfig[status];
+                  return (
+                    <TableRow key={c.id}>
+                      <TableCell>
+                        <Checkbox checked={selected.has(c.id)} onCheckedChange={() => toggleSelect(c.id)} />
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        <div>
+                          {c.name}
+                          {c.username && <span className="block text-xs text-muted-foreground">@{c.username}</span>}
+                        </div>
+                      </TableCell>
+                      <TableCell>{c.phone}</TableCell>
+                      <TableCell className="hidden md:table-cell">{c.services?.name || "—"}</TableCell>
+                      <TableCell className="hidden md:table-cell">{c.plans?.name || "—"}</TableCell>
+                      <TableCell>{new Date(c.due_date + "T00:00:00").toLocaleDateString("pt-BR")}</TableCell>
+                      <TableCell>
+                        <Badge variant={cfg.variant}>{cfg.label}</Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => openEdit(c)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => setDeleteId(c.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Create/Edit Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editing ? "Editar Cliente" : "Novo Cliente"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="clientName">Nome *</Label>
+                <Input id="clientName" value={formName} onChange={(e) => setFormName(e.target.value)} placeholder="Nome completo" maxLength={200} />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="clientPhone">Telefone/WhatsApp *</Label>
+                <Input id="clientPhone" value={formPhone} onChange={(e) => setFormPhone(e.target.value)} placeholder="5511999999999" maxLength={20} />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="clientUsername">Nome de Usuário (opcional)</Label>
+              <Input id="clientUsername" value={formUsername} onChange={(e) => setFormUsername(e.target.value)} placeholder="@usuario" maxLength={50} />
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label>Serviço</Label>
+                <Select value={formServiceId} onValueChange={setFormServiceId}>
+                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>
+                    {services.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Plano</Label>
+                <Select value={formPlanId} onValueChange={handlePlanChange}>
+                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                  <SelectContent>
+                    {plans.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="clientDueDate">Data de Vencimento</Label>
+              <Input id="clientDueDate" type="date" value={formDueDate} onChange={(e) => setFormDueDate(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSave} disabled={!formName.trim() || !formPhone.trim() || saving}>
+              {saving ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir cliente?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. Todos os dados deste cliente serão removidos.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+};
+
+export default Clients;
