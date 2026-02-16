@@ -149,7 +149,6 @@ serve(async (req) => {
         return errorResponse("Nome da instância é obrigatório");
       }
 
-      // We need global config to exist
       const globalConfig = await getGlobalConfig();
       if (!globalConfig) {
         return errorResponse("Configuração global do WhatsApp não encontrada. Contate o administrador.");
@@ -177,6 +176,50 @@ serve(async (req) => {
       }
 
       return jsonResponse({ success: true });
+    }
+
+    // === USER ACTION: connect-instance (save + create + return QR in one step) ===
+    if (action === "connect-instance") {
+      const { instance_name } = params;
+      if (!instance_name) {
+        return errorResponse("Nome da instância é obrigatório");
+      }
+
+      const globalConfig = await getGlobalConfig();
+      if (!globalConfig) {
+        return errorResponse("Configuração global do WhatsApp não encontrada. Contate o administrador.");
+      }
+
+      const supabase = getServiceClient();
+      const { data: existing } = await supabase
+        .from("whatsapp_config")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (existing) {
+        await supabase
+          .from("whatsapp_config")
+          .update({ instance_name, api_url: globalConfig.api_url, api_key: globalConfig.api_key, is_connected: false })
+          .eq("id", existing.id);
+      } else {
+        await supabase.from("whatsapp_config").insert({
+          user_id: user.id,
+          api_url: globalConfig.api_url,
+          api_key: globalConfig.api_key,
+          instance_name,
+        });
+      }
+
+      // Create instance on Evolution API
+      const { api_url, api_key } = globalConfig;
+      const createData = await evolutionFetch(api_url, api_key, "/instance/create", "POST", {
+        instanceName: instance_name,
+        integration: "WHATSAPP-BAILEYS",
+        qrcode: true,
+      });
+
+      return jsonResponse(createData);
     }
 
     // All other actions require existing user config + global config

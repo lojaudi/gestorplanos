@@ -35,7 +35,6 @@ export default function WhatsApp() {
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [pairingCode, setPairingCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   // Admin-only state
@@ -66,9 +65,7 @@ export default function WhatsApp() {
 
   const fetchData = useCallback(async () => {
     if (!user) return;
-
     try {
-      // Fetch user's instance config
       const { data } = await supabase
         .from("whatsapp_config")
         .select("id, instance_name, is_connected")
@@ -80,7 +77,6 @@ export default function WhatsApp() {
         setInstanceName(data.instance_name);
       }
 
-      // Admin: fetch global config
       if (isAdmin) {
         try {
           const globalRes = await callEvolutionApi("get-global-config");
@@ -121,35 +117,26 @@ export default function WhatsApp() {
     setSavingGlobal(false);
   };
 
-  // User: save instance name
-  const handleSaveInstance = async () => {
+  // User: connect instance (save + create in one step)
+  const handleConnectInstance = async () => {
     if (!instanceName) {
       toast({ title: "Informe o nome da instância", variant: "destructive" });
       return;
     }
-    setSaving(true);
+    setActionLoading("connect");
     try {
-      await callEvolutionApi("save-config", { instance_name: instanceName });
-      toast({ title: "Instância salva com sucesso!" });
+      const data = await callEvolutionApi("connect-instance", { instance_name: instanceName });
+      if (data?.qrcode?.base64) setQrCode(data.qrcode.base64);
+      if (data?.qrcode?.pairingCode) setPairingCode(data.qrcode.pairingCode);
+
       // Refresh config
-      const { data } = await supabase
+      const { data: refreshed } = await supabase
         .from("whatsapp_config")
         .select("id, instance_name, is_connected")
         .eq("user_id", user!.id)
         .maybeSingle();
-      if (data) setConfig(data);
-    } catch (err: any) {
-      toast({ title: err.message, variant: "destructive" });
-    }
-    setSaving(false);
-  };
+      if (refreshed) setConfig(refreshed);
 
-  const handleCreateInstance = async () => {
-    setActionLoading("create");
-    try {
-      const data = await callEvolutionApi("create-instance");
-      if (data?.qrcode?.base64) setQrCode(data.qrcode.base64);
-      if (data?.qrcode?.pairingCode) setPairingCode(data.qrcode.pairingCode);
       toast({ title: "Instância criada! Escaneie o QR Code para conectar." });
     } catch (err: any) {
       toast({ title: err.message, variant: "destructive" });
@@ -282,9 +269,7 @@ export default function WhatsApp() {
                 {savingGlobal ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 Salvar Configuração Global
               </Button>
-              {hasGlobalConfig && (
-                <Badge variant="default">Configurada</Badge>
-              )}
+              {hasGlobalConfig && <Badge variant="default">Configurada</Badge>}
             </div>
           </CardContent>
         </Card>
@@ -328,12 +313,12 @@ export default function WhatsApp() {
         </CardContent>
       </Card>
 
-      {/* Instance Config */}
+      {/* Connect Instance - simplified for users */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Sua Instância</CardTitle>
+          <CardTitle className="text-lg">Conectar WhatsApp</CardTitle>
           <CardDescription>
-            Informe o nome da instância para conectar seu WhatsApp
+            Informe o nome da instância e clique em conectar para gerar o QR Code
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -344,52 +329,76 @@ export default function WhatsApp() {
               placeholder="minha-instancia"
               value={instanceName}
               onChange={(e) => setInstanceName(e.target.value)}
+              disabled={!!actionLoading}
             />
           </div>
-          <Button onClick={handleSaveInstance} disabled={saving} className="w-full">
-            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-            Salvar Instância
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Instance Actions */}
-      {config && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Gerenciar Conexão</CardTitle>
-            <CardDescription>
-              Crie a instância, conecte via QR Code e gerencie a conexão
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap gap-3">
-              <Button onClick={handleCreateInstance} disabled={!!actionLoading}>
-                {actionLoading === "create" ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <QrCode className="mr-2 h-4 w-4" />
-                )}
-                Criar Instância
-              </Button>
+          <div className="flex flex-wrap gap-3">
+            <Button onClick={handleConnectInstance} disabled={!!actionLoading} className="flex-1">
+              {actionLoading === "connect" ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <QrCode className="mr-2 h-4 w-4" />
+              )}
+              Conectar Instância
+            </Button>
+            {config && (
               <Button variant="outline" onClick={handleGetQrCode} disabled={!!actionLoading}>
                 {actionLoading === "qr" ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
-                  <QrCode className="mr-2 h-4 w-4" />
+                  <RefreshCw className="mr-2 h-4 w-4" />
                 )}
-                Gerar QR Code
+                Novo QR Code
               </Button>
-              {config.is_connected && (
-                <Button variant="secondary" onClick={handleLogout} disabled={!!actionLoading}>
-                  {actionLoading === "logout" ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <LogOut className="mr-2 h-4 w-4" />
-                  )}
-                  Deslogar
-                </Button>
+            )}
+          </div>
+
+          {/* QR Code Display */}
+          {qrCode && (
+            <div className="flex flex-col items-center gap-4 rounded-lg border border-border bg-muted/30 p-6">
+              <p className="text-sm font-medium text-foreground">
+                Escaneie o QR Code com seu WhatsApp
+              </p>
+              <img
+                src={qrCode.startsWith("data:") ? qrCode : `data:image/png;base64,${qrCode}`}
+                alt="QR Code WhatsApp"
+                className="h-64 w-64 rounded-lg"
+              />
+              {pairingCode && (
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Ou use o código de pareamento:
+                  </p>
+                  <p className="font-mono text-lg font-bold tracking-widest text-primary">
+                    {pairingCode}
+                  </p>
+                </div>
               )}
+              <Button variant="outline" size="sm" onClick={handleCheckStatus}>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Verificar Conexão
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Instance Management - only show when connected */}
+      {config && config.is_connected && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg">Gerenciar Conexão</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-3">
+              <Button variant="secondary" onClick={handleLogout} disabled={!!actionLoading}>
+                {actionLoading === "logout" ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <LogOut className="mr-2 h-4 w-4" />
+                )}
+                Deslogar
+              </Button>
               <Button variant="destructive" onClick={handleDelete} disabled={!!actionLoading}>
                 {actionLoading === "delete" ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -399,34 +408,6 @@ export default function WhatsApp() {
                 Deletar Instância
               </Button>
             </div>
-
-            {/* QR Code Display */}
-            {qrCode && (
-              <div className="flex flex-col items-center gap-4 rounded-lg border border-border bg-muted/30 p-6">
-                <p className="text-sm font-medium text-foreground">
-                  Escaneie o QR Code com seu WhatsApp
-                </p>
-                <img
-                  src={qrCode.startsWith("data:") ? qrCode : `data:image/png;base64,${qrCode}`}
-                  alt="QR Code WhatsApp"
-                  className="h-64 w-64 rounded-lg"
-                />
-                {pairingCode && (
-                  <div className="text-center">
-                    <p className="text-xs text-muted-foreground mb-1">
-                      Ou use o código de pareamento:
-                    </p>
-                    <p className="font-mono text-lg font-bold tracking-widest text-primary">
-                      {pairingCode}
-                    </p>
-                  </div>
-                )}
-                <Button variant="outline" size="sm" onClick={handleCheckStatus}>
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Verificar Conexão
-                </Button>
-              </div>
-            )}
           </CardContent>
         </Card>
       )}
