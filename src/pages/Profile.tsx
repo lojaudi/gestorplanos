@@ -110,6 +110,7 @@ const Profile = () => {
               avatarUrl={avatarUrl}
               fullName={fullName}
               onUploaded={(url) => setAvatarUrl(url)}
+              onRemoved={() => setAvatarUrl(null)}
             />
           </div>
           <div className="space-y-2">
