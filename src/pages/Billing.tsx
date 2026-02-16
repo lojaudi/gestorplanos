@@ -163,21 +163,22 @@ export default function Billing() {
     return result;
   };
 
-  const handleSendBulk = async () => {
+  const handleSendBulk = async (overrideClients?: Client[]) => {
     const template = templates.find((t) => t.id === templateId);
     if (!template) {
       toast({ title: "Selecione um template", variant: "destructive" });
       return;
     }
-    if (selected.size === 0) {
+
+    const targetClients = overrideClients || filteredClients.filter((c) => selected.has(c.id));
+    if (targetClients.length === 0) {
       toast({ title: "Selecione pelo menos um cliente", variant: "destructive" });
       return;
     }
 
     setSending(true);
     try {
-      const selectedClients = filteredClients.filter((c) => selected.has(c.id));
-      const messages = selectedClients.map((client) => ({
+      const messages = targetClients.map((client) => ({
         phone: client.phone,
         message: resolveTemplate(template, client),
         client_id: client.id,
@@ -267,6 +268,85 @@ export default function Billing() {
         </Card>
       </div>
 
+      {/* Quick Send Buttons */}
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Button
+          variant="outline"
+          className="h-auto flex-col gap-1 p-4 border-yellow-500/30 hover:bg-yellow-500/10"
+          disabled={sending || !templateId}
+          onClick={() => {
+            const dueTodayClients = clients.filter((c) => c.due_date === today);
+            if (dueTodayClients.length === 0) {
+              toast({ title: "Nenhum cliente vencendo hoje", variant: "destructive" });
+              return;
+            }
+            if (!templateId) {
+              toast({ title: "Selecione um template primeiro", variant: "destructive" });
+              return;
+            }
+            setFilter("due_today");
+            setSelected(new Set(dueTodayClients.map((c) => c.id)));
+            handleSendBulk(dueTodayClients);
+          }}
+        >
+          <Clock className="h-5 w-5 text-yellow-500" />
+          <span className="font-semibold">Enviar cobrança - Vencendo hoje</span>
+          <span className="text-xs text-muted-foreground">
+            {clients.filter((c) => c.due_date === today).length} cliente(s)
+          </span>
+        </Button>
+        <Button
+          variant="outline"
+          className="h-auto flex-col gap-1 p-4 border-orange-500/30 hover:bg-orange-500/10"
+          disabled={sending || !templateId}
+          onClick={() => {
+            const next3Clients = clients.filter((c) => c.due_date > today && c.due_date <= in3Days);
+            if (next3Clients.length === 0) {
+              toast({ title: "Nenhum cliente vencendo nos próximos 3 dias", variant: "destructive" });
+              return;
+            }
+            if (!templateId) {
+              toast({ title: "Selecione um template primeiro", variant: "destructive" });
+              return;
+            }
+            setFilter("next_3_days");
+            setSelected(new Set(next3Clients.map((c) => c.id)));
+            handleSendBulk(next3Clients);
+          }}
+        >
+          <AlertTriangle className="h-5 w-5 text-orange-500" />
+          <span className="font-semibold">Enviar cobrança - Próximos 3 dias</span>
+          <span className="text-xs text-muted-foreground">
+            {clients.filter((c) => c.due_date > today && c.due_date <= in3Days).length} cliente(s)
+          </span>
+        </Button>
+        <Button
+          variant="outline"
+          className="h-auto flex-col gap-1 p-4 border-destructive/30 hover:bg-destructive/10"
+          disabled={sending || !templateId}
+          onClick={() => {
+            const overdueClients = clients.filter((c) => c.due_date < today);
+            if (overdueClients.length === 0) {
+              toast({ title: "Nenhum cliente vencido", variant: "destructive" });
+              return;
+            }
+            if (!templateId) {
+              toast({ title: "Selecione um template primeiro", variant: "destructive" });
+              return;
+            }
+            setFilter("overdue");
+            setSelected(new Set(overdueClients.map((c) => c.id)));
+            handleSendBulk(overdueClients);
+          }}
+        >
+          <AlertTriangle className="h-5 w-5 text-destructive" />
+          <span className="font-semibold">Enviar cobrança - Vencido</span>
+          <span className="text-xs text-muted-foreground">
+            {clients.filter((c) => c.due_date < today).length} cliente(s)
+          </span>
+        </Button>
+      </div>
+
       {/* Controls */}
       <Card>
         <CardHeader>
@@ -305,7 +385,7 @@ export default function Billing() {
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={handleSendBulk} disabled={sending || selected.size === 0 || !templateId}>
+            <Button onClick={() => handleSendBulk()} disabled={sending || selected.size === 0 || !templateId}>
               {sending ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               ) : (
