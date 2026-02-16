@@ -38,6 +38,7 @@ interface PaymentLink {
 export default function PaymentGateway() {
   const { user } = useAuth();
   const [accessToken, setAccessToken] = useState("");
+  const [pixKey, setPixKey] = useState("");
   const [isEnabled, setIsEnabled] = useState(false);
   const [hasConfig, setHasConfig] = useState(false);
   const [showToken, setShowToken] = useState(false);
@@ -74,6 +75,7 @@ export default function PaymentGateway() {
       if (configRes.config) {
         setHasConfig(true);
         setIsEnabled(configRes.config.is_enabled);
+        setPixKey(configRes.config.pix_key || "");
       }
       setPayments(paymentsRes.payments || []);
     } catch {
@@ -85,8 +87,8 @@ export default function PaymentGateway() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleSave = async () => {
-    if (!accessToken && !hasConfig) {
-      toast({ title: "Informe o Access Token", variant: "destructive" });
+    if (!accessToken && !hasConfig && !pixKey) {
+      toast({ title: "Informe o Access Token ou a Chave Pix", variant: "destructive" });
       return;
     }
     setSaving(true);
@@ -94,6 +96,7 @@ export default function PaymentGateway() {
       await callMercadoPago("save-config", {
         access_token: accessToken || undefined,
         is_enabled: isEnabled,
+        pix_key: pixKey,
       });
       setHasConfig(true);
       setAccessToken("");
@@ -179,6 +182,20 @@ export default function PaymentGateway() {
                 Deixe em branco para manter o token atual
               </p>
             )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="pix-key">Chave Pix Fixa (fallback)</Label>
+            <Input
+              id="pix-key"
+              type="text"
+              placeholder="CPF, CNPJ, e-mail, telefone ou chave aleatória"
+              value={pixKey}
+              onChange={(e) => setPixKey(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Usada como alternativa quando o Mercado Pago não estiver ativado. Será inserida nas variáveis {"{meio_de_pagamento}"} e {"{link_pagamento}"}.
+            </p>
           </div>
 
           <Button onClick={handleSave} disabled={saving}>

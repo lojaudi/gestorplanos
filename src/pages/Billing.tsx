@@ -87,6 +87,7 @@ export default function Billing() {
   const [pixDescription, setPixDescription] = useState("");
   const [generatingPix, setGeneratingPix] = useState(false);
   const [gatewayEnabled, setGatewayEnabled] = useState(false);
+  const [fixedPixKey, setFixedPixKey] = useState("");
 
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -118,6 +119,7 @@ export default function Billing() {
       );
       const configData = await res.json();
       setGatewayEnabled(configData.config?.is_enabled || false);
+      setFixedPixKey(configData.config?.pix_key || "");
     } catch {
       // ignore
     }
@@ -238,15 +240,17 @@ export default function Billing() {
 
     setSending(true);
     try {
-      const needsPix = template.content.includes("{meio_de_pagamento}") && gatewayEnabled;
-      const needsLink = template.content.includes("{link_pagamento}") && gatewayEnabled;
+      const hasMeioPagamento = template.content.includes("{meio_de_pagamento}");
+      const hasLinkPagamento = template.content.includes("{link_pagamento}");
+      const needsMpPix = (hasMeioPagamento || hasLinkPagamento) && gatewayEnabled;
+      const useFixedPix = (hasMeioPagamento || hasLinkPagamento) && !gatewayEnabled && !!fixedPixKey;
       const messages = [];
 
       for (const client of targetClients) {
         let pixCode = "";
         let paymentLinkId = "";
 
-        if (needsPix || needsLink) {
+        if (needsMpPix) {
           const plan = plans.find((p) => p.id === client.plan_id);
           const amount = plan?.price;
 
@@ -272,6 +276,8 @@ export default function Billing() {
               });
             }
           }
+        } else if (useFixedPix) {
+          pixCode = fixedPixKey;
         }
 
         messages.push({
