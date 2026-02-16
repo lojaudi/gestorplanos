@@ -2,7 +2,7 @@ import { useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { Camera, Loader2 } from "lucide-react";
+import { Camera, Loader2, Trash2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface AvatarUploadProps {
@@ -11,6 +11,7 @@ interface AvatarUploadProps {
   fullName: string;
   size?: "sm" | "lg";
   onUploaded?: (url: string) => void;
+  onRemoved?: () => void;
   editable?: boolean;
 }
 
@@ -20,9 +21,11 @@ export function AvatarUpload({
   fullName,
   size = "lg",
   onUploaded,
+  onRemoved,
   editable = true,
 }: AvatarUploadProps) {
   const [uploading, setUploading] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const initials = (fullName || "U")
@@ -81,6 +84,36 @@ export function AvatarUpload({
     if (inputRef.current) inputRef.current.value = "";
   };
 
+  const handleRemove = async () => {
+    setRemoving(true);
+    try {
+      // List and remove all files in user folder
+      const { data: files } = await supabase.storage
+        .from("avatars")
+        .list(userId);
+
+      if (files && files.length > 0) {
+        const paths = files.map((f) => `${userId}/${f.name}`);
+        await supabase.storage.from("avatars").remove(paths);
+      }
+
+      const { error } = await supabase
+        .from("profiles")
+        .update({ avatar_url: null })
+        .eq("user_id", userId);
+
+      if (error) throw error;
+
+      onRemoved?.();
+      toast({ title: "Foto removida com sucesso" });
+    } catch (err: any) {
+      toast({ title: "Erro ao remover foto", description: err.message, variant: "destructive" });
+    }
+    setRemoving(false);
+  };
+
+  const busy = uploading || removing;
+
   return (
     <div className="relative inline-block">
       <Avatar className={sizeClass}>
@@ -88,21 +121,21 @@ export function AvatarUpload({
         <AvatarFallback className={sizeClass}>{initials}</AvatarFallback>
       </Avatar>
       {editable && (
-        <>
+        <div className="absolute -bottom-1 -right-1 flex gap-1">
           <input
             ref={inputRef}
             type="file"
             accept="image/*"
             className="hidden"
             onChange={handleUpload}
-            disabled={uploading}
+            disabled={busy}
           />
           <Button
             variant="secondary"
             size="icon"
-            className="absolute -bottom-1 -right-1 h-8 w-8 rounded-full shadow-md"
+            className="h-8 w-8 rounded-full shadow-md"
             onClick={() => inputRef.current?.click()}
-            disabled={uploading}
+            disabled={busy}
           >
             {uploading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -110,7 +143,22 @@ export function AvatarUpload({
               <Camera className="h-4 w-4" />
             )}
           </Button>
-        </>
+          {avatarUrl && (
+            <Button
+              variant="destructive"
+              size="icon"
+              className="h-8 w-8 rounded-full shadow-md"
+              onClick={handleRemove}
+              disabled={busy}
+            >
+              {removing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+            </Button>
+          )}
+        </div>
       )}
     </div>
   );
