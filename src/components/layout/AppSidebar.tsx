@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { usePlatformSettings } from "@/contexts/PlatformSettingsContext";
 
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
@@ -44,6 +45,7 @@ export function AppSidebar() {
   const { user, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const platform = usePlatformSettings();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [fullName, setFullName] = useState("");
 
@@ -67,13 +69,19 @@ export function AppSidebar() {
   return (
     <aside className="flex h-screen w-64 flex-col bg-sidebar text-sidebar-foreground">
       <div className="flex items-center gap-3 border-b border-sidebar-border p-5">
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-primary">
-          <MessageSquare className="h-5 w-5 text-sidebar-primary-foreground" />
-        </div>
-        <div>
-          <h1 className="text-sm font-bold text-sidebar-primary-foreground">CobrançaZap</h1>
-          <p className="text-xs text-sidebar-foreground/60">Gestão de Cobranças</p>
-        </div>
+        {platform.logo_url ? (
+          <img src={platform.logo_url} alt={platform.system_name} className="h-9 w-auto max-w-[140px] object-contain" />
+        ) : (
+          <>
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-primary">
+              <MessageSquare className="h-5 w-5 text-sidebar-primary-foreground" />
+            </div>
+            <div>
+              <h1 className="text-sm font-bold text-sidebar-primary-foreground">{platform.system_name}</h1>
+              <p className="text-xs text-sidebar-foreground/60">Gestão de Cobranças</p>
+            </div>
+          </>
+        )}
       </div>
 
       <nav className="flex-1 space-y-1 p-3">
