@@ -87,8 +87,7 @@ serve(async (req) => {
     const supabase = getServiceClient();
 
     if (action === "save-config") {
-      const { access_token, is_enabled } = params;
-      if (!access_token) return errorResponse("Access Token é obrigatório");
+      const { access_token, is_enabled, pix_key } = params;
 
       const { data: existing } = await supabase
         .from("payment_gateway_config")
@@ -97,17 +96,23 @@ serve(async (req) => {
         .eq("provider", "mercado_pago")
         .maybeSingle();
 
+      const updateData: Record<string, unknown> = { is_enabled: is_enabled ?? false };
+      if (access_token) updateData.access_token = access_token;
+      if (pix_key !== undefined) updateData.pix_key = pix_key;
+
       if (existing) {
         await supabase
           .from("payment_gateway_config")
-          .update({ access_token, is_enabled: is_enabled ?? false })
+          .update(updateData)
           .eq("id", existing.id);
       } else {
+        if (!access_token && !pix_key) return errorResponse("Informe o Access Token ou a Chave Pix");
         await supabase.from("payment_gateway_config").insert({
           user_id: user.id,
           provider: "mercado_pago",
-          access_token,
+          access_token: access_token || "",
           is_enabled: is_enabled ?? false,
+          pix_key: pix_key || "",
         });
       }
 
@@ -117,7 +122,7 @@ serve(async (req) => {
     if (action === "get-config") {
       const { data } = await supabase
         .from("payment_gateway_config")
-        .select("id, provider, is_enabled, created_at, updated_at")
+        .select("id, provider, is_enabled, pix_key, created_at, updated_at")
         .eq("user_id", user.id)
         .eq("provider", "mercado_pago")
         .maybeSingle();

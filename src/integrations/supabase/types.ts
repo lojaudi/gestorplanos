@@ -145,6 +145,7 @@ export type Database = {
           created_at: string
           id: string
           is_enabled: boolean
+          pix_key: string | null
           provider: string
           updated_at: string
           user_id: string
@@ -154,6 +155,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_enabled?: boolean
+          pix_key?: string | null
           provider?: string
           updated_at?: string
           user_id: string
@@ -163,6 +165,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_enabled?: boolean
+          pix_key?: string | null
           provider?: string
           updated_at?: string
           user_id?: string
