@@ -174,7 +174,7 @@ export default function Billing() {
     nextDue.setMonth(nextDue.getMonth() + 1);
     const formattedNextDue = nextDue.toLocaleDateString("pt-BR");
 
-    const paymentLink = paymentLinkId ? `${window.location.origin}/pay?id=${paymentLinkId}` : "";
+    const paymentLink = paymentLinkId ? `${window.location.origin}/pay?id=${paymentLinkId}` : (pixCode || "");
 
     return template.content
       .replace(/{nome}/g, client.name)
