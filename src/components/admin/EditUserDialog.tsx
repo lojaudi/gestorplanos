@@ -11,6 +11,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { Save } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface UserProfile {
   id: string;
@@ -33,6 +43,7 @@ export function EditUserDialog({ user, open, onOpenChange, onUpdated }: EditUser
   const [email, setEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [saving, setSaving] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   // Sync state when user changes
   const handleOpenChange = (isOpen: boolean) => {
@@ -102,12 +113,27 @@ export function EditUserDialog({ user, open, onOpenChange, onUpdated }: EditUser
               placeholder="Mínimo 6 caracteres"
             />
           </div>
-          <Button onClick={handleSave} disabled={saving} className="w-full">
+          <Button onClick={() => setConfirmOpen(true)} disabled={saving} className="w-full">
             <Save className="mr-2 h-4 w-4" />
             {saving ? "Salvando..." : "Salvar"}
           </Button>
         </div>
       </DialogContent>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmar alterações</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja salvar as alterações deste usuário?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSave}>Confirmar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
