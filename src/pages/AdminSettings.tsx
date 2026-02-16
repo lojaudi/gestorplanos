@@ -14,6 +14,7 @@ interface PlatformSettings {
   system_name: string;
   logo_url: string | null;
   favicon_url: string | null;
+  login_bg_url: string | null;
   primary_color: string;
   secondary_color: string;
   accent_color: string;
@@ -26,8 +27,10 @@ const AdminSettings = () => {
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingFavicon, setUploadingFavicon] = useState(false);
+  const [uploadingLoginBg, setUploadingLoginBg] = useState(false);
   const logoRef = useRef<HTMLInputElement>(null);
   const faviconRef = useRef<HTMLInputElement>(null);
+  const loginBgRef = useRef<HTMLInputElement>(null);
 
   const fetchSettings = async () => {
     setLoading(true);
@@ -85,6 +88,14 @@ const AdminSettings = () => {
     if (faviconRef.current) faviconRef.current.value = "";
   };
 
+  const handleLoginBgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !settings) return;
+    const url = await uploadFile(file, "login-bg", setUploadingLoginBg);
+    if (url) setSettings({ ...settings, login_bg_url: url });
+    if (loginBgRef.current) loginBgRef.current.value = "";
+  };
+
   const handleSave = async () => {
     if (!settings) return;
     setSaving(true);
@@ -94,6 +105,7 @@ const AdminSettings = () => {
         system_name: settings.system_name,
         logo_url: settings.logo_url,
         favicon_url: settings.favicon_url,
+        login_bg_url: settings.login_bg_url,
         primary_color: settings.primary_color,
         secondary_color: settings.secondary_color,
         accent_color: settings.accent_color,
@@ -195,6 +207,35 @@ const AdminSettings = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Login Background */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Imagem de Fundo da Tela de Login</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Recomendado: imagem JPG ou PNG, resolução mínima de 1920×1080px, tamanho máximo de 2MB.
+          </p>
+          {settings.login_bg_url && (
+            <div className="flex items-center gap-3">
+              <img src={settings.login_bg_url} alt="Login Background" className="h-24 w-auto rounded border object-cover bg-muted" />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSettings({ ...settings, login_bg_url: null })}
+              >
+                <Trash2 className="h-4 w-4 text-destructive" />
+              </Button>
+            </div>
+          )}
+          <input ref={loginBgRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleLoginBgUpload} />
+          <Button variant="outline" onClick={() => loginBgRef.current?.click()} disabled={uploadingLoginBg}>
+            {uploadingLoginBg ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+            {uploadingLoginBg ? "Enviando..." : "Enviar Imagem de Fundo"}
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Colors */}
       <Card>

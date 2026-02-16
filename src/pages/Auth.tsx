@@ -56,8 +56,11 @@ const Auth = () => {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
+    <div
+      className="flex min-h-screen items-center justify-center bg-background bg-cover bg-center bg-no-repeat p-4"
+      style={platform.login_bg_url ? { backgroundImage: `url(${platform.login_bg_url})` } : undefined}
+    >
+      <Card className="w-full max-w-md backdrop-blur-sm bg-card/95">
         <CardHeader className="text-center">
           {platform.logo_url ? (
             <img src={platform.logo_url} alt={platform.system_name} className="h-14 w-auto max-w-[180px] object-contain mx-auto mb-4" />
