@@ -10,6 +10,7 @@ import {
   Settings,
   LogOut,
   Shield,
+  UserCog,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ const navItems = [
   { icon: CreditCard, label: "Cobranças", path: "/billing" },
   { icon: CreditCard, label: "Gateway Pagamento", path: "/payment-gateway" },
   { icon: Settings, label: "Logs de Envio", path: "/logs" },
+  { icon: UserCog, label: "Meu Perfil", path: "/profile" },
 ];
 
 const adminItems = [
