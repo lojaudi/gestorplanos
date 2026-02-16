@@ -18,6 +18,7 @@ import Billing from "./pages/Billing";
 import Logs from "./pages/Logs";
 import PaymentGateway from "./pages/PaymentGateway";
 import PaymentPage from "./pages/PaymentPage";
+import Profile from "./pages/Profile";
 
 const queryClient = new QueryClient();
 
@@ -39,6 +40,7 @@ const App = () => (
             <Route path="/billing" element={<ProtectedPage><Billing /></ProtectedPage>} />
             <Route path="/logs" element={<ProtectedPage><Logs /></ProtectedPage>} />
             <Route path="/payment-gateway" element={<ProtectedPage><PaymentGateway /></ProtectedPage>} />
+            <Route path="/profile" element={<ProtectedPage><Profile /></ProtectedPage>} />
             <Route path="/admin/users" element={<ProtectedPage><AdminUsers /></ProtectedPage>} />
             <Route path="/pay" element={<PaymentPage />} />
             <Route path="*" element={<NotFound />} />

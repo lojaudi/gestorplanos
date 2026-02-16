@@ -23,6 +23,8 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { EditUserDialog } from "@/components/admin/EditUserDialog";
+import { Pencil } from "lucide-react";
 
 interface UserProfile {
   id: string;
@@ -59,6 +61,8 @@ const AdminUsers = () => {
     totalMessages: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [editUser, setEditUser] = useState<UserProfile | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -270,11 +274,18 @@ const AdminUsers = () => {
                         {user.is_active ? "Ativo" : "Inativo"}
                       </Badge>
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="flex items-center gap-2">
                       <Switch
                         checked={user.is_active}
                         onCheckedChange={() => toggleActive(user)}
                       />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => { setEditUser(user); setEditOpen(true); }}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -290,6 +301,13 @@ const AdminUsers = () => {
           )}
         </CardContent>
       </Card>
+
+      <EditUserDialog
+        user={editUser}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        onUpdated={fetchData}
+      />
     </div>
   );
 };
