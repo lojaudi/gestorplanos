@@ -162,16 +162,17 @@ export default function Billing() {
     }
   };
 
-  const resolveTemplate = (template: Template, client: Client, pixCode?: string) => {
+  const resolveTemplate = (template: Template, client: Client, pixCode?: string, paymentLinkId?: string) => {
     const serviceName = services.find((s) => s.id === client.service_id)?.name || "";
     const planName = plans.find((p) => p.id === client.plan_id)?.name || "";
     const dueDate = new Date(client.due_date + "T12:00:00");
     const formattedDue = dueDate.toLocaleDateString("pt-BR");
 
-    // Calculate next due date (assume monthly for simplicity)
     const nextDue = new Date(dueDate);
     nextDue.setMonth(nextDue.getMonth() + 1);
     const formattedNextDue = nextDue.toLocaleDateString("pt-BR");
+
+    const paymentLink = paymentLinkId ? `${window.location.origin}/pay?id=${paymentLinkId}` : "";
 
     return template.content
       .replace(/{nome}/g, client.name)
@@ -180,7 +181,7 @@ export default function Billing() {
       .replace(/{data_vencimento}/g, formattedDue)
       .replace(/{data_pagamento}/g, new Date().toLocaleDateString("pt-BR"))
       .replace(/{proximo_vencimento}/g, formattedNextDue)
-      .replace(/{link_pagamento}/g, "")
+      .replace(/{link_pagamento}/g, paymentLink)
       .replace(/{meio_de_pagamento}/g, pixCode || "");
   };
 
@@ -238,12 +239,14 @@ export default function Billing() {
     setSending(true);
     try {
       const needsPix = template.content.includes("{meio_de_pagamento}") && gatewayEnabled;
+      const needsLink = template.content.includes("{link_pagamento}") && gatewayEnabled;
       const messages = [];
 
       for (const client of targetClients) {
         let pixCode = "";
+        let paymentLinkId = "";
 
-        if (needsPix) {
+        if (needsPix || needsLink) {
           const plan = plans.find((p) => p.id === client.plan_id);
           const amount = plan?.price;
 
@@ -260,6 +263,7 @@ export default function Billing() {
                 description: `Cobrança - ${client.name}`,
               });
               pixCode = pixResult.pix_copy_paste || "";
+              paymentLinkId = pixResult.payment_link_id || "";
             } catch (pixErr: any) {
               console.error("Erro ao gerar Pix para", client.name, pixErr);
               toast({
@@ -272,7 +276,7 @@ export default function Billing() {
 
         messages.push({
           phone: client.phone,
-          message: resolveTemplate(template, client, pixCode),
+          message: resolveTemplate(template, client, pixCode, paymentLinkId),
           client_id: client.id,
           template_type: template.type,
         });
