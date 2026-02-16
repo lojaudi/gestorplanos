@@ -1,0 +1,1 @@
+ALTER TABLE public.platform_settings ADD COLUMN login_bg_url text DEFAULT NULL;

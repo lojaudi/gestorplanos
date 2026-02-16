@@ -254,6 +254,7 @@ export type Database = {
           accent_color: string
           favicon_url: string | null
           id: string
+          login_bg_url: string | null
           logo_url: string | null
           primary_color: string
           secondary_color: string
@@ -264,6 +265,7 @@ export type Database = {
           accent_color?: string
           favicon_url?: string | null
           id?: string
+          login_bg_url?: string | null
           logo_url?: string | null
           primary_color?: string
           secondary_color?: string
@@ -274,6 +276,7 @@ export type Database = {
           accent_color?: string
           favicon_url?: string | null
           id?: string
+          login_bg_url?: string | null
           logo_url?: string | null
           primary_color?: string
           secondary_color?: string

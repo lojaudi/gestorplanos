@@ -5,6 +5,7 @@ interface PlatformSettings {
   system_name: string;
   logo_url: string | null;
   favicon_url: string | null;
+  login_bg_url: string | null;
   primary_color: string;
   secondary_color: string;
   accent_color: string;
@@ -14,6 +15,7 @@ const defaultSettings: PlatformSettings = {
   system_name: "CobrançaZap",
   logo_url: null,
   favicon_url: null,
+  login_bg_url: null,
   primary_color: "#3b82f6",
   secondary_color: "#1e40af",
   accent_color: "#f59e0b",
@@ -87,6 +89,7 @@ export function PlatformSettingsProvider({ children }: { children: ReactNode }) 
             system_name: data.system_name,
             logo_url: data.logo_url,
             favicon_url: data.favicon_url,
+            login_bg_url: data.login_bg_url,
             primary_color: data.primary_color,
             secondary_color: data.secondary_color,
             accent_color: data.accent_color,
