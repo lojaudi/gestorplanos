@@ -7,8 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { MessageSquare, Eye, EyeOff } from "lucide-react";
+import { usePlatformSettings } from "@/contexts/PlatformSettingsContext";
 
 const Auth = () => {
+  const platform = usePlatformSettings();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -57,11 +59,15 @@ const Auth = () => {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary">
-            <MessageSquare className="h-7 w-7 text-primary-foreground" />
-          </div>
+          {platform.logo_url ? (
+            <img src={platform.logo_url} alt={platform.system_name} className="h-14 w-auto max-w-[180px] object-contain mx-auto mb-4" />
+          ) : (
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-primary">
+              <MessageSquare className="h-7 w-7 text-primary-foreground" />
+            </div>
+          )}
           <CardTitle className="text-2xl">
-            {isLogin ? "Entrar" : "Criar Conta"}
+            {isLogin ? "Entrar" : "Criar Conta"} - {platform.system_name}
           </CardTitle>
           <CardDescription>
             {isLogin
