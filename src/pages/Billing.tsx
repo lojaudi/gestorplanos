@@ -29,7 +29,16 @@ import {
   CheckCircle,
   Loader2,
   MessageSquare,
+  QrCode,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface Client {
   id: string;
@@ -71,6 +80,12 @@ export default function Billing() {
   const [templateId, setTemplateId] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [pixDialogOpen, setPixDialogOpen] = useState(false);
+  const [pixClient, setPixClient] = useState<Client | null>(null);
+  const [pixAmount, setPixAmount] = useState("");
+  const [pixDescription, setPixDescription] = useState("");
+  const [generatingPix, setGeneratingPix] = useState(false);
+  const [gatewayEnabled, setGatewayEnabled] = useState(false);
 
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -84,6 +99,28 @@ export default function Billing() {
     setTemplates(templatesRes.data || []);
     setServices(servicesRes.data || []);
     setPlans(plansRes.data || []);
+
+    // Check if gateway is enabled
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mercado-pago`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.access_token}`,
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({ action: "get-config" }),
+        }
+      );
+      const configData = await res.json();
+      setGatewayEnabled(configData.config?.is_enabled || false);
+    } catch {
+      // ignore
+    }
+
     setLoading(false);
   }, [user]);
 
@@ -141,7 +178,8 @@ export default function Billing() {
       .replace(/{plano}/g, planName)
       .replace(/{data_vencimento}/g, formattedDue)
       .replace(/{data_pagamento}/g, new Date().toLocaleDateString("pt-BR"))
-      .replace(/{proximo_vencimento}/g, formattedNextDue);
+      .replace(/{proximo_vencimento}/g, formattedNextDue)
+      .replace(/{link_pagamento}/g, ""); // replaced after Pix is generated
   };
 
   const callEvolutionApi = async (action: string, extraParams = {}) => {
@@ -200,6 +238,43 @@ export default function Billing() {
       toast({ title: err.message, variant: "destructive" });
     }
     setSending(false);
+  };
+
+  const handleGeneratePix = async () => {
+    if (!pixClient || !pixAmount) return;
+    setGeneratingPix(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mercado-pago`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.access_token}`,
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({
+            action: "create-payment",
+            client_id: pixClient.id,
+            amount: Number(pixAmount),
+            description: pixDescription || `Cobrança - ${pixClient.name}`,
+          }),
+        }
+      );
+      const result = await res.json();
+      if (!res.ok) throw new Error(result.error || "Erro ao gerar Pix");
+
+      const paymentUrl = `${window.location.origin}/pay?id=${result.payment_link_id}`;
+      await navigator.clipboard.writeText(paymentUrl);
+      toast({ title: "Link Pix gerado e copiado para a área de transferência!" });
+      setPixDialogOpen(false);
+      setPixAmount("");
+      setPixDescription("");
+    } catch (err: any) {
+      toast({ title: err.message, variant: "destructive" });
+    }
+    setGeneratingPix(false);
   };
 
   if (loading) {
@@ -409,6 +484,7 @@ export default function Billing() {
                 <TableHead>Telefone</TableHead>
                 <TableHead>Vencimento</TableHead>
                 <TableHead>Status</TableHead>
+                {gatewayEnabled && <TableHead>Pix</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -430,6 +506,20 @@ export default function Billing() {
                     <TableCell>
                       <Badge variant={status.variant}>{status.label}</Badge>
                     </TableCell>
+                    {gatewayEnabled && (
+                      <TableCell>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            setPixClient(client);
+                            setPixDialogOpen(true);
+                          }}
+                        >
+                          <QrCode className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 );
               })}
@@ -438,12 +528,59 @@ export default function Billing() {
                   <TableCell colSpan={5} className="text-center text-muted-foreground py-10">
                     Nenhum cliente encontrado com este filtro
                   </TableCell>
-                </TableRow>
+              </TableRow>
               )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+
+      {/* Pix Generation Dialog */}
+      <Dialog open={pixDialogOpen} onOpenChange={setPixDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Gerar Cobrança Pix</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">
+              Cliente: <strong>{pixClient?.name}</strong>
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="pix-amount">Valor (R$)</Label>
+              <Input
+                id="pix-amount"
+                type="number"
+                step="0.01"
+                min="0.01"
+                placeholder="0,00"
+                value={pixAmount}
+                onChange={(e) => setPixAmount(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="pix-desc">Descrição (opcional)</Label>
+              <Input
+                id="pix-desc"
+                placeholder="Ex: Mensalidade Janeiro"
+                value={pixDescription}
+                onChange={(e) => setPixDescription(e.target.value)}
+              />
+            </div>
+            <Button
+              className="w-full"
+              disabled={generatingPix || !pixAmount}
+              onClick={handleGeneratePix}
+            >
+              {generatingPix ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <QrCode className="mr-2 h-4 w-4" />
+              )}
+              Gerar e Copiar Link Pix
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
