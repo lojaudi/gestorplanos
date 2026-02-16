@@ -203,6 +203,104 @@ serve(async (req) => {
       return jsonResponse(data);
     }
 
+    if (action === "send-message") {
+      const { phone, message, client_id, template_type } = params;
+      if (!phone || !message) {
+        return errorResponse("Telefone e mensagem são obrigatórios");
+      }
+
+      // Format phone: remove non-digits, ensure country code
+      const cleanPhone = phone.replace(/\D/g, "");
+      const formattedPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
+
+      let status = "sent";
+      let apiResponse = "";
+
+      try {
+        const result = await evolutionFetch(
+          api_url,
+          api_key,
+          `/message/sendText/${instance_name}`,
+          "POST",
+          {
+            number: formattedPhone,
+            text: message,
+          }
+        );
+        apiResponse = JSON.stringify(result);
+      } catch (sendErr) {
+        status = "error";
+        apiResponse = sendErr instanceof Error ? sendErr.message : String(sendErr);
+      }
+
+      // Log the message
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase = createClient(supabaseUrl, serviceKey);
+
+      await supabase.from("message_logs").insert({
+        user_id: user.id,
+        client_id: client_id || null,
+        message_content: message,
+        status,
+        template_type: template_type || "manual",
+        api_response: apiResponse,
+      });
+
+      return jsonResponse({ success: status === "sent", status, api_response: apiResponse });
+    }
+
+    if (action === "send-bulk") {
+      const { messages } = params;
+      if (!messages || !Array.isArray(messages) || messages.length === 0) {
+        return errorResponse("Lista de mensagens é obrigatória");
+      }
+
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase = createClient(supabaseUrl, serviceKey);
+
+      const results = [];
+
+      for (const msg of messages) {
+        const cleanPhone = msg.phone.replace(/\D/g, "");
+        const formattedPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
+
+        let status = "sent";
+        let apiResponse = "";
+
+        try {
+          const result = await evolutionFetch(
+            api_url,
+            api_key,
+            `/message/sendText/${instance_name}`,
+            "POST",
+            { number: formattedPhone, text: msg.message }
+          );
+          apiResponse = JSON.stringify(result);
+        } catch (sendErr) {
+          status = "error";
+          apiResponse = sendErr instanceof Error ? sendErr.message : String(sendErr);
+        }
+
+        await supabase.from("message_logs").insert({
+          user_id: user.id,
+          client_id: msg.client_id || null,
+          message_content: msg.message,
+          status,
+          template_type: msg.template_type || "cobranca",
+          api_response: apiResponse,
+        });
+
+        results.push({ client_id: msg.client_id, phone: msg.phone, status });
+
+        // Small delay between messages to avoid rate limiting
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+
+      return jsonResponse({ success: true, results });
+    }
+
     return errorResponse("Ação desconhecida: " + action);
   } catch (err) {
     console.error("Evolution API error:", err);
