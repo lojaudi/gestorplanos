@@ -23,7 +23,7 @@ function jsonResponse(data: unknown, status = 200) {
 
 async function getAuthUser(req: Request) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const supabaseKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY")!;
+  const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY")!;
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) return null;
 
