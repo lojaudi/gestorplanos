@@ -65,6 +65,7 @@ interface Service {
 interface Plan {
   id: string;
   name: string;
+  price: number | null;
 }
 
 type FilterType = "all" | "due_today" | "overdue" | "next_3_days" | "active";
@@ -93,7 +94,7 @@ export default function Billing() {
       supabase.from("clients").select("id, name, phone, due_date, username, plan_id, service_id").eq("user_id", user.id),
       supabase.from("message_templates").select("*").eq("user_id", user.id),
       supabase.from("services").select("id, name").eq("user_id", user.id),
-      supabase.from("plans").select("id, name").eq("user_id", user.id),
+      supabase.from("plans").select("id, name, price").eq("user_id", user.id),
     ]);
     setClients(clientsRes.data || []);
     setTemplates(templatesRes.data || []);
@@ -161,7 +162,7 @@ export default function Billing() {
     }
   };
 
-  const resolveTemplate = (template: Template, client: Client) => {
+  const resolveTemplate = (template: Template, client: Client, pixCode?: string) => {
     const serviceName = services.find((s) => s.id === client.service_id)?.name || "";
     const planName = plans.find((p) => p.id === client.plan_id)?.name || "";
     const dueDate = new Date(client.due_date + "T12:00:00");
@@ -179,13 +180,33 @@ export default function Billing() {
       .replace(/{data_vencimento}/g, formattedDue)
       .replace(/{data_pagamento}/g, new Date().toLocaleDateString("pt-BR"))
       .replace(/{proximo_vencimento}/g, formattedNextDue)
-      .replace(/{link_pagamento}/g, ""); // replaced after Pix is generated
+      .replace(/{link_pagamento}/g, "")
+      .replace(/{meio_de_pagamento}/g, pixCode || "");
   };
 
   const callEvolutionApi = async (action: string, extraParams = {}) => {
     const { data: { session } } = await supabase.auth.getSession();
     const res = await fetch(
       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/evolution-api`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({ action, ...extraParams }),
+      }
+    );
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || "Erro na requisição");
+    return result;
+  };
+
+  const callMercadoPago = async (action: string, extraParams = {}) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mercado-pago`,
       {
         method: "POST",
         headers: {
@@ -216,12 +237,46 @@ export default function Billing() {
 
     setSending(true);
     try {
-      const messages = targetClients.map((client) => ({
-        phone: client.phone,
-        message: resolveTemplate(template, client),
-        client_id: client.id,
-        template_type: template.type,
-      }));
+      const needsPix = template.content.includes("{meio_de_pagamento}") && gatewayEnabled;
+      const messages = [];
+
+      for (const client of targetClients) {
+        let pixCode = "";
+
+        if (needsPix) {
+          const plan = plans.find((p) => p.id === client.plan_id);
+          const amount = plan?.price;
+
+          if (!amount || amount <= 0) {
+            toast({
+              title: `Cliente "${client.name}" não tem plano com preço definido. Pulando Pix.`,
+              variant: "destructive",
+            });
+          } else {
+            try {
+              const pixResult = await callMercadoPago("create-payment", {
+                client_id: client.id,
+                amount,
+                description: `Cobrança - ${client.name}`,
+              });
+              pixCode = pixResult.pix_copy_paste || "";
+            } catch (pixErr: any) {
+              console.error("Erro ao gerar Pix para", client.name, pixErr);
+              toast({
+                title: `Erro ao gerar Pix para ${client.name}: ${pixErr.message}`,
+                variant: "destructive",
+              });
+            }
+          }
+        }
+
+        messages.push({
+          phone: client.phone,
+          message: resolveTemplate(template, client, pixCode),
+          client_id: client.id,
+          template_type: template.type,
+        });
+      }
 
       const result = await callEvolutionApi("send-bulk", { messages });
 
