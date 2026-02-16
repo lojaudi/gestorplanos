@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
@@ -14,6 +15,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
@@ -36,6 +39,25 @@ export function AppSidebar() {
   const { user, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [fullName, setFullName] = useState("");
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from("profiles")
+      .select("avatar_url, full_name")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setAvatarUrl(data.avatar_url || null);
+          setFullName(data.full_name || "");
+        }
+      });
+  }, [user]);
+
+  const initials = (fullName || user?.email?.[0] || "U").split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase();
 
   return (
     <aside className="flex h-screen w-64 flex-col bg-sidebar text-sidebar-foreground">
@@ -92,8 +114,15 @@ export function AppSidebar() {
       </nav>
 
       <div className="border-t border-sidebar-border p-3">
-        <div className="mb-2 px-3 text-xs text-sidebar-foreground/50 truncate">
-          {user?.email}
+        <div className="mb-2 flex items-center gap-2 px-3">
+          <Avatar className="h-8 w-8">
+            <AvatarImage src={avatarUrl || undefined} alt={fullName} />
+            <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+          </Avatar>
+          <div className="min-w-0">
+            {fullName && <p className="text-xs font-medium text-sidebar-foreground truncate">{fullName}</p>}
+            <p className="text-xs text-sidebar-foreground/50 truncate">{user?.email}</p>
+          </div>
         </div>
         <Button
           variant="ghost"

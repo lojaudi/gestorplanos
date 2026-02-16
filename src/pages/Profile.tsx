@@ -7,11 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { User, Lock, Save } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { AvatarUpload } from "@/components/AvatarUpload";
 
 const Profile = () => {
   const { user } = useAuth();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -29,10 +31,13 @@ const Profile = () => {
     if (!user) return;
     const { data } = await supabase
       .from("profiles")
-      .select("full_name")
+      .select("full_name, avatar_url")
       .eq("user_id", user.id)
       .maybeSingle();
-    if (data) setFullName(data.full_name || "");
+    if (data) {
+      setFullName(data.full_name || "");
+      setAvatarUrl(data.avatar_url || null);
+    }
   };
 
   const handleSaveProfile = async () => {
@@ -99,6 +104,14 @@ const Profile = () => {
           <CardTitle className="text-lg">Dados Pessoais</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="flex justify-center">
+            <AvatarUpload
+              userId={user?.id || ""}
+              avatarUrl={avatarUrl}
+              fullName={fullName}
+              onUploaded={(url) => setAvatarUrl(url)}
+            />
+          </div>
           <div className="space-y-2">
             <Label htmlFor="fullName">Nome Completo</Label>
             <Input

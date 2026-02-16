@@ -25,7 +25,7 @@ import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { EditUserDialog } from "@/components/admin/EditUserDialog";
 import { Pencil } from "lucide-react";
-
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 interface UserProfile {
   id: string;
   user_id: string;
@@ -33,6 +33,7 @@ interface UserProfile {
   email: string;
   is_active: boolean;
   created_at: string;
+  avatar_url?: string | null;
   clientCount?: number;
 }
 
@@ -262,7 +263,15 @@ const AdminUsers = () => {
                 {users.map((user) => (
                   <TableRow key={user.id}>
                     <TableCell className="font-medium">
-                      {user.full_name || "Sem nome"}
+                      <div className="flex items-center gap-2">
+                        <Avatar className="h-8 w-8">
+                          <AvatarImage src={user.avatar_url || undefined} />
+                          <AvatarFallback className="text-xs">
+                            {(user.full_name || "U").split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        {user.full_name || "Sem nome"}
+                      </div>
                     </TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>{user.clientCount}</TableCell>
