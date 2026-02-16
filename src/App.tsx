@@ -14,6 +14,8 @@ import Plans from "./pages/Plans";
 import Clients from "./pages/Clients";
 import AdminUsers from "./pages/AdminUsers";
 import WhatsApp from "./pages/WhatsApp";
+import Billing from "./pages/Billing";
+import Logs from "./pages/Logs";
 
 const queryClient = new QueryClient();
 
@@ -32,6 +34,8 @@ const App = () => (
             <Route path="/clients" element={<ProtectedPage><Clients /></ProtectedPage>} />
             <Route path="/templates" element={<ProtectedPage><Templates /></ProtectedPage>} />
             <Route path="/whatsapp" element={<ProtectedPage><WhatsApp /></ProtectedPage>} />
+            <Route path="/billing" element={<ProtectedPage><Billing /></ProtectedPage>} />
+            <Route path="/logs" element={<ProtectedPage><Logs /></ProtectedPage>} />
             <Route path="/admin/users" element={<ProtectedPage><AdminUsers /></ProtectedPage>} />
             <Route path="*" element={<NotFound />} />
           </Routes>

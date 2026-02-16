@@ -21,6 +21,7 @@ const navItems = [
   { icon: CreditCard, label: "Planos", path: "/plans" },
   { icon: FileText, label: "Templates", path: "/templates" },
   { icon: MessageSquare, label: "WhatsApp", path: "/whatsapp" },
+  { icon: CreditCard, label: "Cobranças", path: "/billing" },
   { icon: Settings, label: "Logs de Envio", path: "/logs" },
 ];
 
