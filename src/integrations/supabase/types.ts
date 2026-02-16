@@ -139,6 +139,86 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_gateway_config: {
+        Row: {
+          access_token: string
+          created_at: string
+          id: string
+          is_enabled: boolean
+          provider: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token: string
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          provider?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token?: string
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          provider?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      payment_links: {
+        Row: {
+          amount: number
+          client_id: string | null
+          created_at: string
+          description: string
+          expires_at: string | null
+          id: string
+          mp_payment_id: string | null
+          pix_copy_paste: string | null
+          qr_code_base64: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          client_id?: string | null
+          created_at?: string
+          description?: string
+          expires_at?: string | null
+          id?: string
+          mp_payment_id?: string | null
+          pix_copy_paste?: string | null
+          qr_code_base64?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          client_id?: string | null
+          created_at?: string
+          description?: string
+          expires_at?: string | null
+          id?: string
+          mp_payment_id?: string | null
+          pix_copy_paste?: string | null
+          qr_code_base64?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_links_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plans: {
         Row: {
           created_at: string

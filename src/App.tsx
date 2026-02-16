@@ -16,6 +16,8 @@ import AdminUsers from "./pages/AdminUsers";
 import WhatsApp from "./pages/WhatsApp";
 import Billing from "./pages/Billing";
 import Logs from "./pages/Logs";
+import PaymentGateway from "./pages/PaymentGateway";
+import PaymentPage from "./pages/PaymentPage";
 
 const queryClient = new QueryClient();
 
@@ -36,7 +38,9 @@ const App = () => (
             <Route path="/whatsapp" element={<ProtectedPage><WhatsApp /></ProtectedPage>} />
             <Route path="/billing" element={<ProtectedPage><Billing /></ProtectedPage>} />
             <Route path="/logs" element={<ProtectedPage><Logs /></ProtectedPage>} />
+            <Route path="/payment-gateway" element={<ProtectedPage><PaymentGateway /></ProtectedPage>} />
             <Route path="/admin/users" element={<ProtectedPage><AdminUsers /></ProtectedPage>} />
+            <Route path="/pay" element={<PaymentPage />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

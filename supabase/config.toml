@@ -1,1 +1,7 @@
 project_id = "efowcydxnypklhtlvccy"
+
+[functions.evolution-api]
+verify_jwt = false
+
+[functions.mercado-pago]
+verify_jwt = false
