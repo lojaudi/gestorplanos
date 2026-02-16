@@ -40,6 +40,7 @@ const variables = [
   { tag: "{data_vencimento}", description: "Data de vencimento" },
   { tag: "{data_pagamento}", description: "Data do pagamento" },
   { tag: "{proximo_vencimento}", description: "Data do próximo vencimento" },
+  { tag: "{meio_de_pagamento}", description: "Código Pix gerado automaticamente (requer Gateway ativo)" },
 ];
 
 const sampleData: Record<string, string> = {
@@ -49,6 +50,7 @@ const sampleData: Record<string, string> = {
   "{data_vencimento}": "15/03/2026",
   "{data_pagamento}": "14/03/2026",
   "{proximo_vencimento}": "15/04/2026",
+  "{meio_de_pagamento}": "00020126580014br.gov.bcb.pix0136exemplo-chave-pix-aqui5204000053039865802BR5913Exemplo6008Cidade62070503***6304ABCD",
 };
 
 const replaceVariables = (content: string) => {
