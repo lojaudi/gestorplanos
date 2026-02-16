@@ -487,6 +487,44 @@ export default function Billing() {
         </Button>
       </div>
 
+      {/* Payment Method Indicator */}
+      <div className={`flex items-center gap-3 rounded-lg border p-3 ${
+        gatewayEnabled
+          ? "border-green-500/30 bg-green-500/5"
+          : fixedPixKey
+            ? "border-yellow-500/30 bg-yellow-500/5"
+            : "border-muted bg-muted/30"
+      }`}>
+        {gatewayEnabled ? (
+          <>
+            <QrCode className="h-5 w-5 text-green-500 shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-foreground">Mercado Pago ativo</p>
+              <p className="text-xs text-muted-foreground">Cobranças Pix serão geradas automaticamente via API</p>
+            </div>
+            <Badge variant="default" className="ml-auto bg-green-600 hover:bg-green-600">MP Ativo</Badge>
+          </>
+        ) : fixedPixKey ? (
+          <>
+            <QrCode className="h-5 w-5 text-yellow-500 shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-foreground">Chave Pix fixa</p>
+              <p className="text-xs text-muted-foreground">As variáveis de pagamento usarão a chave: <code className="bg-muted px-1 rounded text-xs">{fixedPixKey}</code></p>
+            </div>
+            <Badge variant="secondary" className="ml-auto">Pix Fixo</Badge>
+          </>
+        ) : (
+          <>
+            <AlertTriangle className="h-5 w-5 text-muted-foreground shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-foreground">Sem meio de pagamento</p>
+              <p className="text-xs text-muted-foreground">Configure o Mercado Pago ou uma chave Pix fixa no Gateway de Pagamento</p>
+            </div>
+            <Badge variant="outline" className="ml-auto">Inativo</Badge>
+          </>
+        )}
+      </div>
+
       {/* Controls */}
       <Card>
         <CardHeader>
