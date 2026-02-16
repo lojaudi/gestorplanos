@@ -21,6 +21,12 @@ function jsonResponse(data: unknown, status = 200) {
   });
 }
 
+function getServiceClient() {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  return createClient(supabaseUrl, serviceKey);
+}
+
 async function getAuthUser(req: Request) {
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const supabaseKey = Deno.env.get("SUPABASE_ANON_KEY") || Deno.env.get("SUPABASE_PUBLISHABLE_KEY")!;
@@ -34,17 +40,34 @@ async function getAuthUser(req: Request) {
   return user;
 }
 
-async function getUserConfig(userId: string) {
-  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const supabase = createClient(supabaseUrl, serviceKey);
+async function checkIsAdmin(userId: string) {
+  const supabase = getServiceClient();
+  const { data } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("role", "admin")
+    .maybeSingle();
+  return !!data;
+}
 
+async function getGlobalConfig() {
+  const supabase = getServiceClient();
+  const { data } = await supabase
+    .from("whatsapp_global_config")
+    .select("*")
+    .limit(1)
+    .maybeSingle();
+  return data;
+}
+
+async function getUserConfig(userId: string) {
+  const supabase = getServiceClient();
   const { data } = await supabase
     .from("whatsapp_config")
     .select("*")
     .eq("user_id", userId)
     .maybeSingle();
-
   return data;
 }
 
@@ -86,17 +109,53 @@ serve(async (req) => {
 
     const { action, ...params } = await req.json();
 
-    // Actions that don't require existing config
-    if (action === "save-config") {
-      const { api_url, api_key, instance_name } = params;
-      if (!api_url || !api_key || !instance_name) {
-        return errorResponse("URL da API, chave e nome da instância são obrigatórios");
+    // === ADMIN ACTIONS: save/get global config ===
+    if (action === "save-global-config") {
+      const isAdmin = await checkIsAdmin(user.id);
+      if (!isAdmin) return errorResponse("Acesso negado", 403);
+
+      const { api_url, api_key } = params;
+      if (!api_url || !api_key) {
+        return errorResponse("URL da API e chave são obrigatórios");
       }
 
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-      const supabase = createClient(supabaseUrl, serviceKey);
+      const supabase = getServiceClient();
+      const existing = await getGlobalConfig();
 
+      if (existing) {
+        await supabase
+          .from("whatsapp_global_config")
+          .update({ api_url, api_key })
+          .eq("id", existing.id);
+      } else {
+        await supabase.from("whatsapp_global_config").insert({ api_url, api_key });
+      }
+
+      return jsonResponse({ success: true });
+    }
+
+    if (action === "get-global-config") {
+      const isAdmin = await checkIsAdmin(user.id);
+      if (!isAdmin) return errorResponse("Acesso negado", 403);
+
+      const config = await getGlobalConfig();
+      return jsonResponse({ config });
+    }
+
+    // === USER ACTIONS: save instance name ===
+    if (action === "save-config") {
+      const { instance_name } = params;
+      if (!instance_name) {
+        return errorResponse("Nome da instância é obrigatório");
+      }
+
+      // We need global config to exist
+      const globalConfig = await getGlobalConfig();
+      if (!globalConfig) {
+        return errorResponse("Configuração global do WhatsApp não encontrada. Contate o administrador.");
+      }
+
+      const supabase = getServiceClient();
       const { data: existing } = await supabase
         .from("whatsapp_config")
         .select("id")
@@ -106,13 +165,13 @@ serve(async (req) => {
       if (existing) {
         await supabase
           .from("whatsapp_config")
-          .update({ api_url, api_key, instance_name, is_connected: false })
+          .update({ instance_name, api_url: globalConfig.api_url, api_key: globalConfig.api_key, is_connected: false })
           .eq("id", existing.id);
       } else {
         await supabase.from("whatsapp_config").insert({
           user_id: user.id,
-          api_url,
-          api_key,
+          api_url: globalConfig.api_url,
+          api_key: globalConfig.api_key,
           instance_name,
         });
       }
@@ -120,11 +179,17 @@ serve(async (req) => {
       return jsonResponse({ success: true });
     }
 
-    // All other actions require existing config
-    const config = await getUserConfig(user.id);
-    if (!config) return errorResponse("Configuração WhatsApp não encontrada");
+    // All other actions require existing user config + global config
+    const globalConfig = await getGlobalConfig();
+    if (!globalConfig) {
+      return errorResponse("Configuração global do WhatsApp não encontrada. Contate o administrador.");
+    }
 
-    const { api_url, api_key, instance_name } = config;
+    const config = await getUserConfig(user.id);
+    if (!config) return errorResponse("Configuração WhatsApp não encontrada. Salve o nome da instância primeiro.");
+
+    const { api_url, api_key } = globalConfig;
+    const { instance_name } = config;
 
     if (action === "create-instance") {
       const data = await evolutionFetch(api_url, api_key, "/instance/create", "POST", {
@@ -153,10 +218,7 @@ serve(async (req) => {
 
       const connected = data?.instance?.state === "open";
 
-      // Update DB status
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-      const supabase = createClient(supabaseUrl, serviceKey);
+      const supabase = getServiceClient();
       await supabase
         .from("whatsapp_config")
         .update({ is_connected: connected })
@@ -173,9 +235,7 @@ serve(async (req) => {
         "DELETE"
       );
 
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-      const supabase = createClient(supabaseUrl, serviceKey);
+      const supabase = getServiceClient();
       await supabase
         .from("whatsapp_config")
         .update({ is_connected: false })
@@ -192,9 +252,7 @@ serve(async (req) => {
         "DELETE"
       );
 
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-      const supabase = createClient(supabaseUrl, serviceKey);
+      const supabase = getServiceClient();
       await supabase
         .from("whatsapp_config")
         .update({ is_connected: false })
@@ -209,7 +267,6 @@ serve(async (req) => {
         return errorResponse("Telefone e mensagem são obrigatórios");
       }
 
-      // Format phone: remove non-digits, ensure country code
       const cleanPhone = phone.replace(/\D/g, "");
       const formattedPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
 
@@ -222,10 +279,7 @@ serve(async (req) => {
           api_key,
           `/message/sendText/${instance_name}`,
           "POST",
-          {
-            number: formattedPhone,
-            text: message,
-          }
+          { number: formattedPhone, text: message }
         );
         apiResponse = JSON.stringify(result);
       } catch (sendErr) {
@@ -233,11 +287,7 @@ serve(async (req) => {
         apiResponse = sendErr instanceof Error ? sendErr.message : String(sendErr);
       }
 
-      // Log the message
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-      const supabase = createClient(supabaseUrl, serviceKey);
-
+      const supabase = getServiceClient();
       await supabase.from("message_logs").insert({
         user_id: user.id,
         client_id: client_id || null,
@@ -256,10 +306,7 @@ serve(async (req) => {
         return errorResponse("Lista de mensagens é obrigatória");
       }
 
-      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-      const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-      const supabase = createClient(supabaseUrl, serviceKey);
-
+      const supabase = getServiceClient();
       const results = [];
 
       for (const msg of messages) {
@@ -293,8 +340,6 @@ serve(async (req) => {
         });
 
         results.push({ client_id: msg.client_id, phone: msg.phone, status });
-
-        // Small delay between messages to avoid rate limiting
         await new Promise((r) => setTimeout(r, 1500));
       }
 

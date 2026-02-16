@@ -17,50 +17,35 @@ import {
   Trash2,
   LogOut,
   Loader2,
+  Shield,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 
-interface WhatsAppConfig {
+interface UserConfig {
   id: string;
-  api_url: string;
-  api_key: string;
   instance_name: string;
   is_connected: boolean;
 }
 
 export default function WhatsApp() {
-  const { user } = useAuth();
-  const [config, setConfig] = useState<WhatsAppConfig | null>(null);
-  const [form, setForm] = useState({ api_url: "", api_key: "", instance_name: "" });
+  const { user, isAdmin } = useAuth();
+  const [config, setConfig] = useState<UserConfig | null>(null);
+  const [instanceName, setInstanceName] = useState("");
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [pairingCode, setPairingCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const fetchConfig = useCallback(async () => {
-    if (!user) return;
-    const { data } = await supabase
-      .from("whatsapp_config")
-      .select("*")
-      .eq("user_id", user.id)
-      .maybeSingle();
+  // Admin-only state
+  const [globalApiUrl, setGlobalApiUrl] = useState("");
+  const [globalApiKey, setGlobalApiKey] = useState("");
+  const [hasGlobalConfig, setHasGlobalConfig] = useState(false);
+  const [savingGlobal, setSavingGlobal] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
 
-    if (data) {
-      setConfig(data);
-      setForm({
-        api_url: data.api_url,
-        api_key: data.api_key,
-        instance_name: data.instance_name,
-      });
-    }
-    setLoading(false);
-  }, [user]);
-
-  useEffect(() => {
-    fetchConfig();
-  }, [fetchConfig]);
-
-  const callEvolutionApi = async (action: string, extraParams = {}) => {
+  const callEvolutionApi = useCallback(async (action: string, extraParams = {}) => {
     const { data: { session } } = await supabase.auth.getSession();
     const res = await fetch(
       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/evolution-api`,
@@ -77,18 +62,82 @@ export default function WhatsApp() {
     const result = await res.json();
     if (!res.ok) throw new Error(result.error || "Erro na requisição");
     return result;
+  }, []);
+
+  const fetchData = useCallback(async () => {
+    if (!user) return;
+
+    try {
+      // Fetch user's instance config
+      const { data } = await supabase
+        .from("whatsapp_config")
+        .select("id, instance_name, is_connected")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (data) {
+        setConfig(data);
+        setInstanceName(data.instance_name);
+      }
+
+      // Admin: fetch global config
+      if (isAdmin) {
+        try {
+          const globalRes = await callEvolutionApi("get-global-config");
+          if (globalRes.config) {
+            setHasGlobalConfig(true);
+            setGlobalApiUrl(globalRes.config.api_url);
+            setGlobalApiKey(globalRes.config.api_key);
+          }
+        } catch {
+          // No global config yet
+        }
+      }
+    } catch {
+      // ignore
+    }
+    setLoading(false);
+  }, [user, isAdmin, callEvolutionApi]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+
+  // Admin: save global config
+  const handleSaveGlobal = async () => {
+    if (!globalApiUrl || !globalApiKey) {
+      toast({ title: "Preencha URL e chave da API", variant: "destructive" });
+      return;
+    }
+    setSavingGlobal(true);
+    try {
+      await callEvolutionApi("save-global-config", {
+        api_url: globalApiUrl,
+        api_key: globalApiKey,
+      });
+      setHasGlobalConfig(true);
+      toast({ title: "Configuração global salva com sucesso!" });
+    } catch (err: any) {
+      toast({ title: err.message, variant: "destructive" });
+    }
+    setSavingGlobal(false);
   };
 
-  const handleSave = async () => {
-    if (!form.api_url || !form.api_key || !form.instance_name) {
-      toast({ title: "Preencha todos os campos", variant: "destructive" });
+  // User: save instance name
+  const handleSaveInstance = async () => {
+    if (!instanceName) {
+      toast({ title: "Informe o nome da instância", variant: "destructive" });
       return;
     }
     setSaving(true);
     try {
-      await callEvolutionApi("save-config", form);
-      toast({ title: "Configuração salva com sucesso" });
-      await fetchConfig();
+      await callEvolutionApi("save-config", { instance_name: instanceName });
+      toast({ title: "Instância salva com sucesso!" });
+      // Refresh config
+      const { data } = await supabase
+        .from("whatsapp_config")
+        .select("id, instance_name, is_connected")
+        .eq("user_id", user!.id)
+        .maybeSingle();
+      if (data) setConfig(data);
     } catch (err: any) {
       toast({ title: err.message, variant: "destructive" });
     }
@@ -99,12 +148,8 @@ export default function WhatsApp() {
     setActionLoading("create");
     try {
       const data = await callEvolutionApi("create-instance");
-      if (data?.qrcode?.base64) {
-        setQrCode(data.qrcode.base64);
-      }
-      if (data?.qrcode?.pairingCode) {
-        setPairingCode(data.qrcode.pairingCode);
-      }
+      if (data?.qrcode?.base64) setQrCode(data.qrcode.base64);
+      if (data?.qrcode?.pairingCode) setPairingCode(data.qrcode.pairingCode);
       toast({ title: "Instância criada! Escaneie o QR Code para conectar." });
     } catch (err: any) {
       toast({ title: err.message, variant: "destructive" });
@@ -116,12 +161,8 @@ export default function WhatsApp() {
     setActionLoading("qr");
     try {
       const data = await callEvolutionApi("get-qrcode");
-      if (data?.base64) {
-        setQrCode(data.base64);
-      }
-      if (data?.pairingCode) {
-        setPairingCode(data.pairingCode);
-      }
+      if (data?.base64) setQrCode(data.base64);
+      if (data?.pairingCode) setPairingCode(data.pairingCode);
       toast({ title: "QR Code atualizado" });
     } catch (err: any) {
       toast({ title: err.message, variant: "destructive" });
@@ -188,9 +229,66 @@ export default function WhatsApp() {
           Configuração WhatsApp
         </h1>
         <p className="text-muted-foreground">
-          Configure sua instância da Evolution API para envio de cobranças
+          {isAdmin
+            ? "Configure a API global e gerencie instâncias"
+            : "Conecte seu WhatsApp para envio de cobranças"}
         </p>
       </div>
+
+      {/* Admin: Global API Config */}
+      {isAdmin && (
+        <Card className="border-primary/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Shield className="h-5 w-5 text-primary" />
+              Configuração Global da API
+            </CardTitle>
+            <CardDescription>
+              Apenas administradores podem configurar as credenciais da Evolution API.
+              Todos os usuários utilizarão estas credenciais.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="global_api_url">URL da API</Label>
+              <Input
+                id="global_api_url"
+                placeholder="https://sua-api.example.com"
+                value={globalApiUrl}
+                onChange={(e) => setGlobalApiUrl(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="global_api_key">Chave Global da API</Label>
+              <div className="relative">
+                <Input
+                  id="global_api_key"
+                  type={showApiKey ? "text" : "password"}
+                  placeholder={hasGlobalConfig ? "••••••••••••••••" : "Sua chave da API"}
+                  value={globalApiKey}
+                  onChange={(e) => setGlobalApiKey(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowApiKey(!showApiKey)}
+                >
+                  {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Button onClick={handleSaveGlobal} disabled={savingGlobal}>
+                {savingGlobal ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                Salvar Configuração Global
+              </Button>
+              {hasGlobalConfig && (
+                <Badge variant="default">Configurada</Badge>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Connection Status */}
       <Card>
@@ -230,46 +328,27 @@ export default function WhatsApp() {
         </CardContent>
       </Card>
 
-      {/* API Config Form */}
+      {/* Instance Config */}
       <Card>
         <CardHeader>
-          <CardTitle>Dados da Evolution API</CardTitle>
+          <CardTitle className="text-lg">Sua Instância</CardTitle>
           <CardDescription>
-            Informe a URL e chave da sua API Evolution para criar uma instância
+            Informe o nome da instância para conectar seu WhatsApp
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="api_url">URL da API</Label>
-            <Input
-              id="api_url"
-              placeholder="https://sua-api.example.com"
-              value={form.api_url}
-              onChange={(e) => setForm((f) => ({ ...f, api_url: e.target.value }))}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="api_key">Chave Global da API</Label>
-            <Input
-              id="api_key"
-              type="password"
-              placeholder="Sua chave da API"
-              value={form.api_key}
-              onChange={(e) => setForm((f) => ({ ...f, api_key: e.target.value }))}
-            />
-          </div>
           <div className="space-y-2">
             <Label htmlFor="instance_name">Nome da Instância</Label>
             <Input
               id="instance_name"
               placeholder="minha-instancia"
-              value={form.instance_name}
-              onChange={(e) => setForm((f) => ({ ...f, instance_name: e.target.value }))}
+              value={instanceName}
+              onChange={(e) => setInstanceName(e.target.value)}
             />
           </div>
-          <Button onClick={handleSave} disabled={saving} className="w-full">
+          <Button onClick={handleSaveInstance} disabled={saving} className="w-full">
             {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-            Salvar Configuração
+            Salvar Instância
           </Button>
         </CardContent>
       </Card>
@@ -278,7 +357,7 @@ export default function WhatsApp() {
       {config && (
         <Card>
           <CardHeader>
-            <CardTitle>Gerenciar Instância</CardTitle>
+            <CardTitle className="text-lg">Gerenciar Conexão</CardTitle>
             <CardDescription>
               Crie a instância, conecte via QR Code e gerencie a conexão
             </CardDescription>
