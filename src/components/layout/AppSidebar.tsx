@@ -12,6 +12,8 @@ import {
   LogOut,
   Shield,
   UserCog,
+  Video,
+  Palette,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -29,10 +31,13 @@ const navItems = [
   { icon: CreditCard, label: "Gateway Pagamento", path: "/payment-gateway" },
   { icon: Settings, label: "Logs de Envio", path: "/logs" },
   { icon: UserCog, label: "Meu Perfil", path: "/profile" },
+  { icon: Video, label: "Tutoriais", path: "/tutorials" },
 ];
 
 const adminItems = [
   { icon: Shield, label: "Usuários", path: "/admin/users" },
+  { icon: Palette, label: "Configurações Visuais", path: "/admin/settings" },
+  { icon: Video, label: "Tutoriais", path: "/admin/tutorials" },
 ];
 
 export function AppSidebar() {
