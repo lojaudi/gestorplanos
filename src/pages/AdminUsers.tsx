@@ -34,7 +34,9 @@ interface UserProfile {
   is_active: boolean;
   created_at: string;
   avatar_url?: string | null;
+  admin_plan_id?: string | null;
   clientCount?: number;
+  planName?: string | null;
 }
 
 interface PlatformMetrics {
@@ -76,7 +78,7 @@ const AdminUsers = () => {
         { count: templateCount },
         { count: messageCount },
       ] = await Promise.all([
-        supabase.from("profiles").select("*").order("created_at", { ascending: false }),
+        supabase.from("profiles").select("*, admin_plans(name)").order("created_at", { ascending: false }),
         supabase.from("clients").select("*", { count: "exact", head: true }),
         supabase.from("plans").select("*", { count: "exact", head: true }),
         supabase.from("services").select("*", { count: "exact", head: true }),
@@ -95,9 +97,10 @@ const AdminUsers = () => {
           countMap[c.user_id] = (countMap[c.user_id] || 0) + 1;
         });
 
-        const enriched = profiles.map((p) => ({
+        const enriched = profiles.map((p: any) => ({
           ...p,
           clientCount: countMap[p.user_id] || 0,
+          planName: p.admin_plans?.name || null,
         }));
 
         setUsers(enriched);
@@ -253,6 +256,7 @@ const AdminUsers = () => {
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>Email</TableHead>
+                  <TableHead>Plano</TableHead>
                   <TableHead>Clientes</TableHead>
                   <TableHead>Cadastro</TableHead>
                   <TableHead>Status</TableHead>
@@ -274,6 +278,13 @@ const AdminUsers = () => {
                       </div>
                     </TableCell>
                     <TableCell>{user.email}</TableCell>
+                    <TableCell>
+                      {user.planName ? (
+                        <Badge variant="secondary" className="text-xs">{user.planName}</Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">Sem plano</span>
+                      )}
+                    </TableCell>
                     <TableCell>{user.clientCount}</TableCell>
                     <TableCell>
                       {format(new Date(user.created_at), "dd/MM/yyyy")}
@@ -300,7 +311,7 @@ const AdminUsers = () => {
                 ))}
                 {users.length === 0 && (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
+                    <TableCell colSpan={7} className="text-center text-muted-foreground py-10">
                       Nenhum usuário encontrado
                     </TableCell>
                   </TableRow>
