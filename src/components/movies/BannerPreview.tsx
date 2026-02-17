@@ -37,6 +37,7 @@ interface ContentDetails {
   runtime?: number;
   number_of_seasons?: number;
   vote_average?: number;
+  genres?: { id: number; name: string }[];
 }
 
 interface Client {
@@ -399,6 +400,15 @@ export function BannerPreview({ selected, logoUrl, onBack, userId }: Props) {
                       <span className="text-sm text-white/85 font-bold">
                         {selected.vote_average.toFixed(1)} / 10
                       </span>
+                    </div>
+                  )}
+                  {selected.genres && selected.genres.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {selected.genres.slice(0, 4).map((g) => (
+                        <span key={g.id} className="text-[10px] px-2 py-0.5 rounded-full bg-white/20 text-white/90 font-bold border border-white/20">
+                          {g.name}
+                        </span>
+                      ))}
                     </div>
                   )}
                   {selected.overview && (
