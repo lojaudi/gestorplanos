@@ -216,7 +216,6 @@ export function BannerPreview({ selected, logoUrl, onBack, userId }: Props) {
                 src={`${TMDB_IMG}/w780${selected.poster_path}`}
                 alt=""
                 className="absolute inset-0 w-full h-full object-cover scale-110 blur-sm brightness-[0.35]"
-                crossOrigin="anonymous"
               />
             )}
             {!selected.poster_path && (
@@ -231,7 +230,6 @@ export function BannerPreview({ selected, logoUrl, onBack, userId }: Props) {
                   src={`${TMDB_IMG}/w342${selected.poster_path}`}
                   alt={title}
                   className="h-full w-auto rounded-lg shadow-2xl border-2 border-white/20 object-contain"
-                  crossOrigin="anonymous"
                 />
               )}
 
@@ -243,7 +241,6 @@ export function BannerPreview({ selected, logoUrl, onBack, userId }: Props) {
                     src={logoUrl}
                     alt="Logo"
                     className="h-8 w-auto object-contain self-start mb-2"
-                    crossOrigin="anonymous"
                   />
                 )}
 
@@ -251,11 +248,11 @@ export function BannerPreview({ selected, logoUrl, onBack, userId }: Props) {
                   <h2 className="text-xl md:text-2xl font-bold leading-tight drop-shadow-lg">
                     {title}
                   </h2>
-                  <p className="text-xs text-white/70 font-medium">
+                  <p className="text-sm text-white/70 font-medium">
                     {type} • {year}
                   </p>
                   {selected.overview && (
-                    <p className="text-xs text-white/80 leading-relaxed line-clamp-3">
+                    <p className="text-sm text-white/90 leading-relaxed line-clamp-4">
                       {selected.overview}
                     </p>
                   )}
@@ -271,7 +268,6 @@ export function BannerPreview({ selected, logoUrl, onBack, userId }: Props) {
                             src={`${TMDB_IMG}/w185${c.profile_path}`}
                             alt={c.name}
                             className="h-10 w-10 rounded-full object-cover border border-white/30"
-                            crossOrigin="anonymous"
                           />
                         ) : (
                           <div className="h-10 w-10 rounded-full bg-white/20 flex items-center justify-center text-[8px] text-white">
