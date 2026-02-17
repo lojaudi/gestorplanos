@@ -55,39 +55,60 @@ function delay(ms: number) {
 }
 
 
-async function proxyTmdbImages(container: HTMLDivElement): Promise<{ el: HTMLImageElement; orig: string }[]> {
+async function imgToDataUrl(url: string): Promise<string | null> {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  try {
+    const res = await fetch(`${supabaseUrl}/functions/v1/image-proxy`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        apikey: supabaseKey,
+      },
+      body: JSON.stringify({ url }),
+    });
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+async function proxyAllImages(container: HTMLDivElement): Promise<{ el: HTMLImageElement; orig: string }[]> {
   const imgs = container.querySelectorAll("img");
   const swapped: { el: HTMLImageElement; orig: string }[] = [];
 
   await Promise.all(
     Array.from(imgs).map(async (img) => {
       const src = img.src;
-      if (!src.includes("image.tmdb.org")) return;
-      try {
-        swapped.push({ el: img, orig: src });
-        const res = await fetch(`${supabaseUrl}/functions/v1/image-proxy`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            apikey: supabaseKey,
-          },
-          body: JSON.stringify({ url: src }),
-        });
-        if (!res.ok) return;
-        const blob = await res.blob();
-        const dataUrl = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.readAsDataURL(blob);
-        });
-        img.src = dataUrl;
-      } catch {
-        // keep original
+      // Proxy any external image (TMDB, Supabase storage, etc.)
+      if (!src.startsWith("data:")) {
+        const dataUrl = await imgToDataUrl(src);
+        if (dataUrl) {
+          swapped.push({ el: img, orig: src });
+          img.src = dataUrl;
+        }
       }
     })
   );
+
+  // Wait for all images to fully load with new src
+  await Promise.all(
+    swapped.map(
+      ({ el }) =>
+        new Promise<void>((resolve) => {
+          if (el.complete) return resolve();
+          el.onload = () => resolve();
+          el.onerror = () => resolve();
+        })
+    )
+  );
+
   return swapped;
 }
 
@@ -109,13 +130,15 @@ export function BannerPreview({ selected, logoUrl, onBack, userId }: Props) {
 
   const generateBannerBlob = async (): Promise<Blob | null> => {
     if (!bannerRef.current) return null;
-    const swapped = await proxyTmdbImages(bannerRef.current);
+    const swapped = await proxyAllImages(bannerRef.current);
     try {
       const { default: html2canvas } = await import("html2canvas");
       const canvas = await html2canvas(bannerRef.current, {
-        useCORS: false,
-        allowTaint: false,
+        useCORS: true,
+        allowTaint: true,
         scale: 2,
+        logging: false,
+        imageTimeout: 30000,
       });
       restoreImages(swapped);
       return new Promise((resolve) => {
