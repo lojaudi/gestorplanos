@@ -525,6 +525,69 @@ serve(async (req) => {
       return jsonResponse({ success: true, results });
     }
 
+    if (action === "send-bulk-media") {
+      const { messages, imageBase64, caption } = params;
+      if (!messages || !Array.isArray(messages) || messages.length === 0) {
+        return errorResponse("Lista de mensagens é obrigatória");
+      }
+
+      const supabase = getServiceClient();
+      const results = [];
+
+      for (const msg of messages) {
+        const cleanPhone = msg.phone.replace(/\D/g, "");
+        const formattedPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
+
+        let status = "sent";
+        let apiResponse = "";
+
+        try {
+          if (imageBase64) {
+            const result = await evolutionFetch(
+              api_url,
+              api_key,
+              `/message/sendMedia/${instance_name}`,
+              "POST",
+              {
+                number: formattedPhone,
+                media: `data:image/png;base64,${imageBase64}`,
+                mediatype: "image",
+                caption: caption || "",
+                fileName: "banner.png",
+              }
+            );
+            apiResponse = JSON.stringify(result);
+          } else {
+            const result = await evolutionFetch(
+              api_url,
+              api_key,
+              `/message/sendText/${instance_name}`,
+              "POST",
+              { number: formattedPhone, text: caption || "" }
+            );
+            apiResponse = JSON.stringify(result);
+          }
+        } catch (sendErr) {
+          status = "error";
+          apiResponse = sendErr instanceof Error ? sendErr.message : String(sendErr);
+        }
+
+        await supabase.from("message_logs").insert({
+          user_id: user.id,
+          client_id: msg.client_id || null,
+          message_content: caption || "[banner image]",
+          status,
+          template_type: msg.template_type || "banner",
+          api_response: apiResponse,
+        });
+
+        results.push({ client_id: msg.client_id, phone: msg.phone, status });
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+
+      return jsonResponse({ success: true, results });
+    }
+
     return errorResponse("Ação desconhecida: " + action);
   } catch (err) {
     console.error("Evolution API error:", err);
