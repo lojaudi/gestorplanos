@@ -38,6 +38,7 @@ interface ContentDetails extends TmdbResult {
   runtime?: number;
   number_of_seasons?: number;
   vote_average?: number;
+  genres?: { id: number; name: string }[];
 }
 
 const MoviesSeries = () => {
@@ -180,6 +181,7 @@ const MoviesSeries = () => {
         runtime: details.runtime,
         number_of_seasons: details.number_of_seasons,
         vote_average: details.vote_average,
+        genres: details.genres,
       });
     } catch {
       setSelected({ ...item, cast: [] });
