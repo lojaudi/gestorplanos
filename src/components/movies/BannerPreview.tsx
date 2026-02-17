@@ -55,6 +55,46 @@ function delay(ms: number) {
 }
 
 
+async function proxyTmdbImages(container: HTMLDivElement): Promise<{ el: HTMLImageElement; orig: string }[]> {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+  const imgs = container.querySelectorAll("img");
+  const swapped: { el: HTMLImageElement; orig: string }[] = [];
+
+  await Promise.all(
+    Array.from(imgs).map(async (img) => {
+      const src = img.src;
+      if (!src.includes("image.tmdb.org")) return;
+      try {
+        swapped.push({ el: img, orig: src });
+        const res = await fetch(`${supabaseUrl}/functions/v1/image-proxy`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            apikey: supabaseKey,
+          },
+          body: JSON.stringify({ url: src }),
+        });
+        if (!res.ok) return;
+        const blob = await res.blob();
+        const dataUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(blob);
+        });
+        img.src = dataUrl;
+      } catch {
+        // keep original
+      }
+    })
+  );
+  return swapped;
+}
+
+function restoreImages(swapped: { el: HTMLImageElement; orig: string }[]) {
+  swapped.forEach(({ el, orig }) => { el.src = orig; });
+}
+
 export function BannerPreview({ selected, logoUrl, onBack, userId }: Props) {
   const bannerRef = useRef<HTMLDivElement>(null);
   const [customMessage, setCustomMessage] = useState("");
@@ -68,17 +108,20 @@ export function BannerPreview({ selected, logoUrl, onBack, userId }: Props) {
 
   const generateBannerBlob = async (): Promise<Blob | null> => {
     if (!bannerRef.current) return null;
+    const swapped = await proxyTmdbImages(bannerRef.current);
     try {
       const { default: html2canvas } = await import("html2canvas");
       const canvas = await html2canvas(bannerRef.current, {
-        useCORS: true,
-        allowTaint: true,
+        useCORS: false,
+        allowTaint: false,
         scale: 2,
       });
+      restoreImages(swapped);
       return new Promise((resolve) => {
         canvas.toBlob((blob) => resolve(blob), "image/png");
       });
     } catch (err) {
+      restoreImages(swapped);
       throw err;
     }
   };
