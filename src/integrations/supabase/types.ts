@@ -329,6 +329,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          admin_plan_id: string | null
           avatar_url: string | null
           created_at: string
           email: string
@@ -340,6 +341,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          admin_plan_id?: string | null
           avatar_url?: string | null
           created_at?: string
           email?: string
@@ -351,6 +353,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          admin_plan_id?: string | null
           avatar_url?: string | null
           created_at?: string
           email?: string
@@ -361,7 +364,15 @@ export type Database = {
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_admin_plan_id_fkey"
+            columns: ["admin_plan_id"]
+            isOneToOne: false
+            referencedRelation: "admin_plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       services: {
         Row: {
