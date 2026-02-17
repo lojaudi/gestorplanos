@@ -105,8 +105,7 @@ const adminNav: NavEntry[] = [
     icon: Shield,
     items: [
       { icon: Users, label: "Gerenciar Usuários", path: "/admin/users" },
-      { icon: UserPlus, label: "Criar Planos Usuários", soon: true },
-      { icon: ClipboardList, label: "Gerenciar Planos Usuários", soon: true },
+      { icon: UserPlus, label: "Criar Planos Usuários", path: "/admin/plans" },
     ],
   },
   {

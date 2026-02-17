@@ -24,6 +24,7 @@ import PaymentGateway from "./pages/PaymentGateway";
 import PaymentPage from "./pages/PaymentPage";
 import Profile from "./pages/Profile";
 import Tutorials from "./pages/Tutorials";
+import AdminPlans from "./pages/AdminPlans";
 
 const queryClient = new QueryClient();
 
@@ -49,6 +50,7 @@ const App = () => (
               <Route path="/profile" element={<ProtectedPage><Profile /></ProtectedPage>} />
               <Route path="/admin/users" element={<ProtectedPage><AdminUsers /></ProtectedPage>} />
               <Route path="/admin/settings" element={<ProtectedPage><AdminSettings /></ProtectedPage>} />
+              <Route path="/admin/plans" element={<ProtectedPage><AdminPlans /></ProtectedPage>} />
               <Route path="/admin/tutorials" element={<ProtectedPage><AdminTutorials /></ProtectedPage>} />
               <Route path="/tutorials" element={<ProtectedPage><Tutorials /></ProtectedPage>} />
               <Route path="/pay" element={<PaymentPage />} />

@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_plans: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          max_clients: number
+          module_banners: boolean
+          module_campaigns: boolean
+          module_games: boolean
+          name: string
+          price: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          max_clients?: number
+          module_banners?: boolean
+          module_campaigns?: boolean
+          module_games?: boolean
+          name: string
+          price?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          max_clients?: number
+          module_banners?: boolean
+          module_campaigns?: boolean
+          module_games?: boolean
+          name?: string
+          price?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           created_at: string
