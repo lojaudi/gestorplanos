@@ -12,14 +12,10 @@ import {
   Wifi,
   WifiOff,
   QrCode,
-  Save,
   RefreshCw,
   Trash2,
   LogOut,
   Loader2,
-  Shield,
-  Eye,
-  EyeOff,
 } from "lucide-react";
 
 interface UserConfig {
@@ -29,7 +25,7 @@ interface UserConfig {
 }
 
 export default function WhatsApp() {
-  const { user, isAdmin } = useAuth();
+  const { user } = useAuth();
   const [config, setConfig] = useState<UserConfig | null>(null);
   const [instanceName, setInstanceName] = useState("");
   const [qrCode, setQrCode] = useState<string | null>(null);
@@ -37,12 +33,6 @@ export default function WhatsApp() {
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  // Admin-only state
-  const [globalApiUrl, setGlobalApiUrl] = useState("");
-  const [globalApiKey, setGlobalApiKey] = useState("");
-  const [hasGlobalConfig, setHasGlobalConfig] = useState(false);
-  const [savingGlobal, setSavingGlobal] = useState(false);
-  const [showApiKey, setShowApiKey] = useState(false);
 
   const callEvolutionApi = useCallback(async (action: string, extraParams = {}) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -77,45 +67,14 @@ export default function WhatsApp() {
         setInstanceName(data.instance_name);
       }
 
-      if (isAdmin) {
-        try {
-          const globalRes = await callEvolutionApi("get-global-config");
-          if (globalRes.config) {
-            setHasGlobalConfig(true);
-            setGlobalApiUrl(globalRes.config.api_url);
-            setGlobalApiKey(globalRes.config.api_key);
-          }
-        } catch {
-          // No global config yet
-        }
-      }
     } catch {
       // ignore
     }
     setLoading(false);
-  }, [user, isAdmin, callEvolutionApi]);
+  }, [user, callEvolutionApi]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  // Admin: save global config
-  const handleSaveGlobal = async () => {
-    if (!globalApiUrl || !globalApiKey) {
-      toast({ title: "Preencha URL e chave da API", variant: "destructive" });
-      return;
-    }
-    setSavingGlobal(true);
-    try {
-      await callEvolutionApi("save-global-config", {
-        api_url: globalApiUrl,
-        api_key: globalApiKey,
-      });
-      setHasGlobalConfig(true);
-      toast({ title: "Configuração global salva com sucesso!" });
-    } catch (err: any) {
-      toast({ title: err.message, variant: "destructive" });
-    }
-    setSavingGlobal(false);
-  };
 
   // User: connect instance (save + create in one step)
   const handleConnectInstance = async () => {
@@ -216,64 +175,9 @@ export default function WhatsApp() {
           Configuração WhatsApp
         </h1>
         <p className="text-muted-foreground">
-          {isAdmin
-            ? "Configure a API global e gerencie instâncias"
-            : "Conecte seu WhatsApp para envio de cobranças"}
+          Conecte seu WhatsApp para envio de cobranças
         </p>
       </div>
-
-      {/* Admin: Global API Config */}
-      {isAdmin && (
-        <Card className="border-primary/20">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Shield className="h-5 w-5 text-primary" />
-              Configuração Global da API
-            </CardTitle>
-            <CardDescription>
-              Apenas administradores podem configurar as credenciais da Evolution API.
-              Todos os usuários utilizarão estas credenciais.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="global_api_url">URL da API</Label>
-              <Input
-                id="global_api_url"
-                placeholder="https://sua-api.example.com"
-                value={globalApiUrl}
-                onChange={(e) => setGlobalApiUrl(e.target.value)}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="global_api_key">Chave Global da API</Label>
-              <div className="relative">
-                <Input
-                  id="global_api_key"
-                  type={showApiKey ? "text" : "password"}
-                  placeholder={hasGlobalConfig ? "••••••••••••••••" : "Sua chave da API"}
-                  value={globalApiKey}
-                  onChange={(e) => setGlobalApiKey(e.target.value)}
-                />
-                <button
-                  type="button"
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  onClick={() => setShowApiKey(!showApiKey)}
-                >
-                  {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <Button onClick={handleSaveGlobal} disabled={savingGlobal}>
-                {savingGlobal ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                Salvar Configuração Global
-              </Button>
-              {hasGlobalConfig && <Badge variant="default">Configurada</Badge>}
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Connection Status */}
       <Card>
