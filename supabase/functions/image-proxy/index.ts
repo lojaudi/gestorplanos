@@ -24,7 +24,7 @@ serve(async (req) => {
     // Allow TMDB and Supabase storage URLs
     const allowed = [
       "https://image.tmdb.org/",
-      "https://efowcydxnypklhtlvccy.supabase.co/storage/",
+      "https://efowcydxnypklhtlvccy.supabase.co/storage/v1/",
     ];
     if (!allowed.some((prefix) => url.startsWith(prefix))) {
       return new Response(JSON.stringify({ error: "URL not allowed" }), {
