@@ -164,12 +164,16 @@ serve(async (req) => {
         .limit(1)
         .maybeSingle();
 
-      let instanceName = "system";
+      let instanceName: string | null = null;
       if (adminRole) {
         const adminConfig = await getUserConfig(adminRole.user_id);
         if (adminConfig && adminConfig.is_connected) {
           instanceName = adminConfig.instance_name;
         }
+      }
+
+      if (!instanceName) {
+        return errorResponse("Nenhuma instância WhatsApp do administrador está conectada. Contate o suporte.");
       }
 
       const formattedPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
@@ -185,7 +189,11 @@ serve(async (req) => {
         );
       } catch (sendErr) {
         console.error("Erro ao enviar código:", sendErr);
-        return errorResponse("Erro ao enviar código de verificação via WhatsApp. Verifique o número e tente novamente.");
+        const errMsg = sendErr instanceof Error ? sendErr.message : String(sendErr);
+        if (errMsg.includes("not exist")) {
+          return errorResponse("Instância WhatsApp do administrador não encontrada. Contate o suporte.");
+        }
+        return errorResponse("Erro ao enviar código de verificação via WhatsApp. Tente novamente mais tarde.");
       }
 
       return jsonResponse({ success: true, message: "Código enviado via WhatsApp" });
