@@ -383,7 +383,7 @@ export function BannerPreview({ selected, logoUrl, onBack, userId }: Props) {
                         Sinopse:
                       </p>
                       <p className="text-[13px] text-white/90 leading-relaxed font-medium" style={{ textShadow: "1px 1px 3px rgba(0,0,0,0.7)" }}>
-                        {selected.overview.slice(0, 280)}{selected.overview.length > 280 ? "..." : ""}
+                        {selected.overview.slice(0, 500)}{selected.overview.length > 500 ? "..." : ""}
                       </p>
                     </div>
                   )}
