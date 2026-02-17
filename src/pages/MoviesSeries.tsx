@@ -37,6 +37,7 @@ interface ContentDetails extends TmdbResult {
   cast: CastMember[];
   runtime?: number;
   number_of_seasons?: number;
+  vote_average?: number;
 }
 
 const MoviesSeries = () => {
@@ -178,6 +179,7 @@ const MoviesSeries = () => {
         cast: (credits.cast || []).slice(0, 10),
         runtime: details.runtime,
         number_of_seasons: details.number_of_seasons,
+        vote_average: details.vote_average,
       });
     } catch {
       setSelected({ ...item, cast: [] });

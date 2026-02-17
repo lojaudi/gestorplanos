@@ -36,6 +36,7 @@ interface ContentDetails {
   cast: CastMember[];
   runtime?: number;
   number_of_seasons?: number;
+  vote_average?: number;
 }
 
 interface Client {
@@ -391,6 +392,14 @@ export function BannerPreview({ selected, logoUrl, onBack, userId }: Props) {
                         Duração: {Math.floor(selected.runtime / 60)}h {selected.runtime % 60}min
                       </p>
                     )
+                  )}
+                  {selected.vote_average != null && selected.vote_average > 0 && (
+                    <div className="flex items-center gap-1.5 mt-1.5">
+                      <span className="text-amber-400 text-sm">⭐</span>
+                      <span className="text-sm text-white/85 font-bold">
+                        {selected.vote_average.toFixed(1)} / 10
+                      </span>
+                    </div>
                   )}
                   {selected.overview && (
                     <div className="mt-3">
