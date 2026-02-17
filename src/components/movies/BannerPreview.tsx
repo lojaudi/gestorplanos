@@ -54,37 +54,6 @@ function delay(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-async function imgToBase64(url: string): Promise<string> {
-  const res = await fetch(url);
-  const blob = await res.blob();
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onloadend = () => resolve(reader.result as string);
-    reader.readAsDataURL(blob);
-  });
-}
-
-async function convertBannerImages(container: HTMLDivElement) {
-  const imgs = container.querySelectorAll("img");
-  const originals: { el: HTMLImageElement; src: string }[] = [];
-  await Promise.all(
-    Array.from(imgs).map(async (img) => {
-      if (img.src.startsWith("data:") || img.src.startsWith("blob:")) return;
-      try {
-        originals.push({ el: img, src: img.src });
-        const dataUrl = await imgToBase64(img.src);
-        img.src = dataUrl;
-      } catch {
-        // keep original if fetch fails
-      }
-    })
-  );
-  return originals;
-}
-
-function restoreImages(originals: { el: HTMLImageElement; src: string }[]) {
-  originals.forEach(({ el, src }) => { el.src = src; });
-}
 
 export function BannerPreview({ selected, logoUrl, onBack, userId }: Props) {
   const bannerRef = useRef<HTMLDivElement>(null);
@@ -99,20 +68,17 @@ export function BannerPreview({ selected, logoUrl, onBack, userId }: Props) {
 
   const generateBannerBlob = async (): Promise<Blob | null> => {
     if (!bannerRef.current) return null;
-    const originals = await convertBannerImages(bannerRef.current);
     try {
       const { default: html2canvas } = await import("html2canvas");
       const canvas = await html2canvas(bannerRef.current, {
-        useCORS: false,
-        allowTaint: false,
+        useCORS: true,
+        allowTaint: true,
         scale: 2,
       });
-      restoreImages(originals);
       return new Promise((resolve) => {
         canvas.toBlob((blob) => resolve(blob), "image/png");
       });
     } catch (err) {
-      restoreImages(originals);
       throw err;
     }
   };
