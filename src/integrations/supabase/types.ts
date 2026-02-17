@@ -301,6 +301,7 @@ export type Database = {
           primary_color: string
           secondary_color: string
           system_name: string
+          tmdb_api_key: string
           updated_at: string
         }
         Insert: {
@@ -312,6 +313,7 @@ export type Database = {
           primary_color?: string
           secondary_color?: string
           system_name?: string
+          tmdb_api_key?: string
           updated_at?: string
         }
         Update: {
@@ -323,6 +325,7 @@ export type Database = {
           primary_color?: string
           secondary_color?: string
           system_name?: string
+          tmdb_api_key?: string
           updated_at?: string
         }
         Relationships: []

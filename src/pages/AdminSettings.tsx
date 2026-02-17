@@ -18,6 +18,7 @@ interface PlatformSettings {
   primary_color: string;
   secondary_color: string;
   accent_color: string;
+  tmdb_api_key: string;
 }
 
 const AdminSettings = () => {
@@ -109,6 +110,7 @@ const AdminSettings = () => {
         primary_color: settings.primary_color,
         secondary_color: settings.secondary_color,
         accent_color: settings.accent_color,
+        tmdb_api_key: settings.tmdb_api_key,
       })
       .eq("id", settings.id);
 
@@ -322,6 +324,27 @@ const AdminSettings = () => {
               </div>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* TMDB API Key */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">API Key TMDB</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Chave global utilizada por todos os usuários no módulo de Filmes & Séries.{" "}
+            <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener noreferrer" className="text-primary underline">
+              Obter chave
+            </a>
+          </p>
+          <Input
+            type="password"
+            value={settings.tmdb_api_key ?? ""}
+            onChange={(e) => setSettings({ ...settings, tmdb_api_key: e.target.value })}
+            placeholder="Insira a API Key do TMDB"
+          />
         </CardContent>
       </Card>
 
