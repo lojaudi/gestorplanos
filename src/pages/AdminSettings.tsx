@@ -1,13 +1,14 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { Palette, Save, Upload, Loader2, Trash2 } from "lucide-react";
+import { Settings, Save, Upload, Loader2, Trash2, Shield, Eye, EyeOff } from "lucide-react";
 
 interface PlatformSettings {
   id: string;
@@ -33,6 +34,32 @@ const AdminSettings = () => {
   const faviconRef = useRef<HTMLInputElement>(null);
   const loginBgRef = useRef<HTMLInputElement>(null);
 
+  // Evolution API state
+  const [globalApiUrl, setGlobalApiUrl] = useState("");
+  const [globalApiKey, setGlobalApiKey] = useState("");
+  const [hasGlobalConfig, setHasGlobalConfig] = useState(false);
+  const [savingGlobal, setSavingGlobal] = useState(false);
+  const [showApiKey, setShowApiKey] = useState(false);
+
+  const callEvolutionApi = useCallback(async (action: string, extraParams = {}) => {
+    const { data: { session } } = await supabase.auth.getSession();
+    const res = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/evolution-api`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({ action, ...extraParams }),
+      }
+    );
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || "Erro na requisição");
+    return result;
+  }, []);
+
   const fetchSettings = async () => {
     setLoading(true);
     const { data } = await supabase
@@ -44,9 +71,25 @@ const AdminSettings = () => {
     setLoading(false);
   };
 
+  const fetchGlobalEvolutionConfig = useCallback(async () => {
+    try {
+      const globalRes = await callEvolutionApi("get-global-config");
+      if (globalRes.config) {
+        setHasGlobalConfig(true);
+        setGlobalApiUrl(globalRes.config.api_url);
+        setGlobalApiKey(globalRes.config.api_key);
+      }
+    } catch {
+      // No global config yet
+    }
+  }, [callEvolutionApi]);
+
   useEffect(() => {
-    if (isAdmin) fetchSettings();
-  }, [isAdmin]);
+    if (isAdmin) {
+      fetchSettings();
+      fetchGlobalEvolutionConfig();
+    }
+  }, [isAdmin, fetchGlobalEvolutionConfig]);
 
   const uploadFile = async (
     file: File,
@@ -137,10 +180,10 @@ const AdminSettings = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-          <Palette className="h-6 w-6 text-primary" />
-          Configurações Visuais
+          <Settings className="h-6 w-6 text-primary" />
+          Configuração Geral
         </h1>
-        <p className="text-muted-foreground">Personalize a aparência da plataforma</p>
+        <p className="text-muted-foreground">Personalize a aparência e integrações da plataforma</p>
       </div>
 
       {/* System Name */}
@@ -345,6 +388,73 @@ const AdminSettings = () => {
             onChange={(e) => setSettings({ ...settings, tmdb_api_key: e.target.value })}
             placeholder="Insira a API Key do TMDB"
           />
+        </CardContent>
+      </Card>
+
+      {/* Evolution API Config */}
+      <Card className="border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Shield className="h-5 w-5 text-primary" />
+            Configuração Global da API Evolution
+          </CardTitle>
+          <CardDescription>
+            Configure as credenciais da Evolution API. Todos os usuários utilizarão estas credenciais.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="global_api_url">URL da API</Label>
+            <Input
+              id="global_api_url"
+              placeholder="https://sua-api.example.com"
+              value={globalApiUrl}
+              onChange={(e) => setGlobalApiUrl(e.target.value)}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="global_api_key">Chave Global da API</Label>
+            <div className="relative">
+              <Input
+                id="global_api_key"
+                type={showApiKey ? "text" : "password"}
+                placeholder={hasGlobalConfig ? "••••••••••••••••" : "Sua chave da API"}
+                value={globalApiKey}
+                onChange={(e) => setGlobalApiKey(e.target.value)}
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                onClick={() => setShowApiKey(!showApiKey)}
+              >
+                {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button onClick={async () => {
+              if (!globalApiUrl || !globalApiKey) {
+                toast({ title: "Preencha URL e chave da API", variant: "destructive" });
+                return;
+              }
+              setSavingGlobal(true);
+              try {
+                await callEvolutionApi("save-global-config", {
+                  api_url: globalApiUrl,
+                  api_key: globalApiKey,
+                });
+                setHasGlobalConfig(true);
+                toast({ title: "Configuração global salva com sucesso!" });
+              } catch (err: any) {
+                toast({ title: err.message, variant: "destructive" });
+              }
+              setSavingGlobal(false);
+            }} disabled={savingGlobal}>
+              {savingGlobal ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+              Salvar Configuração Global
+            </Button>
+            {hasGlobalConfig && <Badge variant="default">Configurada</Badge>}
+          </div>
         </CardContent>
       </Card>
 
