@@ -21,8 +21,11 @@ serve(async (req) => {
       });
     }
 
-    // Only allow TMDB image URLs
-    const allowed = ["https://image.tmdb.org/"];
+    // Allow TMDB and Supabase storage URLs
+    const allowed = [
+      "https://image.tmdb.org/",
+      "https://efowcydxnypklhtlvccy.supabase.co/storage/",
+    ];
     if (!allowed.some((prefix) => url.startsWith(prefix))) {
       return new Response(JSON.stringify({ error: "URL not allowed" }), {
         status: 403,
