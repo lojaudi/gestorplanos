@@ -333,15 +333,29 @@ serve(async (req) => {
         });
       }
 
-      // Create instance on Evolution API
+      // Try to connect existing instance first, create only if not found
       const { api_url, api_key } = globalConfig;
-      const createData = await evolutionFetch(api_url, api_key, "/instance/create", "POST", {
-        instanceName: instance_name,
-        integration: "WHATSAPP-BAILEYS",
-        qrcode: true,
-      });
+      let resultData;
+      try {
+        resultData = await evolutionFetch(api_url, api_key, `/instance/connect/${instance_name}`);
+      } catch (_e) {
+        try {
+          resultData = await evolutionFetch(api_url, api_key, "/instance/create", "POST", {
+            instanceName: instance_name,
+            integration: "WHATSAPP-BAILEYS",
+            qrcode: true,
+          });
+        } catch (createErr) {
+          const msg = createErr instanceof Error ? createErr.message : String(createErr);
+          if (msg.includes("already in use")) {
+            resultData = await evolutionFetch(api_url, api_key, `/instance/connect/${instance_name}`);
+          } else {
+            throw createErr;
+          }
+        }
+      }
 
-      return jsonResponse(createData);
+      return jsonResponse(resultData);
     }
 
     // All other actions require existing user config + global config
