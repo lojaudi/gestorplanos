@@ -200,21 +200,28 @@ export function BannerPreview({ selected, logoUrl, onBack, userId }: Props) {
         return;
       }
 
-      // Generate banner image as base64
+      // Generate banner and upload to storage
       toast({ title: "Gerando banner..." });
       const blob = await generateBannerBlob();
-      let imageBase64 = "";
-      if (blob) {
-        const reader = new FileReader();
-        imageBase64 = await new Promise<string>((resolve) => {
-          reader.onloadend = () => {
-            const result = reader.result as string;
-            // Remove data:image/png;base64, prefix
-            resolve(result.split(",")[1] || "");
-          };
-          reader.readAsDataURL(blob);
-        });
+      if (!blob) {
+        toast({ title: "Erro ao gerar banner", variant: "destructive" });
+        setter(false);
+        return;
       }
+
+      const bannerPath = `banners/${userId}/${Date.now()}.png`;
+      const { error: uploadError } = await supabase.storage
+        .from("platform-assets")
+        .upload(bannerPath, blob, { contentType: "image/png", upsert: true });
+      if (uploadError) {
+        toast({ title: "Erro ao enviar banner", description: uploadError.message, variant: "destructive" });
+        setter(false);
+        return;
+      }
+      const { data: { publicUrl } } = supabase.storage
+        .from("platform-assets")
+        .getPublicUrl(bannerPath);
+      const imageUrl = publicUrl;
 
       const caption = buildMessage();
       const BATCH_SIZE = 10;
@@ -227,7 +234,7 @@ export function BannerPreview({ selected, logoUrl, onBack, userId }: Props) {
         const { data, error } = await supabase.functions.invoke("evolution-api", {
           body: {
             action: "send-bulk-media",
-            imageBase64,
+            imageUrl,
             caption,
             messages: batch.map((c) => ({
               phone: c.phone,

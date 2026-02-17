@@ -526,7 +526,7 @@ serve(async (req) => {
     }
 
     if (action === "send-bulk-media") {
-      const { messages, imageBase64, caption } = params;
+      const { messages, imageBase64, imageUrl, caption } = params;
       if (!messages || !Array.isArray(messages) || messages.length === 0) {
         return errorResponse("Lista de mensagens é obrigatória");
       }
@@ -542,19 +542,26 @@ serve(async (req) => {
         let apiResponse = "";
 
         try {
-          if (imageBase64) {
+          if (imageBase64 || imageUrl) {
+            const mediaPayload: Record<string, string> = {
+              number: formattedPhone,
+              mediatype: "image",
+              caption: caption || "",
+              fileName: "banner.png",
+            };
+
+            if (imageUrl) {
+              mediaPayload.media = imageUrl;
+            } else {
+              mediaPayload.media = `data:image/png;base64,${imageBase64}`;
+            }
+
             const result = await evolutionFetch(
               api_url,
               api_key,
               `/message/sendMedia/${instance_name}`,
               "POST",
-              {
-                number: formattedPhone,
-                media: `data:image/png;base64,${imageBase64}`,
-                mediatype: "image",
-                caption: caption || "",
-                fileName: "banner.png",
-              }
+              mediaPayload
             );
             apiResponse = JSON.stringify(result);
           } else {
