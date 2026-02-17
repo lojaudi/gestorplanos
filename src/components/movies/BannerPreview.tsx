@@ -34,6 +34,8 @@ interface ContentDetails {
   release_date?: string;
   first_air_date?: string;
   cast: CastMember[];
+  runtime?: number;
+  number_of_seasons?: number;
 }
 
 interface Client {
@@ -377,6 +379,19 @@ export function BannerPreview({ selected, logoUrl, onBack, userId }: Props) {
                   <p className="text-base text-white/85 font-bold mt-2">
                     Lançamento: {year}
                   </p>
+                  {selected.media_type === "tv" ? (
+                    selected.number_of_seasons && (
+                      <p className="text-sm text-white/75 font-semibold mt-1">
+                        {selected.number_of_seasons} temporada{selected.number_of_seasons > 1 ? "s" : ""}
+                      </p>
+                    )
+                  ) : (
+                    selected.runtime && (
+                      <p className="text-sm text-white/75 font-semibold mt-1">
+                        Duração: {Math.floor(selected.runtime / 60)}h {selected.runtime % 60}min
+                      </p>
+                    )
+                  )}
                   {selected.overview && (
                     <div className="mt-3">
                       <p className="text-sm font-black text-amber-400 uppercase mb-1" style={{ textShadow: "1px 1px 4px rgba(0,0,0,0.6)" }}>

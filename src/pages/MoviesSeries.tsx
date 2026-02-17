@@ -35,6 +35,8 @@ interface CastMember {
 
 interface ContentDetails extends TmdbResult {
   cast: CastMember[];
+  runtime?: number;
+  number_of_seasons?: number;
 }
 
 const MoviesSeries = () => {
@@ -165,11 +167,18 @@ const MoviesSeries = () => {
     setLoadingDetails(true);
     try {
       const type = item.media_type === "tv" ? "tv" : "movie";
-      const creditsRes = await fetch(
-        `https://api.themoviedb.org/3/${type}/${item.id}/credits?api_key=${encodeURIComponent(apiKey)}&language=pt-BR`
-      );
+      const [detailsRes, creditsRes] = await Promise.all([
+        fetch(`https://api.themoviedb.org/3/${type}/${item.id}?api_key=${encodeURIComponent(apiKey)}&language=pt-BR`),
+        fetch(`https://api.themoviedb.org/3/${type}/${item.id}/credits?api_key=${encodeURIComponent(apiKey)}&language=pt-BR`),
+      ]);
+      const details = await detailsRes.json();
       const credits = await creditsRes.json();
-      setSelected({ ...item, cast: (credits.cast || []).slice(0, 10) });
+      setSelected({
+        ...item,
+        cast: (credits.cast || []).slice(0, 10),
+        runtime: details.runtime,
+        number_of_seasons: details.number_of_seasons,
+      });
     } catch {
       setSelected({ ...item, cast: [] });
     } finally {
