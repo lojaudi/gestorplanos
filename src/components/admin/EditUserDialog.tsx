@@ -88,6 +88,10 @@ export function EditUserDialog({ user, open, onOpenChange, onUpdated }: EditUser
 
   const handleSave = async () => {
     if (!user) return;
+    if (!fullName.trim()) {
+      toast({ title: "O campo Nome Completo é obrigatório", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
       const planId = selectedPlanId === "none" ? null : selectedPlanId;
