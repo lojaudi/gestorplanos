@@ -98,16 +98,138 @@ async function evolutionFetch(
   return data;
 }
 
+function generateCode(): string {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let code = "";
+  for (let i = 0; i < 4; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
+    const { action, ...params } = await req.json();
+
+    // === PUBLIC ACTIONS (no auth required) ===
+    if (action === "send-verification-code") {
+      const { phone, email, full_name } = params;
+      if (!phone || !email || !full_name) {
+        return errorResponse("Telefone, email e nome são obrigatórios");
+      }
+
+      const cleanPhone = phone.replace(/\D/g, "");
+      if (cleanPhone.length < 12 || cleanPhone.length > 13) {
+        return errorResponse("Número de WhatsApp inválido. Use o formato: 55DDD + número");
+      }
+
+      const globalConfig = await getGlobalConfig();
+      if (!globalConfig) {
+        return errorResponse("Configuração global do WhatsApp não encontrada. Contate o administrador.");
+      }
+
+      // Check if email already exists in auth
+      const supabase = getServiceClient();
+      
+      // Delete expired verifications for this email
+      await supabase
+        .from("whatsapp_verifications")
+        .delete()
+        .lt("expires_at", new Date().toISOString());
+
+      const code = generateCode();
+      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 min
+
+      // Store verification
+      await supabase.from("whatsapp_verifications").insert({
+        email,
+        phone: cleanPhone,
+        full_name,
+        code,
+        password_hash: params.password || "",
+        expires_at: expiresAt,
+      });
+
+      // Send code via WhatsApp using global config instance
+      // We need an admin instance to send. Use global config.
+      // Find any admin's whatsapp_config or use a system instance
+      const { data: adminRole } = await supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("role", "admin")
+        .limit(1)
+        .maybeSingle();
+
+      let instanceName = "system";
+      if (adminRole) {
+        const adminConfig = await getUserConfig(adminRole.user_id);
+        if (adminConfig && adminConfig.is_connected) {
+          instanceName = adminConfig.instance_name;
+        }
+      }
+
+      const formattedPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
+      const message = `🔐 Seu código de verificação é: *${code}*\n\nEsse código expira em 10 minutos.\nNão compartilhe com ninguém.`;
+
+      try {
+        await evolutionFetch(
+          globalConfig.api_url,
+          globalConfig.api_key,
+          `/message/sendText/${instanceName}`,
+          "POST",
+          { number: formattedPhone, text: message }
+        );
+      } catch (sendErr) {
+        console.error("Erro ao enviar código:", sendErr);
+        return errorResponse("Erro ao enviar código de verificação via WhatsApp. Verifique o número e tente novamente.");
+      }
+
+      return jsonResponse({ success: true, message: "Código enviado via WhatsApp" });
+    }
+
+    if (action === "verify-code") {
+      const { email, code } = params;
+      if (!email || !code) {
+        return errorResponse("Email e código são obrigatórios");
+      }
+
+      const supabase = getServiceClient();
+      const { data: verification } = await supabase
+        .from("whatsapp_verifications")
+        .select("*")
+        .eq("email", email)
+        .eq("code", code.toUpperCase())
+        .eq("verified", false)
+        .gt("expires_at", new Date().toISOString())
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (!verification) {
+        return errorResponse("Código inválido ou expirado");
+      }
+
+      // Mark as verified
+      await supabase
+        .from("whatsapp_verifications")
+        .update({ verified: true })
+        .eq("id", verification.id);
+
+      return jsonResponse({ 
+        success: true, 
+        verified: true,
+        phone: verification.phone,
+        full_name: verification.full_name,
+      });
+    }
+
+    // === AUTHENTICATED ACTIONS ===
     const user = await getAuthUser(req);
     if (!user) return errorResponse("Não autenticado", 401);
-
-    const { action, ...params } = await req.json();
 
     // === ADMIN ACTIONS: save/get global config ===
     if (action === "save-global-config") {
