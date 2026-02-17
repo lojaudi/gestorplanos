@@ -157,18 +157,20 @@ serve(async (req) => {
       // Send code via WhatsApp using global config instance
       // We need an admin instance to send. Use global config.
       // Find any admin's whatsapp_config or use a system instance
-      const { data: adminRole } = await supabase
+      // Find any admin with a connected WhatsApp instance
+      const { data: adminRoles } = await supabase
         .from("user_roles")
         .select("user_id")
-        .eq("role", "admin")
-        .limit(1)
-        .maybeSingle();
+        .eq("role", "admin");
 
       let instanceName: string | null = null;
-      if (adminRole) {
-        const adminConfig = await getUserConfig(adminRole.user_id);
-        if (adminConfig && adminConfig.is_connected) {
-          instanceName = adminConfig.instance_name;
+      if (adminRoles && adminRoles.length > 0) {
+        for (const ar of adminRoles) {
+          const adminConfig = await getUserConfig(ar.user_id);
+          if (adminConfig && adminConfig.is_connected) {
+            instanceName = adminConfig.instance_name;
+            break;
+          }
         }
       }
 
