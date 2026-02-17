@@ -84,7 +84,7 @@ const userNav: NavEntry[] = [
     items: [
       { icon: Megaphone, label: "Campanha", soon: true },
       { icon: Gamepad2, label: "Jogos do Dia", soon: true },
-      { icon: Image, label: "Banners Filmes/Séries", soon: true },
+      { icon: Image, label: "Banners Filmes/Séries", path: "/movies-series" },
     ],
   },
 ];
