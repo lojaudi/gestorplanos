@@ -1,0 +1,1 @@
+ALTER TABLE public.platform_settings ADD COLUMN tmdb_api_key text NOT NULL DEFAULT '';

@@ -56,6 +56,16 @@ const MoviesSeries = () => {
     if (!user) return;
     (async () => {
       setLoading(true);
+      // Fetch admin TMDB API key from platform_settings
+      const { data: platformData } = await supabase
+        .from("platform_settings")
+        .select("tmdb_api_key")
+        .limit(1)
+        .maybeSingle();
+      if (platformData?.tmdb_api_key) {
+        setApiKey(platformData.tmdb_api_key);
+      }
+      // Fetch user's own config (logo only)
       const { data } = await supabase
         .from("tmdb_config")
         .select("*")
@@ -63,7 +73,6 @@ const MoviesSeries = () => {
         .maybeSingle();
       if (data) {
         setConfig(data as TmdbConfig);
-        setApiKey((data as TmdbConfig).api_key);
       }
       setLoading(false);
     })();
@@ -101,22 +110,18 @@ const MoviesSeries = () => {
 
   const handleSave = async () => {
     if (!user) return;
-    if (!apiKey.trim()) {
-      toast({ title: "A chave de API do TMDB é obrigatória", variant: "destructive" });
-      return;
-    }
     setSaving(true);
     try {
       if (config) {
         const { error } = await supabase
           .from("tmdb_config")
-          .update({ api_key: apiKey, logo_url: config.logo_url })
+          .update({ logo_url: config.logo_url })
           .eq("id", config.id);
         if (error) throw error;
       } else {
         const { data, error } = await supabase
           .from("tmdb_config")
-          .insert({ user_id: user.id, api_key: apiKey, logo_url: null })
+          .insert({ user_id: user.id, logo_url: null })
           .select()
           .single();
         if (error) throw error;
@@ -132,7 +137,7 @@ const MoviesSeries = () => {
 
   const handleSearch = async () => {
     if (!apiKey.trim()) {
-      toast({ title: "Configure sua API Key do TMDB primeiro", variant: "destructive" });
+      toast({ title: "API Key do TMDB não configurada pelo administrador", variant: "destructive" });
       return;
     }
     if (!query.trim()) return;
@@ -193,8 +198,6 @@ const MoviesSeries = () => {
       </div>
 
       <TmdbConfigSection
-        apiKey={apiKey}
-        setApiKey={setApiKey}
         config={config}
         setConfig={setConfig}
         saving={saving}
