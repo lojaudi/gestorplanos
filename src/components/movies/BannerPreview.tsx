@@ -285,90 +285,112 @@ export function BannerPreview({ selected, logoUrl, onBack, userId }: Props) {
           <div
             ref={bannerRef}
             className="relative w-full overflow-hidden rounded-xl"
-            style={{ aspectRatio: "16/9" }}
+            style={{ aspectRatio: "9/16", maxWidth: 480, margin: "0 auto" }}
           >
             {/* Background: blurred poster */}
             {selected.poster_path && (
               <img
                 src={`${TMDB_IMG}/w780${selected.poster_path}`}
                 alt=""
-                className="absolute inset-0 w-full h-full object-cover scale-110 blur-sm brightness-[0.35]"
+                className="absolute inset-0 w-full h-full object-cover blur-md brightness-[0.3]"
               />
             )}
             {!selected.poster_path && (
               <div className="absolute inset-0 bg-gradient-to-br from-zinc-900 to-zinc-800" />
             )}
 
-            {/* Content overlay */}
-            <div className="relative z-10 flex h-full p-6 gap-5 items-center">
-              {/* Poster */}
-              {selected.poster_path && (
-                <img
-                  src={`${TMDB_IMG}/w342${selected.poster_path}`}
-                  alt={title}
-                  className="h-full w-auto rounded-lg shadow-2xl border-2 border-white/20 object-contain"
-                />
-              )}
+            {/* Dark overlay for readability */}
+            <div className="absolute inset-0 bg-black/30" />
 
-              {/* Info */}
-              <div className="flex-1 flex flex-col justify-between h-full text-white min-w-0">
-                {/* Logo */}
+            {/* Content overlay - vertical layout */}
+            <div className="relative z-10 flex flex-col h-full p-5 text-white">
+              {/* Top: type label + logo */}
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <p className="text-lg font-extrabold uppercase tracking-wide drop-shadow-lg">
+                    {type}
+                  </p>
+                  <p className="text-xs text-white/70 font-medium">
+                    adicionado em nossa grade
+                  </p>
+                </div>
                 {logoUrl && (
                   <img
                     src={logoUrl}
                     alt="Logo"
-                    className="h-8 w-auto object-contain self-start mb-2"
+                    className="h-14 w-auto object-contain drop-shadow-lg"
+                  />
+                )}
+              </div>
+
+              {/* Middle: poster + info side by side */}
+              <div className="flex gap-4 flex-1 min-h-0">
+                {/* Poster */}
+                {selected.poster_path && (
+                  <img
+                    src={`${TMDB_IMG}/w342${selected.poster_path}`}
+                    alt={title}
+                    className="w-[45%] rounded-lg shadow-2xl border-2 border-white/20 object-cover self-start"
                   />
                 )}
 
-                <div className="space-y-2 flex-1 flex flex-col justify-center">
-                  <h2 className="text-xl md:text-2xl font-bold leading-tight drop-shadow-lg">
+                {/* Info */}
+                <div className="flex-1 flex flex-col justify-start min-w-0 pt-2">
+                  <h2 className="text-xl font-extrabold leading-tight drop-shadow-lg uppercase">
                     {title}
                   </h2>
-                  <p className="text-sm text-white/70 font-medium">
-                    {type} • {year}
+                  <p className="text-sm text-white/80 font-semibold mt-1">
+                    Lançamento: {year}
                   </p>
                   {selected.overview && (
-                    <p className="text-sm text-white/90 leading-relaxed line-clamp-4">
-                      {selected.overview}
-                    </p>
+                    <div className="mt-3">
+                      <p className="text-xs font-bold text-yellow-400 uppercase mb-1">Sinopse:</p>
+                      <p className="text-xs text-white/90 leading-relaxed">
+                        {selected.overview.slice(0, 300)}{selected.overview.length > 300 ? "..." : ""}
+                      </p>
+                    </div>
                   )}
                 </div>
+              </div>
 
-                {/* Cast */}
-                {selected.cast.length > 0 && (
-                  <div className="flex gap-2 mt-2">
+              {/* Bottom: Cast */}
+              {selected.cast.length > 0 && (
+                <div className="mt-4 pt-3 border-t border-white/20">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-white/80 mb-2">
+                    Elenco Principal:
+                  </p>
+                  <div className="flex gap-3 justify-start">
                     {selected.cast.slice(0, 5).map((c) => (
-                      <div key={c.id} className="flex flex-col items-center w-10">
+                      <div key={c.id} className="flex flex-col items-center w-12">
                         {c.profile_path ? (
                           <img
                             src={`${TMDB_IMG}/w185${c.profile_path}`}
                             alt={c.name}
-                            className="h-10 w-10 rounded-full object-cover border border-white/30"
+                            className="h-12 w-12 rounded-full object-cover border-2 border-white/30"
                           />
                         ) : (
-                          <div className="h-10 w-10 rounded-full bg-white/20 flex items-center justify-center text-[8px] text-white">
+                          <div className="h-12 w-12 rounded-full bg-white/20 flex items-center justify-center text-xs text-white font-bold">
                             {c.name[0]}
                           </div>
                         )}
-                        <span className="text-[7px] mt-0.5 text-white/70 truncate w-full text-center">
+                        <span className="text-[8px] mt-1 text-white/80 truncate w-full text-center font-medium">
                           {c.name.split(" ")[0]}
                         </span>
                       </div>
                     ))}
                   </div>
-                )}
+                </div>
+              )}
 
-                {/* Custom message on banner */}
-                {customMessage.trim() && (
-                  <div className="mt-2 bg-white/10 backdrop-blur-sm rounded-md px-3 py-1.5 border border-white/20">
-                    <p className="text-xs text-white/90 flex items-center gap-1.5">
-                      <MessageSquare className="h-3 w-3 shrink-0" />
-                      {customMessage}
-                    </p>
-                  </div>
-                )}
-              </div>
+              {/* Custom message on banner */}
+              {customMessage.trim() && (
+                <div className="mt-3 bg-white/10 backdrop-blur-sm rounded-md px-3 py-2 border border-white/20">
+                  <p className="text-xs text-white/90 flex items-center gap-1.5">
+                    <MessageSquare className="h-3 w-3 shrink-0" />
+                    {customMessage}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
 
