@@ -54,6 +54,38 @@ function delay(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+async function imgToBase64(url: string): Promise<string> {
+  const res = await fetch(url);
+  const blob = await res.blob();
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.readAsDataURL(blob);
+  });
+}
+
+async function convertBannerImages(container: HTMLDivElement) {
+  const imgs = container.querySelectorAll("img");
+  const originals: { el: HTMLImageElement; src: string }[] = [];
+  await Promise.all(
+    Array.from(imgs).map(async (img) => {
+      if (img.src.startsWith("data:") || img.src.startsWith("blob:")) return;
+      try {
+        originals.push({ el: img, src: img.src });
+        const dataUrl = await imgToBase64(img.src);
+        img.src = dataUrl;
+      } catch {
+        // keep original if fetch fails
+      }
+    })
+  );
+  return originals;
+}
+
+function restoreImages(originals: { el: HTMLImageElement; src: string }[]) {
+  originals.forEach(({ el, src }) => { el.src = src; });
+}
+
 export function BannerPreview({ selected, logoUrl, onBack, userId }: Props) {
   const bannerRef = useRef<HTMLDivElement>(null);
   const [customMessage, setCustomMessage] = useState("");
@@ -65,41 +97,52 @@ export function BannerPreview({ selected, logoUrl, onBack, userId }: Props) {
   const year = (selected.release_date || selected.first_air_date || "").slice(0, 4);
   const type = selected.media_type === "tv" ? "Série" : "Filme";
 
-  const handleCopyImage = async () => {
-    if (!bannerRef.current) return;
-    setCopying(true);
+  const generateBannerBlob = async (): Promise<Blob | null> => {
+    if (!bannerRef.current) return null;
+    const originals = await convertBannerImages(bannerRef.current);
     try {
       const { default: html2canvas } = await import("html2canvas");
       const canvas = await html2canvas(bannerRef.current, {
-        useCORS: true,
-        allowTaint: true,
+        useCORS: false,
+        allowTaint: false,
         scale: 2,
       });
-      canvas.toBlob(async (blob) => {
-        if (!blob) {
-          toast({ title: "Erro ao gerar imagem", variant: "destructive" });
-          setCopying(false);
-          return;
-        }
-        try {
-          await navigator.clipboard.write([
-            new ClipboardItem({ "image/png": blob }),
-          ]);
-          toast({ title: "Banner copiado para a área de transferência!" });
-        } catch {
-          // Fallback: download
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `banner-${title.replace(/\s+/g, "-").toLowerCase()}.png`;
-          a.click();
-          URL.revokeObjectURL(url);
-          toast({ title: "Banner baixado com sucesso!" });
-        }
+      restoreImages(originals);
+      return new Promise((resolve) => {
+        canvas.toBlob((blob) => resolve(blob), "image/png");
+      });
+    } catch (err) {
+      restoreImages(originals);
+      throw err;
+    }
+  };
+
+  const handleCopyImage = async () => {
+    setCopying(true);
+    try {
+      const blob = await generateBannerBlob();
+      if (!blob) {
+        toast({ title: "Erro ao gerar imagem", variant: "destructive" });
         setCopying(false);
-      }, "image/png");
+        return;
+      }
+      try {
+        await navigator.clipboard.write([
+          new ClipboardItem({ "image/png": blob }),
+        ]);
+        toast({ title: "Banner copiado para a área de transferência!" });
+      } catch {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `banner-${title.replace(/\s+/g, "-").toLowerCase()}.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+        toast({ title: "Banner baixado com sucesso!" });
+      }
     } catch (err: any) {
       toast({ title: "Erro ao copiar", description: err.message, variant: "destructive" });
+    } finally {
       setCopying(false);
     }
   };
@@ -121,12 +164,13 @@ export function BannerPreview({ selected, logoUrl, onBack, userId }: Props) {
   };
 
   const buildMessage = () => {
-    let msg = `🎬 *${title}* (${year}) - ${type}\n\n`;
-    if (selected.overview) {
-      msg += `📖 ${selected.overview.slice(0, 200)}${selected.overview.length > 200 ? "..." : ""}\n\n`;
-    }
+    let msg = "";
     if (customMessage.trim()) {
-      msg += `💬 ${customMessage.trim()}\n`;
+      msg += `💬 ${customMessage.trim()}\n\n`;
+    }
+    msg += `🎬 *${title}* (${year}) - ${type}\n\n`;
+    if (selected.overview) {
+      msg += `📖 ${selected.overview.slice(0, 200)}${selected.overview.length > 200 ? "..." : ""}\n`;
     }
     return msg;
   };
@@ -147,7 +191,23 @@ export function BannerPreview({ selected, logoUrl, onBack, userId }: Props) {
         return;
       }
 
-      const message = buildMessage();
+      // Generate banner image as base64
+      toast({ title: "Gerando banner..." });
+      const blob = await generateBannerBlob();
+      let imageBase64 = "";
+      if (blob) {
+        const reader = new FileReader();
+        imageBase64 = await new Promise<string>((resolve) => {
+          reader.onloadend = () => {
+            const result = reader.result as string;
+            // Remove data:image/png;base64, prefix
+            resolve(result.split(",")[1] || "");
+          };
+          reader.readAsDataURL(blob);
+        });
+      }
+
+      const caption = buildMessage();
       const BATCH_SIZE = 10;
       let sent = 0;
       let errors = 0;
@@ -157,10 +217,11 @@ export function BannerPreview({ selected, logoUrl, onBack, userId }: Props) {
 
         const { data, error } = await supabase.functions.invoke("evolution-api", {
           body: {
-            action: "send-bulk",
+            action: "send-bulk-media",
+            imageBase64,
+            caption,
             messages: batch.map((c) => ({
               phone: c.phone,
-              message,
               client_id: c.id,
               template_type: "banner",
             })),
