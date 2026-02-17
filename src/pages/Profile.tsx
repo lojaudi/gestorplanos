@@ -42,6 +42,10 @@ const Profile = () => {
 
   const handleSaveProfile = async () => {
     if (!user) return;
+    if (!fullName.trim()) {
+      toast({ title: "O campo Nome Completo é obrigatório", variant: "destructive" });
+      return;
+    }
     setSavingProfile(true);
     try {
       // Update name in profiles
