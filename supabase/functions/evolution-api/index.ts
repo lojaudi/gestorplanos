@@ -229,9 +229,33 @@ serve(async (req) => {
         .update({ verified: true })
         .eq("id", verification.id);
 
+      // Create user account with auto-confirmation using admin API
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email: verification.email,
+        password: verification.password_hash,
+        email_confirm: true,
+        user_metadata: {
+          full_name: verification.full_name,
+          phone: verification.phone,
+        },
+      });
+
+      if (authError) {
+        return errorResponse(authError.message);
+      }
+
+      // Update profile with phone
+      if (authData.user) {
+        await supabase
+          .from("profiles")
+          .update({ phone: verification.phone })
+          .eq("user_id", authData.user.id);
+      }
+
       return jsonResponse({ 
         success: true, 
         verified: true,
+        account_created: true,
         phone: verification.phone,
         full_name: verification.full_name,
       });
