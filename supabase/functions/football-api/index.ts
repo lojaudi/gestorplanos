@@ -225,7 +225,6 @@ serve(async (req) => {
     }
 
     if (action === "scrape-channels") {
-      // Scrape TV channels from futebolnatv.com.br and use AI to extract
       const matchList = params.matches || [];
       if (!matchList.length) {
         return new Response(JSON.stringify({ channels: {} }), {
@@ -233,7 +232,7 @@ serve(async (req) => {
         });
       }
 
-      const cacheKey = `channels-${new Date().toISOString().slice(0, 10)}`;
+      const cacheKey = `channels-${new Date().toISOString().slice(0, 10)}-${matchList.length}`;
       const cachedChannels = getCached(cacheKey);
       if (cachedChannels) {
         return new Response(JSON.stringify(cachedChannels), {
@@ -241,122 +240,109 @@ serve(async (req) => {
         });
       }
 
+      // Brazilian TV broadcasting rights mapping by league/competition
+      // These are based on current 2025-2026 broadcasting contracts
+      const leagueChannelMap: Record<string, string[]> = {
+        // Brasileirão Série A
+        "71": ["globo", "sportv", "premiere"],
+        "brasileirao serie a": ["globo", "sportv", "premiere"],
+        "serie a brazil": ["globo", "sportv", "premiere"],
+        "campeonato brasileiro série a": ["globo", "sportv", "premiere"],
+        
+        // Brasileirão Série B
+        "72": ["sportv", "premiere", "band"],
+        "brasileirao serie b": ["sportv", "premiere", "band"],
+        "serie b brazil": ["sportv", "premiere", "band"],
+        "campeonato brasileiro série b": ["sportv", "premiere", "band"],
+        
+        // Copa do Brasil
+        "73": ["globo", "sportv", "premiere", "amazon"],
+        "copa do brasil": ["globo", "sportv", "premiere", "amazon"],
+        
+        // Copa Libertadores
+        "13": ["espn", "disney_plus", "paramount"],
+        "copa libertadores": ["espn", "disney_plus", "paramount"],
+        "conmebol libertadores": ["espn", "disney_plus", "paramount"],
+        
+        // FIFA World Cup
+        "1": ["globo", "sportv", "cazetv"],
+        "fifa world cup": ["globo", "sportv", "cazetv"],
+        
+        // Serie A (Italy)
+        "135": ["espn", "disney_plus", "star_plus"],
+        "serie a italy": ["espn", "disney_plus", "star_plus"],
+        "serie a": ["espn", "disney_plus", "star_plus"],
+        
+        // UEFA Champions League
+        "2": ["tnt_sports", "disney_plus"],
+        "champions league": ["tnt_sports", "disney_plus"],
+        "champions league uefa": ["tnt_sports", "disney_plus"],
+        "uefa champions league": ["tnt_sports", "disney_plus"],
+        
+        // Bundesliga
+        "78": ["espn", "disney_plus", "cazetv"],
+        "bundesliga": ["espn", "disney_plus", "cazetv"],
+        
+        // European Championship
+        "4": ["globo", "sportv", "cazetv"],
+        "european championship": ["globo", "sportv", "cazetv"],
+        "euro": ["globo", "sportv", "cazetv"],
+        
+        // Primeira Liga (Portugal)
+        "94": ["espn", "disney_plus", "star_plus"],
+        "primeira liga": ["espn", "disney_plus", "star_plus"],
+        "liga portugal": ["espn", "disney_plus", "star_plus"],
+        
+        // Copa Sul-Americana
+        "copa sul-americana": ["espn", "disney_plus", "paramount"],
+        "conmebol sudamericana": ["espn", "disney_plus", "paramount"],
+        
+        // Premier League (England) - common fallback
+        "premier league": ["espn", "disney_plus", "star_plus"],
+        
+        // La Liga (Spain)
+        "la liga": ["espn", "disney_plus", "star_plus"],
+        
+        // Ligue 1 (France)
+        "ligue 1": ["cazetv"],
+        
+        // Copa América
+        "copa america": ["globo", "sportv"],
+      };
+
       try {
-        // Fetch the page - use /jogos-hoje/ for today's games specifically
-        const pageRes = await fetch("https://www.futebolnatv.com.br/jogos-hoje/", {
-          headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
-        });
-        const html = await pageRes.text();
-        console.log("Scraped page length:", html.length);
+        const channelMap: Record<string, string[]> = {};
 
-        // Extract just the relevant content (reduce tokens)
-        const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
-        const bodyContent = bodyMatch ? bodyMatch[1] : html;
-        // Strip scripts and styles
-        const cleaned = bodyContent
-          .replace(/<script[\s\S]*?<\/script>/gi, "")
-          .replace(/<style[\s\S]*?<\/style>/gi, "")
-          .replace(/<[^>]+>/g, " ")
-          .replace(/\s+/g, " ")
-          .trim()
-          .slice(0, 15000); // Increased limit to capture more games
-        console.log("Cleaned content length:", cleaned.length);
-
-        const matchNames = matchList.map((m: any) => `${m.home} vs ${m.away}`).join(", ");
-
-        const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-        if (!LOVABLE_API_KEY) {
-          return new Response(JSON.stringify({ channels: {}, error: "AI key not configured" }), {
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-
-        const validChannelIds = ["globo", "sportv", "premiere", "espn", "star_plus", "amazon", "cazetv", "band", "record", "paramount", "tnt_sports", "disney_plus"];
-
-        const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${LOVABLE_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model: "google/gemini-3-flash-preview",
-            messages: [
-              {
-                role: "system",
-                content: `You extract TV channel information for Brazilian football matches. Given scraped text from futebolnatv.com.br and a list of matches, return a JSON mapping match keys ("HomeTeam vs AwayTeam") to arrays of channel IDs. Valid channel IDs: ${validChannelIds.join(", ")}. Map channel names like: "TV Globo"/"Globo" -> "globo", "SporTV"/"SporTV 2"/"SporTV 3" -> "sportv", "Premiere" -> "premiere", "ESPN"/"ESPN 2"/"ESPN 4" -> "espn", "Star+" -> "star_plus", "Amazon Prime Video"/"Prime Video" -> "amazon", "CazéTV" -> "cazetv", "Band"/"TV Bandeirantes" -> "band", "Record"/"TV Record" -> "record", "Paramount+" -> "paramount", "TNT Sports"/"TNT" -> "tnt_sports", "Disney+"/"Disney Plus" -> "disney_plus". Return ONLY valid JSON, no explanation.`,
-              },
-              {
-                role: "user",
-                content: `Matches to find channels for: ${matchNames}\n\nScraped content from futebolnatv.com.br:\n${cleaned}`,
-              },
-            ],
-            tools: [
-              {
-                type: "function",
-                function: {
-                  name: "extract_channels",
-                  description: "Extract TV channels for each match",
-                  parameters: {
-                    type: "object",
-                    properties: {
-                      matches: {
-                        type: "array",
-                        items: {
-                          type: "object",
-                          properties: {
-                            match_key: { type: "string", description: "HomeTeam vs AwayTeam" },
-                            channels: { type: "array", items: { type: "string", enum: validChannelIds } },
-                          },
-                          required: ["match_key", "channels"],
-                        },
-                      },
-                    },
-                    required: ["matches"],
-                  },
-                },
-              },
-            ],
-            tool_choice: { type: "function", function: { name: "extract_channels" } },
-          }),
-        });
-
-        let channelMap: Record<string, string[]> = {};
-
-        if (aiRes.ok) {
-          const aiJson = await aiRes.json();
-          console.log("AI response:", JSON.stringify(aiJson.choices?.[0]?.message).slice(0, 500));
-          const toolCall = aiJson.choices?.[0]?.message?.tool_calls?.[0];
-          if (toolCall?.function?.arguments) {
-            try {
-              const parsed = JSON.parse(toolCall.function.arguments);
-              console.log("Parsed channels:", JSON.stringify(parsed));
-              for (const entry of (parsed.matches || [])) {
-                channelMap[entry.match_key] = (entry.channels || []).filter((c: string) => validChannelIds.includes(c));
-              }
-            } catch (e) {
-              console.error("Failed to parse AI response:", e);
-            }
-          } else {
-            // Try parsing content directly as JSON fallback
-            const content = aiJson.choices?.[0]?.message?.content;
-            if (content) {
-              console.log("AI content (no tool_call):", content.slice(0, 500));
-              try {
-                const parsed = JSON.parse(content.replace(/```json\n?/g, "").replace(/```/g, "").trim());
-                if (typeof parsed === "object") {
-                  for (const [key, val] of Object.entries(parsed)) {
-                    if (Array.isArray(val)) {
-                      channelMap[key] = (val as string[]).filter((c: string) => validChannelIds.includes(c));
-                    }
-                  }
-                }
-              } catch { /* ignore */ }
+        for (const m of matchList) {
+          const matchKey = `${m.home} vs ${m.away}`;
+          
+          // Try to find channels by league ID first
+          if (m.leagueId) {
+            const byId = leagueChannelMap[String(m.leagueId)];
+            if (byId) {
+              channelMap[matchKey] = byId;
+              continue;
             }
           }
-        } else {
-          console.error("AI gateway error:", aiRes.status, await aiRes.text());
+          
+          // Try by league name (fuzzy match)
+          if (m.league) {
+            const leagueLower = m.league.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            let found = false;
+            for (const [key, channels] of Object.entries(leagueChannelMap)) {
+              if (leagueLower.includes(key) || key.includes(leagueLower.split(" ")[0])) {
+                channelMap[matchKey] = channels;
+                found = true;
+                break;
+              }
+            }
+            if (found) continue;
+          }
+
+          // Default: no channels (user can select manually)
         }
+
+        console.log("League-based channel map:", JSON.stringify(channelMap));
 
         const result = { channels: channelMap };
         setCache(cacheKey, result);
@@ -365,7 +351,7 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       } catch (err) {
-        console.error("Scrape channels error:", err);
+        console.error("Channel mapping error:", err);
         return new Response(JSON.stringify({ channels: {}, error: String(err) }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });

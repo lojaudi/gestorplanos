@@ -104,7 +104,7 @@ const GamesDay = () => {
         },
         body: JSON.stringify({
           action: "scrape-channels",
-          matches: matchList.map((m) => ({ home: m.home.name, away: m.away.name })),
+          matches: matchList.map((m) => ({ home: m.home.name, away: m.away.name, leagueId: m.league.id, league: m.league.name })),
         }),
       });
       const json = await res.json();
