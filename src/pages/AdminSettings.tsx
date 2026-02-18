@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { Settings, Save, Upload, Loader2, Trash2, Shield, Eye, EyeOff } from "lucide-react";
+import { Settings, Save, Upload, Loader2, Trash2, Shield, Eye, EyeOff, MessageSquare, Mail } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 interface PlatformSettings {
   id: string;
@@ -20,6 +21,8 @@ interface PlatformSettings {
   secondary_color: string;
   accent_color: string;
   tmdb_api_key: string;
+  whatsapp_verification_enabled: boolean;
+  email_verification_enabled: boolean;
 }
 
 const AdminSettings = () => {
@@ -154,7 +157,9 @@ const AdminSettings = () => {
         secondary_color: settings.secondary_color,
         accent_color: settings.accent_color,
         tmdb_api_key: settings.tmdb_api_key,
-      })
+        whatsapp_verification_enabled: settings.whatsapp_verification_enabled,
+        email_verification_enabled: settings.email_verification_enabled,
+      } as any)
       .eq("id", settings.id);
 
     if (error) {
@@ -367,6 +372,45 @@ const AdminSettings = () => {
               </div>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Verification Methods */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Métodos de Verificação de Cadastro</CardTitle>
+          <CardDescription>Configure quais métodos de verificação serão exigidos ao criar uma nova conta.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between rounded-lg border p-4">
+            <div className="flex items-center gap-3">
+              <MessageSquare className="h-5 w-5 text-green-500" />
+              <div>
+                <p className="font-medium">Verificação por WhatsApp</p>
+                <p className="text-sm text-muted-foreground">Envia um código OTP via WhatsApp para confirmar o cadastro</p>
+              </div>
+            </div>
+            <Switch
+              checked={settings.whatsapp_verification_enabled}
+              onCheckedChange={(v) => setSettings({ ...settings, whatsapp_verification_enabled: v })}
+            />
+          </div>
+          <div className="flex items-center justify-between rounded-lg border p-4">
+            <div className="flex items-center gap-3">
+              <Mail className="h-5 w-5 text-blue-500" />
+              <div>
+                <p className="font-medium">Verificação por E-mail</p>
+                <p className="text-sm text-muted-foreground">Envia um link de confirmação por e-mail antes de ativar a conta</p>
+              </div>
+            </div>
+            <Switch
+              checked={settings.email_verification_enabled}
+              onCheckedChange={(v) => setSettings({ ...settings, email_verification_enabled: v })}
+            />
+          </div>
+          {!settings.whatsapp_verification_enabled && !settings.email_verification_enabled && (
+            <p className="text-sm text-amber-500 font-medium">⚠️ Nenhum método de verificação ativo. Contas serão criadas sem confirmação.</p>
+          )}
         </CardContent>
       </Card>
 

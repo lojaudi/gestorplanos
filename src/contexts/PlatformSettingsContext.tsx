@@ -9,6 +9,8 @@ interface PlatformSettings {
   primary_color: string;
   secondary_color: string;
   accent_color: string;
+  whatsapp_verification_enabled: boolean;
+  email_verification_enabled: boolean;
 }
 
 const defaultSettings: PlatformSettings = {
@@ -19,6 +21,8 @@ const defaultSettings: PlatformSettings = {
   primary_color: "#3b82f6",
   secondary_color: "#1e40af",
   accent_color: "#f59e0b",
+  whatsapp_verification_enabled: true,
+  email_verification_enabled: false,
 };
 
 const PlatformSettingsContext = createContext<PlatformSettings>(defaultSettings);
@@ -93,6 +97,8 @@ export function PlatformSettingsProvider({ children }: { children: ReactNode }) 
             primary_color: data.primary_color,
             secondary_color: data.secondary_color,
             accent_color: data.accent_color,
+            whatsapp_verification_enabled: (data as any).whatsapp_verification_enabled ?? true,
+            email_verification_enabled: (data as any).email_verification_enabled ?? false,
           };
           setSettings(s);
           document.title = `${s.system_name} - Gestão de Cobranças`;
