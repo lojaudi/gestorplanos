@@ -34,6 +34,7 @@ interface PlatformSettings {
   football_accent_color: string;
   football_default_logo_url: string | null;
   football_banners_enabled: boolean;
+  football_api_key_secondary: string;
 }
 
 const AdminSettings = () => {
@@ -55,6 +56,7 @@ const AdminSettings = () => {
   const [savingGlobal, setSavingGlobal] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
   const [showFootballKey, setShowFootballKey] = useState(false);
+  const [showFootballKeySecondary, setShowFootballKeySecondary] = useState(false);
   const callEvolutionApi = useCallback(async (action: string, extraParams = {}) => {
     const { data: { session } } = await supabase.auth.getSession();
     const res = await fetch(
@@ -180,6 +182,7 @@ const AdminSettings = () => {
         football_accent_color: settings.football_accent_color,
         football_default_logo_url: settings.football_default_logo_url,
         football_banners_enabled: settings.football_banners_enabled,
+        football_api_key_secondary: settings.football_api_key_secondary || null,
       } as any)
       .eq("id", settings.id);
 
@@ -490,6 +493,27 @@ const AdminSettings = () => {
                 {showFootballKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
               </button>
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label>API Key Football-Data.org</Label>
+            <div className="relative">
+              <Input
+                type={showFootballKeySecondary ? "text" : "password"}
+                value={(settings as any).football_api_key_secondary ?? ""}
+                onChange={(e) => setSettings({ ...settings, football_api_key_secondary: e.target.value })}
+                placeholder="Chave da Football-Data.org"
+              />
+              <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowFootballKeySecondary(!showFootballKeySecondary)}>
+                {showFootballKeySecondary ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Obtenha sua chave em{" "}
+              <a href="https://www.football-data.org/client/register" target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                football-data.org
+              </a>
+            </p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-2">
