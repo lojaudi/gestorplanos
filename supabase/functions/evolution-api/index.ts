@@ -261,6 +261,35 @@ serve(async (req) => {
       });
     }
 
+    // Create account directly without any verification (when both toggles are off)
+    if (action === "create-account-direct") {
+      const { email, password, full_name, phone } = params;
+      if (!email || !password || !full_name) {
+        return errorResponse("Email, senha e nome são obrigatórios");
+      }
+
+      const supabase = getServiceClient();
+      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { full_name, phone: phone || undefined },
+      });
+
+      if (authError) {
+        return errorResponse(authError.message);
+      }
+
+      if (authData.user && phone) {
+        await supabase
+          .from("profiles")
+          .update({ phone })
+          .eq("user_id", authData.user.id);
+      }
+
+      return jsonResponse({ success: true, account_created: true });
+    }
+
     // === AUTHENTICATED ACTIONS ===
     const user = await getAuthUser(req);
     if (!user) return errorResponse("Não autenticado", 401);
