@@ -59,13 +59,13 @@ export function ModernTemplate({ matches, title, logoUrl, whatsapp, primaryColor
                 <div className="text-center shrink-0 flex flex-col items-center gap-1">
                   <span className="font-black text-[0.9em]" style={{ color: accentColor }}>{formatTime(m.date)}</span>
                   {m.channels && m.channels.length > 0 && (
-                    <div className="flex gap-1 items-center justify-center flex-wrap">
-                      {m.channels.map((ch) => {
+                    <div className="flex gap-1.5 items-center justify-center">
+                      {m.channels.slice(0, 3).map((ch) => {
                         const info = CHANNEL_MAP[ch];
                         return info ? (
-                          <img key={ch} src={info.logo} alt={info.name} title={info.name} className="object-contain" style={{ height: "0.9em", maxHeight: "14px", width: "auto", filter: "brightness(0) invert(1)", opacity: 0.85 }} />
+                          <img key={ch} src={info.logo} alt={info.name} title={info.name} className="object-contain" style={{ height: "1.4em", maxHeight: "22px", width: "auto" }} />
                         ) : (
-                          <span key={ch} className="text-[0.35em] px-1 py-0.5 rounded-full font-bold" style={{ background: accentColor, color: primaryColor }}>{ch}</span>
+                          <span key={ch} className="text-[0.4em] px-1.5 py-0.5 rounded-full font-bold" style={{ background: accentColor, color: primaryColor }}>{ch}</span>
                         );
                       })}
                     </div>
