@@ -7,29 +7,11 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Popular league IDs commonly broadcast in Brazil
+// Ligas filtradas para transmissão no Brasil
 const BRAZIL_LEAGUES = [
-  // Brazilian
   71,   // Brasileirão Série A
-  72,   // Brasileirão Série B
   73,   // Copa do Brasil
-  75,   // Brasileirão Série C
-  // South American
   13,   // Copa Libertadores
-  11,   // Copa Sudamericana
-  // European
-  2,    // Champions League
-  3,    // Europa League
-  848,  // Conference League
-  39,   // Premier League
-  140,  // La Liga
-  135,  // Serie A (Italy)
-  61,   // Ligue 1
-  78,   // Bundesliga
-  // International
-  1,    // World Cup
-  4,    // Euro
-  9,    // Copa América
 ];
 
 // Simple in-memory cache
