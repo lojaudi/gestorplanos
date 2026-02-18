@@ -69,7 +69,7 @@ export function MatchSelectionGrid({ matches, loading, selected, onToggle, onCha
       <CardHeader>
         <div className="flex items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-lg">
-            Selecione até 6 partidas ({selected.length}/6)
+            Selecione as partidas ({selected.length} selecionadas)
           </CardTitle>
           {leagues.length > 0 && (
             <Select value={leagueFilter} onValueChange={onLeagueFilterChange}>
@@ -93,17 +93,16 @@ export function MatchSelectionGrid({ matches, loading, selected, onToggle, onCha
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {filtered.map((match) => {
               const isSelected = selected.some((s) => s.id === match.id);
-              const disabled = !isSelected && selected.length >= 6;
               return (
                 <div
                   key={match.id}
                   className={`relative rounded-lg border p-3 transition-colors cursor-pointer ${
-                    isSelected ? "border-primary bg-primary/5" : disabled ? "opacity-50 cursor-not-allowed" : "hover:border-primary/50"
+                    isSelected ? "border-primary bg-primary/5" : "hover:border-primary/50"
                   }`}
-                  onClick={() => !disabled && onToggle(match)}
+                  onClick={() => onToggle(match)}
                 >
                   <div className="flex items-start gap-2">
-                    <Checkbox checked={isSelected} disabled={disabled} className="mt-1" />
+                    <Checkbox checked={isSelected} className="mt-1" />
                     <div className="flex-1 min-w-0">
                       <Badge variant="outline" className="text-[10px] mb-2">{match.league.name}</Badge>
                       <div className="flex items-center gap-2 mb-1">

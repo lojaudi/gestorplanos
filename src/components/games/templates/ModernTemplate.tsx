@@ -40,7 +40,7 @@ export function ModernTemplate({ matches, title, logoUrl, whatsapp, primaryColor
     >
       {/* Background image */}
       {backgroundUrl && (
-        <div className="absolute inset-0" style={{ backgroundImage: `url(${backgroundUrl})`, backgroundSize: "cover", backgroundPosition: "center", opacity: 0.3 }} />
+        <div className="absolute inset-0" style={{ backgroundImage: `url(${backgroundUrl})`, backgroundSize: "100% 100%", backgroundPosition: "center" }} />
       )}
       {/* Grid pattern overlay */}
       <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.15) 1px, transparent 1px)", backgroundSize: "30px 30px" }} />

@@ -40,7 +40,7 @@ export function SportyTemplate({ matches, title, logoUrl, whatsapp, primaryColor
     >
       {/* Background image */}
       {backgroundUrl && (
-        <div className="absolute inset-0" style={{ backgroundImage: `url(${backgroundUrl})`, backgroundSize: "cover", backgroundPosition: "center", opacity: 0.3 }} />
+        <div className="absolute inset-0" style={{ backgroundImage: `url(${backgroundUrl})`, backgroundSize: "100% 100%", backgroundPosition: "center" }} />
       )}
       {/* Dynamic diagonal stripes */}
       <div className="absolute inset-0 opacity-5" style={{
