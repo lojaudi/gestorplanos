@@ -51,11 +51,12 @@ async function imgToDataUrl(url: string): Promise<string | null> {
 async function proxyAllImages(container: HTMLDivElement) {
   const imgs = container.querySelectorAll("img");
   const swapped: { el: HTMLImageElement; orig: string }[] = [];
+  const origin = window.location.origin;
   await Promise.all(Array.from(imgs).map(async (img) => {
-    if (!img.src.startsWith("data:")) {
-      const dataUrl = await imgToDataUrl(img.src);
-      if (dataUrl) { swapped.push({ el: img, orig: img.src }); img.src = dataUrl; }
-    }
+    // Skip data URLs and same-origin images (local channel logos etc.)
+    if (img.src.startsWith("data:") || img.src.startsWith(origin)) return;
+    const dataUrl = await imgToDataUrl(img.src);
+    if (dataUrl) { swapped.push({ el: img, orig: img.src }); img.src = dataUrl; }
   }));
   await Promise.all(swapped.map(({ el }) => new Promise<void>((resolve) => { if (el.complete) return resolve(); el.onload = () => resolve(); el.onerror = () => resolve(); })));
   return swapped;

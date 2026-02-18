@@ -42,7 +42,7 @@ export function MinimalTemplate({ matches, title, logoUrl, whatsapp, primaryColo
             <h1 className="font-black uppercase" style={{ fontSize: isStory ? "2.2em" : "1.8em", color: primaryColor, letterSpacing: "-0.02em" }}>{title}</h1>
             <p className="text-sm" style={{ color: "#666" }}>{new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}</p>
           </div>
-          {logoUrl && <img src={logoUrl} alt="Logo" className="h-12 w-auto object-contain" crossOrigin="anonymous" />}
+          {logoUrl && <img src={logoUrl} alt="Logo" className="h-12 w-auto object-contain" />}
         </div>
 
         <div className="w-full h-[2px] mb-[4%]" style={{ background: primaryColor }} />
@@ -58,7 +58,7 @@ export function MinimalTemplate({ matches, title, logoUrl, whatsapp, primaryColo
                       {m.channels.map((ch) => {
                         const info = CHANNEL_MAP[ch];
                         return info ? (
-                          <img key={ch} src={info.logo} alt={info.name} title={info.name} className="object-contain" style={{ height: "0.8em", maxHeight: "12px", width: "auto" }} crossOrigin="anonymous" />
+                          <img key={ch} src={info.logo} alt={info.name} title={info.name} className="object-contain" style={{ height: "0.8em", maxHeight: "12px", width: "auto" }} />
                         ) : (
                           <span key={ch} className="text-[0.35em] px-1 py-0.5 rounded font-bold" style={{ background: primaryColor, color: "#fff" }}>{ch}</span>
                         );
@@ -68,11 +68,11 @@ export function MinimalTemplate({ matches, title, logoUrl, whatsapp, primaryColo
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <img src={m.home.logo} alt="" className="object-contain" style={{ width: "1.75em", height: "1.75em", maxWidth: "28px", maxHeight: "28px" }} crossOrigin="anonymous" />
+                    <img src={m.home.logo} alt="" className="object-contain" style={{ width: "1.75em", height: "1.75em", maxWidth: "28px", maxHeight: "28px" }} />
                     <span className="text-[0.75em] font-bold">{m.home.name}</span>
                     <span className="text-[0.6em] font-black mx-1" style={{ color: "#999" }}>×</span>
                     <span className="text-[0.75em] font-bold">{m.away.name}</span>
-                    <img src={m.away.logo} alt="" className="object-contain" style={{ width: "1.75em", height: "1.75em", maxWidth: "28px", maxHeight: "28px" }} crossOrigin="anonymous" />
+                    <img src={m.away.logo} alt="" className="object-contain" style={{ width: "1.75em", height: "1.75em", maxWidth: "28px", maxHeight: "28px" }} />
                   </div>
                   <span className="text-[0.5em] uppercase tracking-widest" style={{ color: "#999" }}>{m.league.name}</span>
                 </div>
@@ -83,7 +83,7 @@ export function MinimalTemplate({ matches, title, logoUrl, whatsapp, primaryColo
         </div>
 
         <div className="mt-[3%] pt-[3%] flex items-center justify-between" style={{ borderTop: `2px solid ${primaryColor}` }}>
-          {logoUrl && <img src={logoUrl} alt="" className="h-8 w-auto object-contain" crossOrigin="anonymous" />}
+          {logoUrl && <img src={logoUrl} alt="" className="h-8 w-auto object-contain" />}
           {whatsapp && <span className="text-[0.7em] font-bold" style={{ color: primaryColor }}>📱 {whatsapp}</span>}
         </div>
       </div>
