@@ -8,11 +8,33 @@ const corsHeaders = {
 };
 
 // League IDs for api-football (api-sports.io)
-const APIFOOTBALL_LEAGUES = [71, 72, 73, 13];
+const APIFOOTBALL_LEAGUES = [
+  71,   // Brasileirão Série A
+  72,   // Brasileirão Série B
+  73,   // Copa do Brasil
+  13,   // Copa Libertadores
+  1,    // FIFA World Cup
+  135,  // Serie A (Italy)
+  2,    // UEFA Champions League
+  78,   // Bundesliga
+  4,    // European Championship (Euro)
+  94,   // Primeira Liga (Portugal)
+  71,   // Serie A (already included as Brasileirão)
+];
 
 // Competition codes for football-data.org
-const FOOTBALLDATA_COMPETITIONS = ["BSA", "BSB", "CLI", "CPB"];
-// BSA = Brasileirão Série A, BSB = Série B, CLI = Libertadores, CPB = Copa do Brasil (if available)
+const FOOTBALLDATA_COMPETITIONS = [
+  "BSA",  // Brasileirão Série A
+  "BSB",  // Brasileirão Série B
+  "CLI",  // Copa Libertadores
+  "CPB",  // Copa do Brasil
+  "WC",   // FIFA World Cup
+  "SA",   // Serie A (Italy)
+  "CL",   // UEFA Champions League
+  "BL1",  // Bundesliga
+  "EC",   // European Championship
+  "PPL",  // Primeira Liga (Portugal)
+];
 
 // Simple in-memory cache
 const cache: Record<string, { data: any; ts: number }> = {};
