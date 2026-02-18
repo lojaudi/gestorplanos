@@ -202,6 +202,134 @@ serve(async (req) => {
       });
     }
 
+    if (action === "scrape-channels") {
+      // Scrape TV channels from futebolnatv.com.br and use AI to extract
+      const matchList = params.matches || [];
+      if (!matchList.length) {
+        return new Response(JSON.stringify({ channels: {} }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const cacheKey = `channels-${new Date().toISOString().slice(0, 10)}`;
+      const cachedChannels = getCached(cacheKey);
+      if (cachedChannels) {
+        return new Response(JSON.stringify(cachedChannels), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      try {
+        // Fetch the page
+        const pageRes = await fetch("https://futebolnatv.com.br/", {
+          headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
+        });
+        const html = await pageRes.text();
+
+        // Extract just the relevant content (reduce tokens)
+        const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
+        const bodyContent = bodyMatch ? bodyMatch[1] : html;
+        // Strip scripts and styles
+        const cleaned = bodyContent
+          .replace(/<script[\s\S]*?<\/script>/gi, "")
+          .replace(/<style[\s\S]*?<\/style>/gi, "")
+          .replace(/<[^>]+>/g, " ")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, 8000); // Limit to 8k chars
+
+        const matchNames = matchList.map((m: any) => `${m.home} vs ${m.away}`).join(", ");
+
+        const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+        if (!LOVABLE_API_KEY) {
+          return new Response(JSON.stringify({ channels: {}, error: "AI key not configured" }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+
+        const validChannelIds = ["globo", "sportv", "premiere", "espn", "star_plus", "amazon", "cazetv", "band", "record", "paramount"];
+
+        const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-3-flash-preview",
+            messages: [
+              {
+                role: "system",
+                content: `You extract TV channel information for Brazilian football matches. Given scraped text from futebolnatv.com.br and a list of matches, return a JSON mapping match keys ("HomeTeam vs AwayTeam") to arrays of channel IDs. Valid channel IDs: ${validChannelIds.join(", ")}. Map channel names like: "TV Globo"/"Globo" -> "globo", "SporTV"/"SporTV 2"/"SporTV 3" -> "sportv", "Premiere" -> "premiere", "ESPN"/"ESPN 2"/"ESPN 4" -> "espn", "Star+" -> "star_plus", "Amazon Prime Video"/"Prime Video" -> "amazon", "CazéTV" -> "cazetv", "Band"/"TV Bandeirantes" -> "band", "Record"/"TV Record" -> "record", "Paramount+" -> "paramount". Return ONLY valid JSON, no explanation.`,
+              },
+              {
+                role: "user",
+                content: `Matches to find channels for: ${matchNames}\n\nScraped content from futebolnatv.com.br:\n${cleaned}`,
+              },
+            ],
+            tools: [
+              {
+                type: "function",
+                function: {
+                  name: "extract_channels",
+                  description: "Extract TV channels for each match",
+                  parameters: {
+                    type: "object",
+                    properties: {
+                      matches: {
+                        type: "array",
+                        items: {
+                          type: "object",
+                          properties: {
+                            match_key: { type: "string", description: "HomeTeam vs AwayTeam" },
+                            channels: { type: "array", items: { type: "string", enum: validChannelIds } },
+                          },
+                          required: ["match_key", "channels"],
+                        },
+                      },
+                    },
+                    required: ["matches"],
+                  },
+                },
+              },
+            ],
+            tool_choice: { type: "function", function: { name: "extract_channels" } },
+          }),
+        });
+
+        let channelMap: Record<string, string[]> = {};
+
+        if (aiRes.ok) {
+          const aiJson = await aiRes.json();
+          const toolCall = aiJson.choices?.[0]?.message?.tool_calls?.[0];
+          if (toolCall?.function?.arguments) {
+            try {
+              const parsed = JSON.parse(toolCall.function.arguments);
+              for (const entry of (parsed.matches || [])) {
+                channelMap[entry.match_key] = (entry.channels || []).filter((c: string) => validChannelIds.includes(c));
+              }
+            } catch (e) {
+              console.error("Failed to parse AI response:", e);
+            }
+          }
+        } else {
+          console.error("AI gateway error:", aiRes.status, await aiRes.text());
+        }
+
+        const result = { channels: channelMap };
+        setCache(cacheKey, result);
+
+        return new Response(JSON.stringify(result), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      } catch (err) {
+        console.error("Scrape channels error:", err);
+        return new Response(JSON.stringify({ channels: {}, error: String(err) }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     if (action === "get-leagues") {
       const cacheKey = `leagues-${provider}`;
       const cached = getCached(cacheKey);
