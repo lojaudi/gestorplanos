@@ -59,30 +59,30 @@ export function SportyTemplate({ matches, title, logoUrl, whatsapp, primaryColor
               <div className="shrink-0 text-center w-[15%]">
                 <span className="font-black text-[0.9em]" style={{ color: accentColor }}>{formatTime(m.date)}</span>
                 <p className="text-[0.45em] uppercase tracking-widest opacity-60 mt-0.5 truncate">{m.league.name}</p>
+                {m.channels && m.channels.length > 0 && (
+                  <div className="flex gap-1 mt-1 justify-center items-center flex-wrap">
+                    {m.channels.slice(0, 3).map((ch) => {
+                      const info = CHANNEL_MAP[ch];
+                      return info ? (
+                        <img key={ch} src={info.logo} alt={info.name} title={info.name} className="object-contain" style={{ height: "0.85em", maxHeight: "13px", width: "auto", filter: "brightness(0) invert(1)", opacity: 0.85 }} crossOrigin="anonymous" />
+                      ) : (
+                        <span key={ch} className="text-[0.35em] px-1 py-0.5 rounded font-bold" style={{ background: "rgba(255,255,255,0.15)" }}>{ch}</span>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
               <div className="flex-1 flex items-center gap-[3%]">
                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <img src={m.home.logo} alt="" className="h-7 w-7 object-contain shrink-0" crossOrigin="anonymous" />
+                  <img src={m.home.logo} alt="" className="object-contain shrink-0" style={{ width: "2em", height: "2em", maxWidth: "32px", maxHeight: "32px" }} crossOrigin="anonymous" />
                   <span className="text-[0.65em] font-bold truncate">{m.home.name}</span>
                 </div>
                 <span className="text-[0.6em] font-black opacity-40 shrink-0">VS</span>
                 <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
                   <span className="text-[0.65em] font-bold truncate text-right">{m.away.name}</span>
-                  <img src={m.away.logo} alt="" className="h-7 w-7 object-contain shrink-0" crossOrigin="anonymous" />
+                  <img src={m.away.logo} alt="" className="object-contain shrink-0" style={{ width: "2em", height: "2em", maxWidth: "32px", maxHeight: "32px" }} crossOrigin="anonymous" />
                 </div>
               </div>
-              {m.channels && m.channels.length > 0 && (
-                <div className="shrink-0 flex items-center gap-1.5">
-                  {m.channels.slice(0, 2).map((ch) => {
-                    const info = CHANNEL_MAP[ch];
-                    return info ? (
-                      <img key={ch} src={info.logo} alt={info.name} title={info.name} className="h-4 w-auto object-contain" crossOrigin="anonymous" style={{ filter: "brightness(0) invert(1)", opacity: 0.85 }} />
-                    ) : (
-                      <span key={ch} className="text-[0.4em] px-1 py-0.5 rounded text-center font-bold" style={{ background: "rgba(255,255,255,0.15)" }}>{ch}</span>
-                    );
-                  })}
-                </div>
-              )}
             </div>
           ))}
         </div>

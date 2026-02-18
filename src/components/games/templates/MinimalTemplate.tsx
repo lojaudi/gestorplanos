@@ -51,32 +51,30 @@ export function MinimalTemplate({ matches, title, logoUrl, whatsapp, primaryColo
           {matches.map((m, i) => (
             <div key={m.id}>
               <div className="py-[3%] flex items-center gap-[4%]">
-                <div className="shrink-0 w-[12%]">
+                <div className="shrink-0 w-[14%] flex flex-col items-center gap-1">
                   <span className="font-black text-[1em]" style={{ color: accentColor }}>{formatTime(m.date)}</span>
+                  {m.channels && m.channels.length > 0 && (
+                    <div className="flex gap-1 items-center justify-center flex-wrap">
+                      {m.channels.map((ch) => {
+                        const info = CHANNEL_MAP[ch];
+                        return info ? (
+                          <img key={ch} src={info.logo} alt={info.name} title={info.name} className="object-contain" style={{ height: "0.8em", maxHeight: "12px", width: "auto" }} crossOrigin="anonymous" />
+                        ) : (
+                          <span key={ch} className="text-[0.35em] px-1 py-0.5 rounded font-bold" style={{ background: primaryColor, color: "#fff" }}>{ch}</span>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
-                    <img src={m.home.logo} alt="" className="h-6 w-6 object-contain" crossOrigin="anonymous" />
+                    <img src={m.home.logo} alt="" className="object-contain" style={{ width: "1.75em", height: "1.75em", maxWidth: "28px", maxHeight: "28px" }} crossOrigin="anonymous" />
                     <span className="text-[0.75em] font-bold">{m.home.name}</span>
                     <span className="text-[0.6em] font-black mx-1" style={{ color: "#999" }}>×</span>
                     <span className="text-[0.75em] font-bold">{m.away.name}</span>
-                    <img src={m.away.logo} alt="" className="h-6 w-6 object-contain" crossOrigin="anonymous" />
+                    <img src={m.away.logo} alt="" className="object-contain" style={{ width: "1.75em", height: "1.75em", maxWidth: "28px", maxHeight: "28px" }} crossOrigin="anonymous" />
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[0.5em] uppercase tracking-widest" style={{ color: "#999" }}>{m.league.name}</span>
-                    {m.channels && m.channels.length > 0 && (
-                      <div className="flex gap-1.5 items-center">
-                        {m.channels.map((ch) => {
-                          const info = CHANNEL_MAP[ch];
-                          return info ? (
-                            <img key={ch} src={info.logo} alt={info.name} title={info.name} className="h-3.5 w-auto object-contain" crossOrigin="anonymous" />
-                          ) : (
-                            <span key={ch} className="text-[0.4em] px-1 py-0.5 rounded font-bold" style={{ background: primaryColor, color: "#fff" }}>{ch}</span>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+                  <span className="text-[0.5em] uppercase tracking-widest" style={{ color: "#999" }}>{m.league.name}</span>
                 </div>
               </div>
               {i < matches.length - 1 && <div className="h-px" style={{ background: "#e5e5e5" }} />}
