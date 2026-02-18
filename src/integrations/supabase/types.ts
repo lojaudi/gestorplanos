@@ -116,6 +116,7 @@ export type Database = {
       football_user_config: {
         Row: {
           accent_color: string | null
+          background_url: string | null
           created_at: string
           custom_title: string | null
           id: string
@@ -128,6 +129,7 @@ export type Database = {
         }
         Insert: {
           accent_color?: string | null
+          background_url?: string | null
           created_at?: string
           custom_title?: string | null
           id?: string
@@ -140,6 +142,7 @@ export type Database = {
         }
         Update: {
           accent_color?: string | null
+          background_url?: string | null
           created_at?: string
           custom_title?: string | null
           id?: string

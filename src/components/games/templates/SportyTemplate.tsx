@@ -9,6 +9,7 @@ interface Props {
   secondaryColor: string;
   accentColor: string;
   format: "square" | "story";
+  backgroundUrl?: string | null;
 }
 
 const CHANNEL_NAMES: Record<string, string> = {
@@ -21,7 +22,7 @@ function formatTime(dateStr: string) {
   try { return new Date(dateStr).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; }
 }
 
-export function SportyTemplate({ matches, title, logoUrl, whatsapp, primaryColor, secondaryColor, accentColor, format }: Props) {
+export function SportyTemplate({ matches, title, logoUrl, whatsapp, primaryColor, secondaryColor, accentColor, format, backgroundUrl }: Props) {
   const isStory = format === "story";
   const w = 1080;
   const h = isStory ? 1920 : 1080;
@@ -37,6 +38,10 @@ export function SportyTemplate({ matches, title, logoUrl, whatsapp, primaryColor
         fontFamily: "Inter, sans-serif",
       }}
     >
+      {/* Background image */}
+      {backgroundUrl && (
+        <div className="absolute inset-0" style={{ backgroundImage: `url(${backgroundUrl})`, backgroundSize: "cover", backgroundPosition: "center", opacity: 0.3 }} />
+      )}
       {/* Dynamic diagonal stripes */}
       <div className="absolute inset-0 opacity-5" style={{
         backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 20px, rgba(255,255,255,0.1) 20px, rgba(255,255,255,0.1) 22px)`,

@@ -9,6 +9,7 @@ interface Props {
   secondaryColor: string;
   accentColor: string;
   format: "square" | "story";
+  backgroundUrl?: string | null;
 }
 
 const CHANNEL_NAMES: Record<string, string> = {
@@ -21,7 +22,7 @@ function formatTime(dateStr: string) {
   try { return new Date(dateStr).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; }
 }
 
-export function ModernTemplate({ matches, title, logoUrl, whatsapp, primaryColor, secondaryColor, accentColor, format }: Props) {
+export function ModernTemplate({ matches, title, logoUrl, whatsapp, primaryColor, secondaryColor, accentColor, format, backgroundUrl }: Props) {
   const isStory = format === "story";
   const w = 1080;
   const h = isStory ? 1920 : 1080;
@@ -37,6 +38,10 @@ export function ModernTemplate({ matches, title, logoUrl, whatsapp, primaryColor
         fontFamily: "Inter, sans-serif",
       }}
     >
+      {/* Background image */}
+      {backgroundUrl && (
+        <div className="absolute inset-0" style={{ backgroundImage: `url(${backgroundUrl})`, backgroundSize: "cover", backgroundPosition: "center", opacity: 0.3 }} />
+      )}
       {/* Grid pattern overlay */}
       <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.15) 1px, transparent 1px)", backgroundSize: "30px 30px" }} />
 
