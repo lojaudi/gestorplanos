@@ -96,11 +96,11 @@ export function MatchSelectionGrid({ matches, loading, selected, onToggle, onCha
                     <div className="flex-1 min-w-0">
                       <Badge variant="outline" className="text-[10px] mb-2">{match.league.name}</Badge>
                       <div className="flex items-center gap-2 mb-1">
-                        <img src={match.home.logo} alt="" className="h-6 w-6 object-contain" crossOrigin="anonymous" />
+                        <img src={match.home.logo} alt="" className="h-6 w-6 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                         <span className="text-sm font-medium truncate">{match.home.name}</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <img src={match.away.logo} alt="" className="h-6 w-6 object-contain" crossOrigin="anonymous" />
+                        <img src={match.away.logo} alt="" className="h-6 w-6 object-contain" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                         <span className="text-sm font-medium truncate">{match.away.name}</span>
                       </div>
                       <p className="text-xs text-muted-foreground mt-1.5">
