@@ -13,6 +13,7 @@ interface FootballUserConfig {
   primary_color: string;
   secondary_color: string;
   accent_color: string;
+  background_url: string | null;
 }
 
 interface Props {
@@ -22,10 +23,13 @@ interface Props {
   saving: boolean;
   uploadingLogo: boolean;
   onLogoUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  uploadingBg: boolean;
+  onBgUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
-export function GamesDayConfigSection({ config, setConfig, onSave, saving, uploadingLogo, onLogoUpload }: Props) {
+export function GamesDayConfigSection({ config, setConfig, onSave, saving, uploadingLogo, onLogoUpload, uploadingBg, onBgUpload }: Props) {
   const logoRef = useRef<HTMLInputElement>(null);
+  const bgRef = useRef<HTMLInputElement>(null);
 
   return (
     <Card>
@@ -49,6 +53,24 @@ export function GamesDayConfigSection({ config, setConfig, onSave, saving, uploa
             <Button variant="outline" size="sm" onClick={() => logoRef.current?.click()} disabled={uploadingLogo}>
               {uploadingLogo ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
               {uploadingLogo ? "Enviando..." : "Enviar Logo"}
+            </Button>
+          </div>
+
+          {/* Background */}
+          <div className="space-y-2">
+            <Label>Imagem de fundo do banner</Label>
+            {config.background_url && (
+              <div className="flex items-center gap-2">
+                <img src={config.background_url} alt="Background" className="h-12 w-20 rounded border object-cover bg-muted" />
+                <Button variant="ghost" size="icon" onClick={() => setConfig({ ...config, background_url: null })}>
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+            )}
+            <input ref={bgRef} type="file" accept="image/*" className="hidden" onChange={onBgUpload} />
+            <Button variant="outline" size="sm" onClick={() => bgRef.current?.click()} disabled={uploadingBg}>
+              {uploadingBg ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}
+              {uploadingBg ? "Enviando..." : "Enviar Background"}
             </Button>
           </div>
 

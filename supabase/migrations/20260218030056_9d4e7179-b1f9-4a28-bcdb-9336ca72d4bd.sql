@@ -1,0 +1,1 @@
+ALTER TABLE public.football_user_config ADD COLUMN background_url text DEFAULT NULL;

@@ -19,9 +19,12 @@ interface Props {
   primaryColor: string;
   secondaryColor: string;
   accentColor: string;
+  backgroundUrl?: string | null;
   format: "square" | "story";
   onFormatChange: (f: "square" | "story") => void;
   userId: string;
+  bannerIndex: number;
+  totalBanners: number;
 }
 
 function delay(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
@@ -62,13 +65,13 @@ function restoreImages(swapped: { el: HTMLImageElement; orig: string }[]) {
   swapped.forEach(({ el, orig }) => { el.src = orig; });
 }
 
-export function GameBannerPreview({ matches, template, title, logoUrl, whatsapp, primaryColor, secondaryColor, accentColor, format, onFormatChange, userId }: Props) {
+export function GameBannerPreview({ matches, template, title, logoUrl, whatsapp, primaryColor, secondaryColor, accentColor, backgroundUrl, format, onFormatChange, userId, bannerIndex, totalBanners }: Props) {
   const bannerRef = useRef<HTMLDivElement>(null);
   const [copying, setCopying] = useState(false);
   const [sendingAll, setSendingAll] = useState(false);
   const [sendingActive, setSendingActive] = useState(false);
 
-  const templateProps = { matches, title, logoUrl, whatsapp, primaryColor, secondaryColor, accentColor, format };
+  const templateProps = { matches, title, logoUrl, whatsapp, primaryColor, secondaryColor, accentColor, format, backgroundUrl };
 
   const generateBlob = async (): Promise<Blob | null> => {
     if (!bannerRef.current) return null;
@@ -152,7 +155,9 @@ export function GameBannerPreview({ matches, template, title, logoUrl, whatsapp,
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <CardTitle className="text-lg">Preview do Banner</CardTitle>
+          <CardTitle className="text-lg">
+            {totalBanners > 1 ? `Banner ${bannerIndex + 1} de ${totalBanners}` : "Preview do Banner"}
+          </CardTitle>
           <div className="flex gap-1">
             <Button size="sm" variant={format === "square" ? "default" : "outline"} onClick={() => onFormatChange("square")}>1080×1080</Button>
             <Button size="sm" variant={format === "story" ? "default" : "outline"} onClick={() => onFormatChange("story")}>1080×1920</Button>

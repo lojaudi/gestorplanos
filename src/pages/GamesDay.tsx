@@ -17,6 +17,7 @@ interface FootballUserConfig {
   primary_color: string;
   secondary_color: string;
   accent_color: string;
+  background_url: string | null;
 }
 
 const defaultConfig: FootballUserConfig = {
@@ -26,6 +27,7 @@ const defaultConfig: FootballUserConfig = {
   primary_color: "#1e3a5f",
   secondary_color: "#ffffff",
   accent_color: "#f59e0b",
+  background_url: null,
 };
 
 const GamesDay = () => {
@@ -34,7 +36,7 @@ const GamesDay = () => {
   const [config, setConfig] = useState<FootballUserConfig>(defaultConfig);
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
-  const logoRef = useRef<HTMLInputElement>(null);
+  const [uploadingBg, setUploadingBg] = useState(false);
 
   const [matches, setMatches] = useState<Match[]>([]);
   const [matchesLoading, setMatchesLoading] = useState(false);
@@ -49,14 +51,12 @@ const GamesDay = () => {
     if (!user) return;
     (async () => {
       setLoading(true);
-      // Get platform defaults
       const { data: platform } = await supabase
         .from("platform_settings")
         .select("football_primary_color, football_secondary_color, football_accent_color, football_default_logo_url")
         .limit(1)
         .maybeSingle();
 
-      // Get user config
       const { data: userConfig } = await supabase
         .from("football_user_config")
         .select("*")
@@ -72,6 +72,7 @@ const GamesDay = () => {
           primary_color: userConfig.primary_color || (platform as any)?.football_primary_color || "#1e3a5f",
           secondary_color: userConfig.secondary_color || (platform as any)?.football_secondary_color || "#ffffff",
           accent_color: userConfig.accent_color || (platform as any)?.football_accent_color || "#f59e0b",
+          background_url: (userConfig as any).background_url || null,
         });
       } else if (platform) {
         setConfig({
@@ -86,7 +87,6 @@ const GamesDay = () => {
     })();
   }, [user]);
 
-  // Fetch matches on mount
   useEffect(() => {
     if (user) fetchMatches();
   }, [user]);
@@ -118,7 +118,6 @@ const GamesDay = () => {
     setSelectedMatches((prev) => {
       const exists = prev.find((m) => m.id === match.id);
       if (exists) return prev.filter((m) => m.id !== match.id);
-      if (prev.length >= 6) { toast({ title: "Máximo 6 jogos", variant: "destructive" }); return prev; }
       return [...prev, match];
     });
   };
@@ -140,6 +139,7 @@ const GamesDay = () => {
         primary_color: config.primary_color || null,
         secondary_color: config.secondary_color || null,
         accent_color: config.accent_color || null,
+        background_url: config.background_url || null,
       };
       if (config.id) {
         const { error } = await supabase.from("football_user_config").update(payload).eq("id", config.id);
@@ -155,23 +155,47 @@ const GamesDay = () => {
     } finally { setSaving(false); }
   };
 
+  const handleFileUpload = async (file: File, folder: string): Promise<string | null> => {
+    if (!user) return null;
+    const ext = file.name.split(".").pop();
+    const path = `${folder}/${user.id}-${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("platform-assets").upload(path, file, { upsert: true });
+    if (error) throw error;
+    const { data: { publicUrl } } = supabase.storage.from("platform-assets").getPublicUrl(path);
+    return `${publicUrl}?t=${Date.now()}`;
+  };
+
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !user) return;
+    if (!file) return;
     setUploadingLogo(true);
     try {
-      const ext = file.name.split(".").pop();
-      const path = `football-logo/${user.id}.${ext}`;
-      const { error } = await supabase.storage.from("platform-assets").upload(path, file, { upsert: true });
-      if (error) throw error;
-      const { data: { publicUrl } } = supabase.storage.from("platform-assets").getPublicUrl(path);
-      setConfig((prev) => ({ ...prev, logo_url: `${publicUrl}?t=${Date.now()}` }));
+      const url = await handleFileUpload(file, "football-logo");
+      if (url) setConfig((prev) => ({ ...prev, logo_url: url }));
     } catch (err: any) {
       toast({ title: "Erro no upload", description: err.message, variant: "destructive" });
     } finally { setUploadingLogo(false); }
   };
 
+  const handleBgUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingBg(true);
+    try {
+      const url = await handleFileUpload(file, "football-bg");
+      if (url) setConfig((prev) => ({ ...prev, background_url: url }));
+    } catch (err: any) {
+      toast({ title: "Erro no upload", description: err.message, variant: "destructive" });
+    } finally { setUploadingBg(false); }
+  };
+
   const leagues = [...new Set(matches.map((m) => m.league.name))].sort();
+
+  // Split selected matches into groups of 6
+  const bannerGroups: Match[][] = [];
+  for (let i = 0; i < selectedMatches.length; i += 6) {
+    bannerGroups.push(selectedMatches.slice(i, i + 6));
+  }
 
   if (loading) {
     return (
@@ -204,6 +228,8 @@ const GamesDay = () => {
         saving={saving}
         uploadingLogo={uploadingLogo}
         onLogoUpload={handleLogoUpload}
+        uploadingBg={uploadingBg}
+        onBgUpload={handleBgUpload}
       />
 
       <MatchSelectionGrid
@@ -217,22 +243,28 @@ const GamesDay = () => {
         leagues={leagues}
       />
 
-      {selectedMatches.length > 0 && (
+      {bannerGroups.length > 0 && (
         <>
           <BannerTemplateSelector selected={template} onChange={setTemplate} />
-          <GameBannerPreview
-            matches={selectedMatches}
-            template={template}
-            title={config.custom_title}
-            logoUrl={config.logo_url}
-            whatsapp={config.whatsapp_number}
-            primaryColor={config.primary_color}
-            secondaryColor={config.secondary_color}
-            accentColor={config.accent_color}
-            format={format}
-            onFormatChange={setFormat}
-            userId={user!.id}
-          />
+          {bannerGroups.map((group, idx) => (
+            <GameBannerPreview
+              key={idx}
+              bannerIndex={idx}
+              totalBanners={bannerGroups.length}
+              matches={group}
+              template={template}
+              title={config.custom_title}
+              logoUrl={config.logo_url}
+              whatsapp={config.whatsapp_number}
+              primaryColor={config.primary_color}
+              secondaryColor={config.secondary_color}
+              accentColor={config.accent_color}
+              backgroundUrl={config.background_url}
+              format={format}
+              onFormatChange={setFormat}
+              userId={user!.id}
+            />
+          ))}
         </>
       )}
     </div>
