@@ -29,12 +29,13 @@ export function SportyTemplate({ matches, title, logoUrl, whatsapp, primaryColor
   const { day, month } = formatDay();
 
   const matchCount = matches.length;
-  const logoSize = matchCount <= 4 ? "3.5em" : matchCount <= 6 ? "2.8em" : "2.2em";
-  const fontSize = matchCount <= 4 ? "0.85em" : matchCount <= 6 ? "0.7em" : "0.55em";
-  const timeFontSize = matchCount <= 4 ? "1.4em" : matchCount <= 6 ? "1.1em" : "0.9em";
-  const channelHeight = matchCount <= 4 ? "1.2em" : matchCount <= 6 ? "1em" : "0.8em";
-  const rowPad = matchCount <= 4 ? "2.5%" : matchCount <= 6 ? "1.8%" : "1.2%";
-  const leagueSize = matchCount <= 4 ? "2.8em" : matchCount <= 6 ? "2.2em" : "1.8em";
+  const logoSize = matchCount <= 4 ? "3.5em" : matchCount <= 6 ? "2.8em" : matchCount <= 8 ? "2.2em" : "1.8em";
+  const fontSize = matchCount <= 4 ? "0.85em" : matchCount <= 6 ? "0.7em" : matchCount <= 8 ? "0.55em" : "0.48em";
+  const timeFontSize = matchCount <= 4 ? "1.4em" : matchCount <= 6 ? "1.1em" : matchCount <= 8 ? "0.9em" : "0.75em";
+  const channelHeight = matchCount <= 4 ? "1.2em" : matchCount <= 6 ? "1em" : matchCount <= 8 ? "0.8em" : "0.7em";
+  const rowPad = matchCount <= 4 ? "2.5%" : matchCount <= 6 ? "1.8%" : matchCount <= 8 ? "1.2%" : "0.8%";
+  const leagueSize = matchCount <= 4 ? "2.8em" : matchCount <= 6 ? "2.2em" : matchCount <= 8 ? "1.8em" : "1.5em";
+  const gapSize = matchCount <= 4 ? "1.2%" : matchCount <= 6 ? "1%" : matchCount <= 8 ? "0.7%" : "0.5%";
 
   return (
     <div
@@ -75,8 +76,8 @@ export function SportyTemplate({ matches, title, logoUrl, whatsapp, primaryColor
           </div>
         </div>
 
-        {/* Matches - always vertical rows */}
-        <div className="flex-1 flex flex-col justify-center px-[4%] gap-[1.2%]">
+        {/* Matches */}
+        <div className="flex-1 flex flex-col justify-center px-[4%] overflow-hidden" style={{ gap: gapSize }}>
           {matches.map((m) => (
             <div
               key={m.id}
