@@ -139,19 +139,9 @@ const Auth = () => {
       const verifyData = await verifyRes.json();
       if (!verifyRes.ok) throw new Error(verifyData.error || "Código inválido");
 
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { full_name: fullName, phone },
-        },
-      });
+      // Account was created server-side, just login now
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase.from("profiles").update({ phone }).eq("user_id", user.id);
-      }
 
       toast({ title: "Conta criada!", description: "Seu cadastro foi verificado com sucesso." });
       navigate("/");
