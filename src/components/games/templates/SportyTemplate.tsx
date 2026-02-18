@@ -17,10 +17,26 @@ function formatTime(dateStr: string) {
   try { return new Date(dateStr).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; }
 }
 
+function formatDay() {
+  const now = new Date();
+  const day = now.getDate().toString().padStart(2, "0");
+  const months = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+  return { day, month: months[now.getMonth()] };
+}
+
 export function SportyTemplate({ matches, title, logoUrl, whatsapp, primaryColor, secondaryColor, accentColor, format, backgroundUrl }: Props) {
   const isStory = format === "story";
   const w = 1080;
   const h = isStory ? 1920 : 1080;
+  const { day, month } = formatDay();
+
+  // Calculate dynamic sizing based on match count
+  const matchCount = matches.length;
+  const logoSize = matchCount <= 4 ? "3.2em" : matchCount <= 6 ? "2.6em" : "2em";
+  const fontSize = matchCount <= 4 ? "0.85em" : matchCount <= 6 ? "0.7em" : "0.55em";
+  const timeFontSize = matchCount <= 4 ? "1.1em" : matchCount <= 6 ? "0.9em" : "0.75em";
+  const channelHeight = matchCount <= 4 ? "1.2em" : matchCount <= 6 ? "1em" : "0.8em";
+  const rowPad = matchCount <= 4 ? "2.8%" : matchCount <= 6 ? "2%" : "1.2%";
 
   return (
     <div
@@ -28,81 +44,113 @@ export function SportyTemplate({ matches, title, logoUrl, whatsapp, primaryColor
       style={{
         width: "100%",
         aspectRatio: `${w}/${h}`,
-        background: `linear-gradient(180deg, #1a1a2e 0%, ${primaryColor} 100%)`,
-        color: secondaryColor,
-        fontFamily: "Inter, sans-serif",
+        background: `linear-gradient(135deg, #0d0d1a 0%, #1a1a2e 50%, ${primaryColor}33 100%)`,
+        color: "#fff",
+        fontFamily: "'Inter', 'Segoe UI', sans-serif",
       }}
     >
       {backgroundUrl && (
         <div className="absolute inset-0" style={{ backgroundImage: `url(${backgroundUrl})`, backgroundSize: "100% 100%", backgroundPosition: "center" }} />
       )}
-      <div className="absolute inset-0 opacity-5" style={{
-        backgroundImage: `repeating-linear-gradient(45deg, transparent, transparent 20px, rgba(255,255,255,0.1) 20px, rgba(255,255,255,0.1) 22px)`,
-      }} />
-      <div className="absolute top-0 left-0 right-0 h-1.5" style={{ background: accentColor }} />
 
-      <div className="relative z-10 flex flex-col h-full p-[5%] pt-[6%]">
+      {/* Subtle pattern overlay */}
+      <div className="absolute inset-0" style={{
+        background: "linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.4) 100%)",
+      }} />
+
+      <div className="relative z-10 flex flex-col h-full">
         {/* Header */}
-        <div className="flex items-center gap-3 mb-[4%]">
-          {logoUrl && <img src={logoUrl} alt="Logo" className="h-14 w-auto object-contain" />}
-          <div>
-            <h1 className="font-black uppercase tracking-wider" style={{ fontSize: isStory ? "2em" : "1.6em", color: accentColor, textShadow: "2px 2px 8px rgba(0,0,0,0.5)" }}>{title}</h1>
-            <p className="text-sm opacity-70">{new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}</p>
+        <div className="flex items-center justify-between px-[5%] pt-[4%] pb-[2%]">
+          <div className="flex items-center gap-[2%]">
+            {logoUrl && <img src={logoUrl} alt="Logo" className="object-contain" style={{ height: "3em", width: "auto" }} />}
+          </div>
+          <div className="flex items-center gap-[2%]">
+            <div className="text-right">
+              <h1 className="font-black uppercase" style={{ fontSize: isStory ? "2em" : "1.6em", color: accentColor, letterSpacing: "0.05em", lineHeight: 1 }}>
+                JOGOS
+              </h1>
+              <h1 className="font-black uppercase" style={{ fontSize: isStory ? "2em" : "1.6em", color: "#fff", letterSpacing: "0.05em", lineHeight: 1 }}>
+                DO DIA
+              </h1>
+            </div>
+            <div className="flex flex-col items-center rounded-lg px-[1.5%] py-[0.5%]" style={{ background: accentColor }}>
+              <span className="font-black" style={{ fontSize: isStory ? "1.8em" : "1.4em", lineHeight: 1.1 }}>{day}</span>
+              <span className="font-bold uppercase" style={{ fontSize: "0.5em", lineHeight: 1 }}>DE {month}</span>
+            </div>
           </div>
         </div>
 
         {/* Matches List */}
-        <div className="flex-1 flex flex-col gap-[2%]">
-          {matches.map((m, i) => (
-            <div key={m.id} className="rounded-lg flex items-center gap-[3%]" style={{
-              background: i % 2 === 0 ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.03)",
-              borderLeft: `3px solid ${accentColor}`,
-              padding: "2.5% 3%",
-            }}>
-              {/* Time + League */}
-              <div className="shrink-0 text-center" style={{ width: "12%" }}>
-                <span className="font-black text-[0.85em] block" style={{ color: accentColor }}>{formatTime(m.date)}</span>
-                <p className="text-[0.38em] uppercase tracking-widest opacity-50 mt-0.5 truncate">{m.league.name}</p>
+        <div className="flex-1 flex flex-col justify-center px-[4%] gap-[1%]">
+          {matches.map((m) => (
+            <div
+              key={m.id}
+              className="flex items-center rounded-xl"
+              style={{
+                background: "rgba(255,255,255,0.06)",
+                backdropFilter: "blur(4px)",
+                border: "1px solid rgba(255,255,255,0.08)",
+                padding: `${rowPad} 3%`,
+              }}
+            >
+              {/* League logo */}
+              <div className="shrink-0 flex items-center justify-center" style={{ width: "3em", marginRight: "2%" }}>
+                <img src={m.league.logo} alt={m.league.name} className="object-contain" style={{ maxWidth: "2.2em", maxHeight: "2.2em" }} />
               </div>
 
-              {/* Teams */}
-              <div className="flex-1 flex items-center gap-[3%]">
-                <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                  <div className="shrink-0 flex items-center justify-center" style={{ width: "1.6em", height: "1.6em" }}>
-                    <img src={m.home.logo} alt="" className="object-contain" style={{ maxWidth: "100%", maxHeight: "100%" }} />
-                  </div>
-                  <span className="text-[0.6em] font-bold truncate">{m.home.name}</span>
-                </div>
-                <span className="text-[0.5em] font-black opacity-30 shrink-0">VS</span>
-                <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
-                  <span className="text-[0.6em] font-bold truncate text-right">{m.away.name}</span>
-                  <div className="shrink-0 flex items-center justify-center" style={{ width: "1.6em", height: "1.6em" }}>
-                    <img src={m.away.logo} alt="" className="object-contain" style={{ maxWidth: "100%", maxHeight: "100%" }} />
-                  </div>
-                </div>
+              {/* Time */}
+              <div className="shrink-0 text-center" style={{ width: "4em", marginRight: "2%" }}>
+                <span className="font-black" style={{ fontSize: timeFontSize, color: accentColor }}>{formatTime(m.date)}</span>
               </div>
 
-              {/* Channels - tiny, right side */}
-              {m.channels && m.channels.length > 0 && (
-                <div className="shrink-0 flex gap-1 items-center opacity-50">
-                  {m.channels.slice(0, 2).map((ch) => {
-                    const info = CHANNEL_MAP[ch];
-                    return info ? (
-                      <img key={ch} src={info.logo} alt={info.name} title={info.name} className="object-contain" style={{ height: "0.7em", width: "auto", filter: "brightness(0) invert(1)", opacity: 0.7 }} />
-                    ) : (
-                      <span key={ch} className="text-[0.3em] px-1 py-0.5 rounded font-medium" style={{ background: "rgba(255,255,255,0.15)" }}>{ch}</span>
-                    );
-                  })}
-                </div>
-              )}
+              {/* Home team logo */}
+              <div className="shrink-0 flex items-center justify-center" style={{ width: logoSize, height: logoSize }}>
+                <img src={m.home.logo} alt={m.home.name} className="object-contain" style={{ maxWidth: "100%", maxHeight: "100%" }} />
+              </div>
+
+              {/* X separator */}
+              <span className="font-black shrink-0 mx-[1.5%]" style={{ fontSize, color: "rgba(255,255,255,0.4)" }}>x</span>
+
+              {/* Away team logo */}
+              <div className="shrink-0 flex items-center justify-center" style={{ width: logoSize, height: logoSize }}>
+                <img src={m.away.logo} alt={m.away.name} className="object-contain" style={{ maxWidth: "100%", maxHeight: "100%" }} />
+              </div>
+
+              {/* Team names + channels */}
+              <div className="flex-1 min-w-0 ml-[2%] flex flex-col justify-center">
+                <span className="font-bold truncate" style={{ fontSize, lineHeight: 1.3 }}>
+                  {m.home.name}
+                </span>
+                <span className="font-bold truncate" style={{ fontSize, lineHeight: 1.3 }}>
+                  x {m.away.name}
+                </span>
+                {m.channels && m.channels.length > 0 && (
+                  <div className="flex gap-[4px] items-center mt-[2px]">
+                    {m.channels.slice(0, 3).map((ch) => {
+                      const info = CHANNEL_MAP[ch];
+                      return info ? (
+                        <img key={ch} src={info.logo} alt={info.name} title={info.name} className="object-contain" style={{ height: channelHeight, width: "auto" }} />
+                      ) : (
+                        <span key={ch} className="font-bold" style={{ fontSize: "0.4em", background: "rgba(255,255,255,0.15)", padding: "1px 4px", borderRadius: "3px" }}>{ch}</span>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           ))}
         </div>
 
         {/* Footer */}
-        <div className="mt-[3%] flex items-center justify-center gap-4 pt-[2%]" style={{ borderTop: `2px solid ${accentColor}` }}>
-          {logoUrl && <img src={logoUrl} alt="" className="h-8 w-auto object-contain" />}
-          {whatsapp && <span className="text-[0.75em] font-bold">📱 {whatsapp}</span>}
+        <div className="px-[5%] pb-[3%] pt-[2%] flex items-center justify-between">
+          {logoUrl && <img src={logoUrl} alt="" className="object-contain" style={{ height: "2.5em", width: "auto" }} />}
+          <div className="flex items-center gap-[6px]">
+            {whatsapp && (
+              <div className="flex items-center gap-[4px] rounded-full px-[1em] py-[0.3em]" style={{ background: accentColor }}>
+                <span className="font-bold" style={{ fontSize: "0.65em" }}>📱 {whatsapp}</span>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
