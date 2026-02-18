@@ -304,8 +304,6 @@ const GamesDay = () => {
               secondaryColor={config.secondary_color}
               accentColor={config.accent_color}
               backgroundUrl={config.background_url}
-              format={format}
-              onFormatChange={setFormat}
               userId={user!.id}
             />
           ))}

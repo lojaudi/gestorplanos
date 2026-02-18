@@ -9,7 +9,6 @@ interface Props {
   primaryColor: string;
   secondaryColor: string;
   accentColor: string;
-  format: "square" | "story";
   backgroundUrl?: string | null;
 }
 
@@ -24,10 +23,9 @@ function formatDay() {
   return { day, month: months[now.getMonth()] };
 }
 
-export function ModernTemplate({ matches, title, logoUrl, whatsapp, primaryColor, secondaryColor, accentColor, format, backgroundUrl }: Props) {
-  const isStory = format === "story";
-  const w = 1080;
-  const h = isStory ? 1920 : 1080;
+export function ModernTemplate({ matches, title, logoUrl, whatsapp, primaryColor, secondaryColor, accentColor, backgroundUrl }: Props) {
+  const w = 1404;
+  const h = 1600;
   const { day, month } = formatDay();
 
   const matchCount = matches.length;
@@ -58,7 +56,7 @@ export function ModernTemplate({ matches, title, logoUrl, whatsapp, primaryColor
         <div className="flex items-center justify-between px-[5%] pt-[4%] pb-[2%]">
           {logoUrl && <img src={logoUrl} alt="Logo" className="object-contain" style={{ height: "3em", width: "auto" }} />}
           <div className="flex items-center gap-[2%]">
-            <h1 className="font-black uppercase" style={{ fontSize: isStory ? "2em" : "1.6em", letterSpacing: "0.03em" }}>
+            <h1 className="font-black uppercase" style={{ fontSize: "2em", letterSpacing: "0.03em" }}>
               <span style={{ color: accentColor }}>JOGOS</span>{" "}
               <span>DO DIA</span>
             </h1>
@@ -127,7 +125,7 @@ export function ModernTemplate({ matches, title, logoUrl, whatsapp, primaryColor
         {/* Footer */}
         <div className="px-[5%] pb-[3%] pt-[2%] flex items-center justify-between">
           {logoUrl && <img src={logoUrl} alt="" className="object-contain" style={{ height: "2.2em", width: "auto" }} />}
-          {whatsapp && <span className="font-bold" style={{ fontSize: "0.75em", color: accentColor }}>📱 {whatsapp}</span>}
+          {whatsapp && <span className="font-black" style={{ fontSize: "1.3em", color: accentColor }}>📱 {whatsapp}</span>}
         </div>
       </div>
     </div>
