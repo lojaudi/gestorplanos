@@ -294,6 +294,7 @@ export type Database = {
       platform_settings: {
         Row: {
           accent_color: string
+          email_verification_enabled: boolean
           favicon_url: string | null
           id: string
           login_bg_url: string | null
@@ -303,9 +304,11 @@ export type Database = {
           system_name: string
           tmdb_api_key: string
           updated_at: string
+          whatsapp_verification_enabled: boolean
         }
         Insert: {
           accent_color?: string
+          email_verification_enabled?: boolean
           favicon_url?: string | null
           id?: string
           login_bg_url?: string | null
@@ -315,9 +318,11 @@ export type Database = {
           system_name?: string
           tmdb_api_key?: string
           updated_at?: string
+          whatsapp_verification_enabled?: boolean
         }
         Update: {
           accent_color?: string
+          email_verification_enabled?: boolean
           favicon_url?: string | null
           id?: string
           login_bg_url?: string | null
@@ -327,6 +332,7 @@ export type Database = {
           system_name?: string
           tmdb_api_key?: string
           updated_at?: string
+          whatsapp_verification_enabled?: boolean
         }
         Relationships: []
       }
