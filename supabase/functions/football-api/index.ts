@@ -7,17 +7,16 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Ligas filtradas para transmissão no Brasil
-const BRAZIL_LEAGUES = [
-  71,   // Brasileirão Série A
-  72,   // Brasileirão Série B
-  73,   // Copa do Brasil
-  13,   // Copa Libertadores
-];
+// League IDs for api-football (api-sports.io)
+const APIFOOTBALL_LEAGUES = [71, 72, 73, 13];
+
+// Competition codes for football-data.org
+const FOOTBALLDATA_COMPETITIONS = ["BSA", "BSB", "CLI", "CPB"];
+// BSA = Brasileirão Série A, BSB = Série B, CLI = Libertadores, CPB = Copa do Brasil (if available)
 
 // Simple in-memory cache
 const cache: Record<string, { data: any; ts: number }> = {};
-const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
+const CACHE_TTL = 15 * 60 * 1000;
 
 function getCached(key: string) {
   const entry = cache[key];
@@ -27,6 +26,120 @@ function getCached(key: string) {
 
 function setCache(key: string, data: any) {
   cache[key] = { data, ts: Date.now() };
+}
+
+// ── api-football (api-sports.io) ──
+async function fetchFromApiFootball(apiKey: string, date: string, timezone: string) {
+  const url = `https://v3.football.api-sports.io/fixtures?date=${date}&timezone=${encodeURIComponent(timezone)}`;
+  const res = await fetch(url, { headers: { "x-apisports-key": apiKey } });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Erro na API-Football: ${res.status} – ${text}`);
+  }
+
+  const json = await res.json();
+
+  if (json.errors && Object.keys(json.errors).length > 0) {
+    const errMsg = Object.values(json.errors).join("; ");
+    throw new Error(`API-Football erro: ${errMsg}`);
+  }
+
+  const allFixtures = json.response || [];
+  const leagueIds = new Set(APIFOOTBALL_LEAGUES);
+  const filtered = allFixtures.filter((f: any) => leagueIds.has(f.league.id));
+
+  return filtered.map((fixture: any) => ({
+    id: fixture.fixture.id,
+    date: fixture.fixture.date,
+    timestamp: fixture.fixture.timestamp,
+    status: fixture.fixture.status.short,
+    league: {
+      id: fixture.league.id,
+      name: fixture.league.name,
+      country: fixture.league.country,
+      logo: fixture.league.logo,
+    },
+    home: {
+      id: fixture.teams.home.id,
+      name: fixture.teams.home.name,
+      logo: fixture.teams.home.logo,
+    },
+    away: {
+      id: fixture.teams.away.id,
+      name: fixture.teams.away.name,
+      logo: fixture.teams.away.logo,
+    },
+    goals: {
+      home: fixture.goals.home,
+      away: fixture.goals.away,
+    },
+  }));
+}
+
+// ── football-data.org ──
+async function fetchFromFootballData(apiKey: string, date: string) {
+  const allMatches: any[] = [];
+
+  for (const code of FOOTBALLDATA_COMPETITIONS) {
+    try {
+      const url = `https://api.football-data.org/v4/competitions/${code}/matches?dateFrom=${date}&dateTo=${date}`;
+      const res = await fetch(url, { headers: { "X-Auth-Token": apiKey } });
+
+      if (!res.ok) {
+        // Might be a competition not in plan, skip gracefully
+        console.log(`football-data.org ${code}: ${res.status}`);
+        continue;
+      }
+
+      const json = await res.json();
+      const matches = json.matches || [];
+      allMatches.push(...matches.map((m: any) => ({ ...m, _comp: code })));
+    } catch (err) {
+      console.log(`football-data.org ${code} error:`, err);
+    }
+  }
+
+  return allMatches.map((m: any) => ({
+    id: m.id,
+    date: m.utcDate,
+    timestamp: Math.floor(new Date(m.utcDate).getTime() / 1000),
+    status: mapFootballDataStatus(m.status),
+    league: {
+      id: m.competition?.id || 0,
+      name: m.competition?.name || m._comp,
+      country: m.area?.name || "Brazil",
+      logo: m.competition?.emblem || "",
+    },
+    home: {
+      id: m.homeTeam?.id || 0,
+      name: m.homeTeam?.shortName || m.homeTeam?.name || "Home",
+      logo: m.homeTeam?.crest || "",
+    },
+    away: {
+      id: m.awayTeam?.id || 0,
+      name: m.awayTeam?.shortName || m.awayTeam?.name || "Away",
+      logo: m.awayTeam?.crest || "",
+    },
+    goals: {
+      home: m.score?.fullTime?.home ?? null,
+      away: m.score?.fullTime?.away ?? null,
+    },
+  }));
+}
+
+function mapFootballDataStatus(status: string): string {
+  const map: Record<string, string> = {
+    SCHEDULED: "NS",
+    TIMED: "NS",
+    IN_PLAY: "LIVE",
+    PAUSED: "HT",
+    FINISHED: "FT",
+    POSTPONED: "PST",
+    CANCELLED: "CANC",
+    SUSPENDED: "SUSP",
+  };
+  return map[status] || status;
 }
 
 serve(async (req) => {
@@ -40,27 +153,33 @@ serve(async (req) => {
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Get football API key from platform_settings
     const { data: settings } = await supabase
       .from("platform_settings")
-      .select("football_api_key, football_api_provider, football_timezone")
+      .select("football_api_key, football_api_key_secondary, football_api_provider, football_timezone")
       .limit(1)
       .maybeSingle();
 
-    const apiKey = settings?.football_api_key;
     const provider = settings?.football_api_provider || "api-football";
     const timezone = settings?.football_timezone || "America/Sao_Paulo";
 
+    // Pick the right API key based on provider
+    let apiKey: string | null = null;
+    if (provider === "football-data") {
+      apiKey = (settings as any)?.football_api_key_secondary;
+    } else {
+      apiKey = settings?.football_api_key;
+    }
+
     if (!apiKey) {
       return new Response(
-        JSON.stringify({ error: "API Key de futebol não configurada pelo administrador" }),
+        JSON.stringify({ error: `API Key de futebol não configurada para o provedor: ${provider}` }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
     if (action === "get-matches") {
       const date = params.date || new Date().toISOString().slice(0, 10);
-      const cacheKey = `matches-${date}-${timezone}`;
+      const cacheKey = `matches-${provider}-${date}-${timezone}`;
       const cached = getCached(cacheKey);
       if (cached) {
         return new Response(JSON.stringify(cached), {
@@ -68,61 +187,14 @@ serve(async (req) => {
         });
       }
 
-      // Fetch all matches for the date first (single request), then filter by preferred leagues
-      const allUrl = `https://v3.football.api-sports.io/fixtures?date=${date}&timezone=${encodeURIComponent(timezone)}`;
-      const res = await fetch(allUrl, { headers: { "x-apisports-key": apiKey } });
-
-      if (!res.ok) {
-        const text = await res.text();
-        return new Response(
-          JSON.stringify({ error: `Erro na API de futebol: ${res.status}`, details: text }),
-          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+      let matches: any[];
+      if (provider === "football-data") {
+        matches = await fetchFromFootballData(apiKey, date);
+      } else {
+        matches = await fetchFromApiFootball(apiKey, date, timezone);
       }
 
-      const json = await res.json();
-      
-      if (json.errors && Object.keys(json.errors).length > 0) {
-        console.log("API errors:", JSON.stringify(json.errors));
-      }
-
-      const allFixtures = json.response || [];
-      
-      // Filter by preferred leagues (if any matches exist in those leagues)
-      const leagueIds = new Set(params.leagueIds || BRAZIL_LEAGUES);
-      const filteredFixtures = allFixtures.filter((f: any) => leagueIds.has(f.league.id));
-      
-      // Use filtered if there are results, otherwise show all
-      const finalFixtures = filteredFixtures;
-
-      const matches = finalFixtures.map((fixture: any) => ({
-        id: fixture.fixture.id,
-        date: fixture.fixture.date,
-        timestamp: fixture.fixture.timestamp,
-        status: fixture.fixture.status.short,
-        league: {
-          id: fixture.league.id,
-          name: fixture.league.name,
-          country: fixture.league.country,
-          logo: fixture.league.logo,
-        },
-        home: {
-          id: fixture.teams.home.id,
-          name: fixture.teams.home.name,
-          logo: fixture.teams.home.logo,
-        },
-        away: {
-          id: fixture.teams.away.id,
-          name: fixture.teams.away.name,
-          logo: fixture.teams.away.logo,
-        },
-        goals: {
-          home: fixture.goals.home,
-          away: fixture.goals.away,
-        },
-      }));
-
-      const result = { matches, date, timezone };
+      const result = { matches, date, timezone, provider };
       setCache(cacheKey, result);
 
       return new Response(JSON.stringify(result), {
@@ -131,7 +203,7 @@ serve(async (req) => {
     }
 
     if (action === "get-leagues") {
-      const cacheKey = "leagues";
+      const cacheKey = `leagues-${provider}`;
       const cached = getCached(cacheKey);
       if (cached) {
         return new Response(JSON.stringify(cached), {
@@ -139,25 +211,38 @@ serve(async (req) => {
         });
       }
 
-      const url = "https://v3.football.api-sports.io/leagues?current=true";
-      const res = await fetch(url, {
-        headers: { "x-apisports-key": apiKey },
-      });
+      let leagues: any[] = [];
 
-      if (!res.ok) {
-        return new Response(
-          JSON.stringify({ error: `Erro ao buscar ligas: ${res.status}` }),
-          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
+      if (provider === "football-data") {
+        // Return the fixed list for football-data.org
+        for (const code of FOOTBALLDATA_COMPETITIONS) {
+          try {
+            const url = `https://api.football-data.org/v4/competitions/${code}`;
+            const res = await fetch(url, { headers: { "X-Auth-Token": apiKey } });
+            if (res.ok) {
+              const json = await res.json();
+              leagues.push({
+                id: json.id,
+                name: json.name,
+                country: json.area?.name || "Brazil",
+                logo: json.emblem || "",
+              });
+            }
+          } catch { /* skip */ }
+        }
+      } else {
+        const url = "https://v3.football.api-sports.io/leagues?current=true";
+        const res = await fetch(url, { headers: { "x-apisports-key": apiKey } });
+        if (res.ok) {
+          const json = await res.json();
+          leagues = (json.response || []).map((item: any) => ({
+            id: item.league.id,
+            name: item.league.name,
+            country: item.country.name,
+            logo: item.league.logo,
+          }));
+        }
       }
-
-      const json = await res.json();
-      const leagues = (json.response || []).map((item: any) => ({
-        id: item.league.id,
-        name: item.league.name,
-        country: item.country.name,
-        logo: item.league.logo,
-      }));
 
       setCache(cacheKey, { leagues });
 
