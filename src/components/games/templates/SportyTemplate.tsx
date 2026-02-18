@@ -9,7 +9,6 @@ interface Props {
   primaryColor: string;
   secondaryColor: string;
   accentColor: string;
-  format: "square" | "story";
   backgroundUrl?: string | null;
 }
 
@@ -24,10 +23,9 @@ function formatDay() {
   return { day, month: months[now.getMonth()] };
 }
 
-export function SportyTemplate({ matches, title, logoUrl, whatsapp, primaryColor, secondaryColor, accentColor, format, backgroundUrl }: Props) {
-  const isStory = format === "story";
-  const w = 1080;
-  const h = isStory ? 1920 : 1080;
+export function SportyTemplate({ matches, title, logoUrl, whatsapp, primaryColor, secondaryColor, accentColor, backgroundUrl }: Props) {
+  const w = 1404;
+  const h = 1600;
   const { day, month } = formatDay();
 
   const matchCount = matches.length;
@@ -63,15 +61,15 @@ export function SportyTemplate({ matches, title, logoUrl, whatsapp, primaryColor
           {logoUrl && <img src={logoUrl} alt="Logo" className="object-contain" style={{ height: "3em", width: "auto" }} />}
           <div className="flex items-center gap-[2%]">
             <div className="text-right">
-              <h1 className="font-black uppercase" style={{ fontSize: isStory ? "2em" : "1.6em", color: accentColor, letterSpacing: "0.05em", lineHeight: 1 }}>
+              <h1 className="font-black uppercase" style={{ fontSize: "2em", color: accentColor, letterSpacing: "0.05em", lineHeight: 1 }}>
                 JOGOS
               </h1>
-              <h1 className="font-black uppercase" style={{ fontSize: isStory ? "2em" : "1.6em", color: "#fff", letterSpacing: "0.05em", lineHeight: 1 }}>
+              <h1 className="font-black uppercase" style={{ fontSize: "2em", color: "#fff", letterSpacing: "0.05em", lineHeight: 1 }}>
                 DO DIA
               </h1>
             </div>
             <div className="flex flex-col items-center rounded-lg px-[1.5%] py-[0.5%]" style={{ background: accentColor }}>
-              <span className="font-black" style={{ fontSize: isStory ? "1.8em" : "1.5em", lineHeight: 1.1 }}>{day}</span>
+              <span className="font-black" style={{ fontSize: "1.8em", lineHeight: 1.1 }}>{day}</span>
               <span className="font-bold uppercase" style={{ fontSize: "0.45em", lineHeight: 1 }}>DE {month}</span>
             </div>
           </div>
@@ -138,7 +136,7 @@ export function SportyTemplate({ matches, title, logoUrl, whatsapp, primaryColor
           {logoUrl && <img src={logoUrl} alt="" className="object-contain" style={{ height: "2.5em", width: "auto" }} />}
           {whatsapp && (
             <div className="flex items-center gap-[4px] rounded-full px-[1em] py-[0.3em]" style={{ background: accentColor }}>
-              <span className="font-bold" style={{ fontSize: "0.7em" }}>📱 {whatsapp}</span>
+              <span className="font-black" style={{ fontSize: "1.1em" }}>📱 {whatsapp}</span>
             </div>
           )}
         </div>

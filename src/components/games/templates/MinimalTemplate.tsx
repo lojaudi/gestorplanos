@@ -9,7 +9,6 @@ interface Props {
   primaryColor: string;
   secondaryColor: string;
   accentColor: string;
-  format: "square" | "story";
   backgroundUrl?: string | null;
 }
 
@@ -24,10 +23,9 @@ function formatDay() {
   return { day, month: months[now.getMonth()] };
 }
 
-export function MinimalTemplate({ matches, title, logoUrl, whatsapp, primaryColor, secondaryColor, accentColor, format, backgroundUrl }: Props) {
-  const isStory = format === "story";
-  const w = 1080;
-  const h = isStory ? 1920 : 1080;
+export function MinimalTemplate({ matches, title, logoUrl, whatsapp, primaryColor, secondaryColor, accentColor, backgroundUrl }: Props) {
+  const w = 1404;
+  const h = 1600;
   const { day, month } = formatDay();
 
   const matchCount = matches.length;
@@ -58,7 +56,7 @@ export function MinimalTemplate({ matches, title, logoUrl, whatsapp, primaryColo
         <div className="flex items-center justify-between px-[5%] pt-[4%] pb-[2%]">
           {logoUrl && <img src={logoUrl} alt="Logo" className="object-contain" style={{ height: "3em", width: "auto" }} />}
           <div className="flex items-center gap-[2%]">
-            <h1 className="font-black uppercase" style={{ fontSize: isStory ? "2em" : "1.6em", color: primaryColor, letterSpacing: "0.02em", lineHeight: 1 }}>
+            <h1 className="font-black uppercase" style={{ fontSize: "2em", color: primaryColor, letterSpacing: "0.02em", lineHeight: 1 }}>
               {title || "JOGOS DO DIA"}
             </h1>
             <div className="flex flex-col items-center rounded-md px-[1.5%] py-[0.5%]" style={{ background: primaryColor, color: "#fff" }}>
@@ -128,7 +126,7 @@ export function MinimalTemplate({ matches, title, logoUrl, whatsapp, primaryColo
         {/* Footer */}
         <div className="px-[5%] pb-[3%] pt-[2%] flex items-center justify-between" style={{ borderTop: `2px solid ${primaryColor}` }}>
           {logoUrl && <img src={logoUrl} alt="" className="object-contain" style={{ height: "2.2em", width: "auto" }} />}
-          {whatsapp && <span className="font-bold" style={{ fontSize: "0.75em", color: primaryColor }}>📱 {whatsapp}</span>}
+          {whatsapp && <span className="font-black" style={{ fontSize: "1.3em", color: primaryColor }}>📱 {whatsapp}</span>}
         </div>
       </div>
     </div>
