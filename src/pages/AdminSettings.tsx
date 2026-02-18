@@ -480,42 +480,6 @@ const AdminSettings = () => {
             />
           </div>
 
-          <div className="space-y-2">
-            <Label>API Key de Futebol</Label>
-            <div className="relative">
-              <Input
-                type={showFootballKey ? "text" : "password"}
-                value={settings.football_api_key ?? ""}
-                onChange={(e) => setSettings({ ...settings, football_api_key: e.target.value })}
-                placeholder="Chave da API-Football (api-sports.io)"
-              />
-              <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowFootballKey(!showFootballKey)}>
-                {showFootballKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label>API Key Football-Data.org</Label>
-            <div className="relative">
-              <Input
-                type={showFootballKeySecondary ? "text" : "password"}
-                value={(settings as any).football_api_key_secondary ?? ""}
-                onChange={(e) => setSettings({ ...settings, football_api_key_secondary: e.target.value })}
-                placeholder="Chave da Football-Data.org"
-              />
-              <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowFootballKeySecondary(!showFootballKeySecondary)}>
-                {showFootballKeySecondary ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Obtenha sua chave em{" "}
-              <a href="https://www.football-data.org/client/register" target="_blank" rel="noopener noreferrer" className="text-primary underline">
-                football-data.org
-              </a>
-            </p>
-          </div>
-
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Provedor de Dados</Label>
@@ -540,6 +504,46 @@ const AdminSettings = () => {
               </Select>
             </div>
           </div>
+
+          {settings.football_api_provider === "api-football" && (
+            <div className="space-y-2">
+              <Label>API Key - API-Football (api-sports.io)</Label>
+              <div className="relative">
+                <Input
+                  type={showFootballKey ? "text" : "password"}
+                  value={settings.football_api_key ?? ""}
+                  onChange={(e) => setSettings({ ...settings, football_api_key: e.target.value })}
+                  placeholder="Chave da API-Football (api-sports.io)"
+                />
+                <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowFootballKey(!showFootballKey)}>
+                  {showFootballKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {settings.football_api_provider === "football-data" && (
+            <div className="space-y-2">
+              <Label>API Key - Football-Data.org</Label>
+              <div className="relative">
+                <Input
+                  type={showFootballKeySecondary ? "text" : "password"}
+                  value={settings.football_api_key_secondary ?? ""}
+                  onChange={(e) => setSettings({ ...settings, football_api_key_secondary: e.target.value })}
+                  placeholder="Chave da Football-Data.org"
+                />
+                <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowFootballKeySecondary(!showFootballKeySecondary)}>
+                  {showFootballKeySecondary ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Obtenha sua chave em{" "}
+                <a href="https://www.football-data.org/client/register" target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                  football-data.org
+                </a>
+              </p>
+            </div>
+          )}
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
