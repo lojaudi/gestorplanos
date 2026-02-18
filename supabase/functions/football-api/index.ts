@@ -12,6 +12,14 @@ const BRAZIL_LEAGUES = [
   71,   // Brasileirão Série A
   73,   // Copa do Brasil
   13,   // Copa Libertadores
+  11,   // Copa Sudamericana
+  2,    // Champions League
+  3,    // Europa League
+  39,   // Premier League
+  140,  // La Liga
+  135,  // Serie A (Italy)
+  78,   // Bundesliga
+  61,   // Ligue 1
 ];
 
 // Simple in-memory cache
@@ -67,25 +75,34 @@ serve(async (req) => {
         });
       }
 
-      // API-Football via RapidAPI - fetch by leagues for Brazil broadcast
-      const leagueIds = params.leagueIds || BRAZIL_LEAGUES;
-      const season = params.season || new Date().getFullYear();
+      // Fetch all matches for the date first (single request), then filter by preferred leagues
+      const allUrl = `https://v3.football.api-sports.io/fixtures?date=${date}&timezone=${encodeURIComponent(timezone)}`;
+      const res = await fetch(allUrl, { headers: { "x-apisports-key": apiKey } });
+
+      if (!res.ok) {
+        const text = await res.text();
+        return new Response(
+          JSON.stringify({ error: `Erro na API de futebol: ${res.status}`, details: text }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      const json = await res.json();
       
-      // Fetch multiple leagues in parallel
-      const fetchPromises = (leagueIds as number[]).map(async (leagueId: number) => {
-        const url = `https://v3.football.api-sports.io/fixtures?date=${date}&league=${leagueId}&season=${season}&timezone=${encodeURIComponent(timezone)}`;
-        try {
-          const res = await fetch(url, { headers: { "x-apisports-key": apiKey } });
-          if (!res.ok) return [];
-          const json = await res.json();
-          return json.response || [];
-        } catch { return []; }
-      });
+      if (json.errors && Object.keys(json.errors).length > 0) {
+        console.log("API errors:", JSON.stringify(json.errors));
+      }
 
-      const results = await Promise.all(fetchPromises);
-      const allFixtures = results.flat();
+      const allFixtures = json.response || [];
+      
+      // Filter by preferred leagues (if any matches exist in those leagues)
+      const leagueIds = new Set(params.leagueIds || BRAZIL_LEAGUES);
+      const filteredFixtures = allFixtures.filter((f: any) => leagueIds.has(f.league.id));
+      
+      // Use filtered if there are results, otherwise show all
+      const finalFixtures = filteredFixtures.length > 0 ? filteredFixtures : allFixtures;
 
-      const matches = allFixtures.map((fixture: any) => ({
+      const matches = finalFixtures.map((fixture: any) => ({
         id: fixture.fixture.id,
         date: fixture.fixture.date,
         timestamp: fixture.fixture.timestamp,
