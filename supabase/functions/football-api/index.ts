@@ -220,11 +220,12 @@ serve(async (req) => {
       }
 
       try {
-        // Fetch the page
-        const pageRes = await fetch("https://futebolnatv.com.br/", {
+        // Fetch the page - use /jogos-hoje/ for today's games specifically
+        const pageRes = await fetch("https://www.futebolnatv.com.br/jogos-hoje/", {
           headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
         });
         const html = await pageRes.text();
+        console.log("Scraped page length:", html.length);
 
         // Extract just the relevant content (reduce tokens)
         const bodyMatch = html.match(/<body[^>]*>([\s\S]*?)<\/body>/i);
@@ -236,7 +237,8 @@ serve(async (req) => {
           .replace(/<[^>]+>/g, " ")
           .replace(/\s+/g, " ")
           .trim()
-          .slice(0, 8000); // Limit to 8k chars
+          .slice(0, 15000); // Increased limit to capture more games
+        console.log("Cleaned content length:", cleaned.length);
 
         const matchNames = matchList.map((m: any) => `${m.home} vs ${m.away}`).join(", ");
 
@@ -301,15 +303,33 @@ serve(async (req) => {
 
         if (aiRes.ok) {
           const aiJson = await aiRes.json();
+          console.log("AI response:", JSON.stringify(aiJson.choices?.[0]?.message).slice(0, 500));
           const toolCall = aiJson.choices?.[0]?.message?.tool_calls?.[0];
           if (toolCall?.function?.arguments) {
             try {
               const parsed = JSON.parse(toolCall.function.arguments);
+              console.log("Parsed channels:", JSON.stringify(parsed));
               for (const entry of (parsed.matches || [])) {
                 channelMap[entry.match_key] = (entry.channels || []).filter((c: string) => validChannelIds.includes(c));
               }
             } catch (e) {
               console.error("Failed to parse AI response:", e);
+            }
+          } else {
+            // Try parsing content directly as JSON fallback
+            const content = aiJson.choices?.[0]?.message?.content;
+            if (content) {
+              console.log("AI content (no tool_call):", content.slice(0, 500));
+              try {
+                const parsed = JSON.parse(content.replace(/```json\n?/g, "").replace(/```/g, "").trim());
+                if (typeof parsed === "object") {
+                  for (const [key, val] of Object.entries(parsed)) {
+                    if (Array.isArray(val)) {
+                      channelMap[key] = (val as string[]).filter((c: string) => validChannelIds.includes(c));
+                    }
+                  }
+                }
+              } catch { /* ignore */ }
             }
           }
         } else {
