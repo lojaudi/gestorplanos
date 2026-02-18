@@ -113,6 +113,45 @@ export type Database = {
           },
         ]
       }
+      football_user_config: {
+        Row: {
+          accent_color: string | null
+          created_at: string
+          custom_title: string | null
+          id: string
+          logo_url: string | null
+          primary_color: string | null
+          secondary_color: string | null
+          updated_at: string
+          user_id: string
+          whatsapp_number: string | null
+        }
+        Insert: {
+          accent_color?: string | null
+          created_at?: string
+          custom_title?: string | null
+          id?: string
+          logo_url?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
+          updated_at?: string
+          user_id: string
+          whatsapp_number?: string | null
+        }
+        Update: {
+          accent_color?: string | null
+          created_at?: string
+          custom_title?: string | null
+          id?: string
+          logo_url?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
+          updated_at?: string
+          user_id?: string
+          whatsapp_number?: string | null
+        }
+        Relationships: []
+      }
       message_logs: {
         Row: {
           api_response: string | null
@@ -296,6 +335,16 @@ export type Database = {
           accent_color: string
           email_verification_enabled: boolean
           favicon_url: string | null
+          football_accent_color: string | null
+          football_api_key: string | null
+          football_api_provider: string | null
+          football_banners_enabled: boolean | null
+          football_date_format: string | null
+          football_default_font: string | null
+          football_default_logo_url: string | null
+          football_primary_color: string | null
+          football_secondary_color: string | null
+          football_timezone: string | null
           id: string
           login_bg_url: string | null
           logo_url: string | null
@@ -310,6 +359,16 @@ export type Database = {
           accent_color?: string
           email_verification_enabled?: boolean
           favicon_url?: string | null
+          football_accent_color?: string | null
+          football_api_key?: string | null
+          football_api_provider?: string | null
+          football_banners_enabled?: boolean | null
+          football_date_format?: string | null
+          football_default_font?: string | null
+          football_default_logo_url?: string | null
+          football_primary_color?: string | null
+          football_secondary_color?: string | null
+          football_timezone?: string | null
           id?: string
           login_bg_url?: string | null
           logo_url?: string | null
@@ -324,6 +383,16 @@ export type Database = {
           accent_color?: string
           email_verification_enabled?: boolean
           favicon_url?: string | null
+          football_accent_color?: string | null
+          football_api_key?: string | null
+          football_api_provider?: string | null
+          football_banners_enabled?: boolean | null
+          football_date_format?: string | null
+          football_default_font?: string | null
+          football_default_logo_url?: string | null
+          football_primary_color?: string | null
+          football_secondary_color?: string | null
+          football_timezone?: string | null
           id?: string
           login_bg_url?: string | null
           logo_url?: string | null

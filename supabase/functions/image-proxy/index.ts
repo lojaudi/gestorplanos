@@ -25,6 +25,11 @@ serve(async (req) => {
     const allowed = [
       "https://image.tmdb.org/",
       "https://efowcydxnypklhtlvccy.supabase.co/storage/v1/",
+      "https://media.api-sports.io/",
+      "https://media-4.api-sports.io/",
+      "https://media-1.api-sports.io/",
+      "https://media-2.api-sports.io/",
+      "https://media-3.api-sports.io/",
     ];
     if (!allowed.some((prefix) => url.startsWith(prefix))) {
       return new Response(JSON.stringify({ error: "URL not allowed" }), {
