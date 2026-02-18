@@ -7,6 +7,31 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+// Popular league IDs commonly broadcast in Brazil
+const BRAZIL_LEAGUES = [
+  // Brazilian
+  71,   // Brasileirão Série A
+  72,   // Brasileirão Série B
+  73,   // Copa do Brasil
+  75,   // Brasileirão Série C
+  // South American
+  13,   // Copa Libertadores
+  11,   // Copa Sudamericana
+  // European
+  2,    // Champions League
+  3,    // Europa League
+  848,  // Conference League
+  39,   // Premier League
+  140,  // La Liga
+  135,  // Serie A (Italy)
+  61,   // Ligue 1
+  78,   // Bundesliga
+  // International
+  1,    // World Cup
+  4,    // Euro
+  9,    // Copa América
+];
+
 // Simple in-memory cache
 const cache: Record<string, { data: any; ts: number }> = {};
 const CACHE_TTL = 15 * 60 * 1000; // 15 minutes
@@ -60,24 +85,25 @@ serve(async (req) => {
         });
       }
 
-      // API-Football via RapidAPI
-      const url = `https://v3.football.api-sports.io/fixtures?date=${date}&timezone=${encodeURIComponent(timezone)}`;
-      const res = await fetch(url, {
-        headers: {
-          "x-apisports-key": apiKey,
-        },
+      // API-Football via RapidAPI - fetch by leagues for Brazil broadcast
+      const leagueIds = params.leagueIds || BRAZIL_LEAGUES;
+      const season = params.season || new Date().getFullYear();
+      
+      // Fetch multiple leagues in parallel
+      const fetchPromises = (leagueIds as number[]).map(async (leagueId: number) => {
+        const url = `https://v3.football.api-sports.io/fixtures?date=${date}&league=${leagueId}&season=${season}&timezone=${encodeURIComponent(timezone)}`;
+        try {
+          const res = await fetch(url, { headers: { "x-apisports-key": apiKey } });
+          if (!res.ok) return [];
+          const json = await res.json();
+          return json.response || [];
+        } catch { return []; }
       });
 
-      if (!res.ok) {
-        const text = await res.text();
-        return new Response(
-          JSON.stringify({ error: `Erro na API de futebol: ${res.status}`, details: text }),
-          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
+      const results = await Promise.all(fetchPromises);
+      const allFixtures = results.flat();
 
-      const json = await res.json();
-      const matches = (json.response || []).map((fixture: any) => ({
+      const matches = allFixtures.map((fixture: any) => ({
         id: fixture.fixture.id,
         date: fixture.fixture.date,
         timestamp: fixture.fixture.timestamp,

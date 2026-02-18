@@ -3,6 +3,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2 } from "lucide-react";
+import { CHANNELS } from "./channelLogos";
 
 export interface Match {
   id: number;
@@ -16,18 +17,7 @@ export interface Match {
   channels?: string[];
 }
 
-const CHANNELS = [
-  { id: "globo", name: "Globo" },
-  { id: "sportv", name: "SporTV" },
-  { id: "premiere", name: "Premiere" },
-  { id: "espn", name: "ESPN" },
-  { id: "star_plus", name: "Star+" },
-  { id: "amazon", name: "Prime Video" },
-  { id: "cazetv", name: "CazéTV" },
-  { id: "band", name: "Band" },
-  { id: "record", name: "Record" },
-  { id: "paramount", name: "Paramount+" },
-];
+
 
 interface Props {
   matches: Match[];
