@@ -10,16 +10,9 @@ const corsHeaders = {
 // Ligas filtradas para transmissão no Brasil
 const BRAZIL_LEAGUES = [
   71,   // Brasileirão Série A
+  72,   // Brasileirão Série B
   73,   // Copa do Brasil
   13,   // Copa Libertadores
-  11,   // Copa Sudamericana
-  2,    // Champions League
-  3,    // Europa League
-  39,   // Premier League
-  140,  // La Liga
-  135,  // Serie A (Italy)
-  78,   // Bundesliga
-  61,   // Ligue 1
 ];
 
 // Simple in-memory cache
@@ -100,7 +93,7 @@ serve(async (req) => {
       const filteredFixtures = allFixtures.filter((f: any) => leagueIds.has(f.league.id));
       
       // Use filtered if there are results, otherwise show all
-      const finalFixtures = filteredFixtures.length > 0 ? filteredFixtures : allFixtures;
+      const finalFixtures = filteredFixtures;
 
       const matches = finalFixtures.map((fixture: any) => ({
         id: fixture.fixture.id,
