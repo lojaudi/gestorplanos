@@ -114,11 +114,16 @@ const GamesDay = () => {
     }
   };
 
+  const DEFAULT_CHANNELS = ["globo", "sportv", "premiere"];
+
   const handleToggleMatch = (match: Match) => {
     setSelectedMatches((prev) => {
       const exists = prev.find((m) => m.id === match.id);
       if (exists) return prev.filter((m) => m.id !== match.id);
-      return [...prev, match];
+      const withDefaults = { ...match, channels: match.channels?.length ? match.channels : DEFAULT_CHANNELS };
+      // Also update in matches array
+      setMatches((all) => all.map((m) => m.id === match.id ? withDefaults : m));
+      return [...prev, withDefaults];
     });
   };
 
