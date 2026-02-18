@@ -15,6 +15,8 @@ export const CHANNELS: ChannelInfo[] = [
   { id: "band", name: "Band", logo: "/channels/band.png" },
   { id: "record", name: "Record", logo: "/channels/record.png" },
   { id: "paramount", name: "Paramount+", logo: "/channels/paramount.png" },
+  { id: "tnt_sports", name: "TNT Sports", logo: "/channels/tnt_sports.png" },
+  { id: "disney_plus", name: "Disney+", logo: "/channels/disney_plus.png" },
 ];
 
 export const CHANNEL_MAP = Object.fromEntries(CHANNELS.map(c => [c.id, c]));
