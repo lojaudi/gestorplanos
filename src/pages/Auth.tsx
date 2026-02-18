@@ -15,6 +15,11 @@ const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  const handlePasswordChange = (value: string) => {
+    const cleaned = value.replace(/\D/g, "");
+    setPassword(cleaned);
+  };
   const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -40,7 +45,11 @@ const Auth = () => {
       return;
     }
     if (password.length < 6) {
-      toast({ title: "Erro", description: "A senha deve ter no mínimo 6 caracteres", variant: "destructive" });
+      toast({ title: "Erro", description: "A senha deve ter no mínimo 6 números", variant: "destructive" });
+      return;
+    }
+    if (!/^\d+$/.test(password)) {
+      toast({ title: "Erro", description: "A senha deve conter apenas números", variant: "destructive" });
       return;
     }
 
@@ -249,10 +258,12 @@ const Auth = () => {
                       id="password"
                       type={showPassword ? "text" : "password"}
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
+                      onChange={(e) => handlePasswordChange(e.target.value)}
+                      placeholder="••••••"
                       required
                       minLength={6}
+                      inputMode="numeric"
+                      maxLength={20}
                     />
                     <button
                       type="button"
@@ -262,6 +273,9 @@ const Auth = () => {
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
+                  {!isLogin && (
+                    <p className="text-xs text-muted-foreground">Apenas números, mínimo 6 dígitos</p>
+                  )}
                 </div>
                 <Button type="submit" className="w-full" disabled={loading}>
                   {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Carregando...</> : isLogin ? "Entrar" : "Enviar Código de Verificação"}
