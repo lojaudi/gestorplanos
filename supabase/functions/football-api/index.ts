@@ -247,7 +247,7 @@ serve(async (req) => {
           });
         }
 
-        const validChannelIds = ["globo", "sportv", "premiere", "espn", "star_plus", "amazon", "cazetv", "band", "record", "paramount"];
+        const validChannelIds = ["globo", "sportv", "premiere", "espn", "star_plus", "amazon", "cazetv", "band", "record", "paramount", "tnt_sports", "disney_plus"];
 
         const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
           method: "POST",
@@ -260,7 +260,7 @@ serve(async (req) => {
             messages: [
               {
                 role: "system",
-                content: `You extract TV channel information for Brazilian football matches. Given scraped text from futebolnatv.com.br and a list of matches, return a JSON mapping match keys ("HomeTeam vs AwayTeam") to arrays of channel IDs. Valid channel IDs: ${validChannelIds.join(", ")}. Map channel names like: "TV Globo"/"Globo" -> "globo", "SporTV"/"SporTV 2"/"SporTV 3" -> "sportv", "Premiere" -> "premiere", "ESPN"/"ESPN 2"/"ESPN 4" -> "espn", "Star+" -> "star_plus", "Amazon Prime Video"/"Prime Video" -> "amazon", "CazéTV" -> "cazetv", "Band"/"TV Bandeirantes" -> "band", "Record"/"TV Record" -> "record", "Paramount+" -> "paramount". Return ONLY valid JSON, no explanation.`,
+                content: `You extract TV channel information for Brazilian football matches. Given scraped text from futebolnatv.com.br and a list of matches, return a JSON mapping match keys ("HomeTeam vs AwayTeam") to arrays of channel IDs. Valid channel IDs: ${validChannelIds.join(", ")}. Map channel names like: "TV Globo"/"Globo" -> "globo", "SporTV"/"SporTV 2"/"SporTV 3" -> "sportv", "Premiere" -> "premiere", "ESPN"/"ESPN 2"/"ESPN 4" -> "espn", "Star+" -> "star_plus", "Amazon Prime Video"/"Prime Video" -> "amazon", "CazéTV" -> "cazetv", "Band"/"TV Bandeirantes" -> "band", "Record"/"TV Record" -> "record", "Paramount+" -> "paramount", "TNT Sports"/"TNT" -> "tnt_sports", "Disney+"/"Disney Plus" -> "disney_plus". Return ONLY valid JSON, no explanation.`,
               },
               {
                 role: "user",
