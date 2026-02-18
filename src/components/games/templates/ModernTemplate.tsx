@@ -39,7 +39,8 @@ export function ModernTemplate({ matches, title, logoUrl, whatsapp, primaryColor
       <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.15) 1px, transparent 1px)", backgroundSize: "30px 30px" }} />
 
       <div className="relative z-10 flex flex-col h-full p-[5%]">
-        <div className="flex items-center justify-between mb-[4%]">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-[3%]">
           <div>
             <h1 className="font-black uppercase tracking-wider" style={{ fontSize: isStory ? "1.8em" : "1.5em", color: accentColor }}>{title}</h1>
             <p className="text-sm opacity-70 mt-0.5">{new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}</p>
@@ -47,39 +48,55 @@ export function ModernTemplate({ matches, title, logoUrl, whatsapp, primaryColor
           {logoUrl && <img src={logoUrl} alt="Logo" className="h-12 w-auto object-contain" />}
         </div>
 
+        {/* Matches Grid */}
         <div className="flex-1 grid gap-[2%]" style={{ gridTemplateColumns: "1fr 1fr", gridTemplateRows: `repeat(${Math.ceil(matches.length / 2)}, 1fr)` }}>
           {matches.map((m) => (
-            <div key={m.id} className="rounded-xl p-[6%] flex flex-col justify-center" style={{ background: "rgba(255,255,255,0.08)", backdropFilter: "blur(8px)", border: "1px solid rgba(255,255,255,0.1)" }}>
-              <p className="text-[0.6em] uppercase tracking-widest opacity-60 mb-[4%] truncate">{m.league.name}</p>
-              <div className="flex items-center justify-between gap-[4%]">
-                <div className="flex flex-col items-center flex-1 min-w-0">
-                  <img src={m.home.logo} alt="" className="object-contain mb-1" style={{ width: "2.5em", height: "2.5em", maxWidth: "40px", maxHeight: "40px" }} />
-                  <span className="text-[0.55em] font-bold text-center truncate w-full">{m.home.name}</span>
+            <div key={m.id} className="rounded-xl flex flex-col justify-center" style={{ background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.08)", padding: "5% 4%" }}>
+              {/* League */}
+              <p className="text-[0.5em] uppercase tracking-widest opacity-50 mb-[3%] truncate text-center">{m.league.name}</p>
+
+              {/* Teams row */}
+              <div className="flex items-center justify-between gap-[2%]">
+                {/* Home */}
+                <div className="flex flex-col items-center flex-1 min-w-0 gap-[2px]">
+                  <div className="flex items-center justify-center" style={{ width: "2.2em", height: "2.2em" }}>
+                    <img src={m.home.logo} alt="" className="object-contain" style={{ maxWidth: "100%", maxHeight: "100%" }} />
+                  </div>
+                  <span className="text-[0.5em] font-semibold text-center truncate w-full leading-tight">{m.home.name}</span>
                 </div>
-                <div className="text-center shrink-0 flex flex-col items-center gap-1">
-                  <span className="font-black text-[0.9em]" style={{ color: accentColor }}>{formatTime(m.date)}</span>
-                  {m.channels && m.channels.length > 0 && (
-                    <div className="flex gap-1.5 items-center justify-center">
-                      {m.channels.slice(0, 3).map((ch) => {
-                        const info = CHANNEL_MAP[ch];
-                        return info ? (
-                          <img key={ch} src={info.logo} alt={info.name} title={info.name} className="object-contain" style={{ height: "1.4em", maxHeight: "22px", width: "auto" }} />
-                        ) : (
-                          <span key={ch} className="text-[0.4em] px-1.5 py-0.5 rounded-full font-bold" style={{ background: accentColor, color: primaryColor }}>{ch}</span>
-                        );
-                      })}
-                    </div>
-                  )}
+
+                {/* Center: time */}
+                <div className="text-center shrink-0 px-1">
+                  <span className="font-black text-[0.85em] block" style={{ color: accentColor }}>{formatTime(m.date)}</span>
                 </div>
-                <div className="flex flex-col items-center flex-1 min-w-0">
-                  <img src={m.away.logo} alt="" className="object-contain mb-1" style={{ width: "2.5em", height: "2.5em", maxWidth: "40px", maxHeight: "40px" }} />
-                  <span className="text-[0.55em] font-bold text-center truncate w-full">{m.away.name}</span>
+
+                {/* Away */}
+                <div className="flex flex-col items-center flex-1 min-w-0 gap-[2px]">
+                  <div className="flex items-center justify-center" style={{ width: "2.2em", height: "2.2em" }}>
+                    <img src={m.away.logo} alt="" className="object-contain" style={{ maxWidth: "100%", maxHeight: "100%" }} />
+                  </div>
+                  <span className="text-[0.5em] font-semibold text-center truncate w-full leading-tight">{m.away.name}</span>
                 </div>
               </div>
+
+              {/* Channels - small, inline, below teams */}
+              {m.channels && m.channels.length > 0 && (
+                <div className="flex gap-1 items-center justify-center mt-[4%] opacity-70">
+                  {m.channels.slice(0, 3).map((ch) => {
+                    const info = CHANNEL_MAP[ch];
+                    return info ? (
+                      <img key={ch} src={info.logo} alt={info.name} title={info.name} className="object-contain" style={{ height: "0.7em", width: "auto", filter: "brightness(0) invert(1)", opacity: 0.6 }} />
+                    ) : (
+                      <span key={ch} className="text-[0.3em] px-1 py-0.5 rounded font-medium" style={{ background: "rgba(255,255,255,0.15)" }}>{ch}</span>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           ))}
         </div>
 
+        {/* Footer */}
         <div className="mt-[3%] flex items-center justify-between pt-[2%]" style={{ borderTop: `1px solid rgba(255,255,255,0.15)` }}>
           {logoUrl && <img src={logoUrl} alt="" className="h-8 w-auto object-contain" />}
           {whatsapp && (
