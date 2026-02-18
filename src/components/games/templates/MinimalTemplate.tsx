@@ -54,13 +54,13 @@ export function MinimalTemplate({ matches, title, logoUrl, whatsapp, primaryColo
                 <div className="shrink-0 w-[14%] flex flex-col items-center gap-1">
                   <span className="font-black text-[1em]" style={{ color: accentColor }}>{formatTime(m.date)}</span>
                   {m.channels && m.channels.length > 0 && (
-                    <div className="flex gap-1 items-center justify-center flex-wrap">
-                      {m.channels.map((ch) => {
+                    <div className="flex gap-1.5 items-center justify-center">
+                      {m.channels.slice(0, 3).map((ch) => {
                         const info = CHANNEL_MAP[ch];
                         return info ? (
-                          <img key={ch} src={info.logo} alt={info.name} title={info.name} className="object-contain" style={{ height: "0.8em", maxHeight: "12px", width: "auto" }} />
+                          <img key={ch} src={info.logo} alt={info.name} title={info.name} className="object-contain" style={{ height: "1.4em", maxHeight: "22px", width: "auto" }} />
                         ) : (
-                          <span key={ch} className="text-[0.35em] px-1 py-0.5 rounded font-bold" style={{ background: primaryColor, color: "#fff" }}>{ch}</span>
+                          <span key={ch} className="text-[0.35em] px-1.5 py-0.5 rounded font-bold" style={{ background: primaryColor, color: "#fff" }}>{ch}</span>
                         );
                       })}
                     </div>

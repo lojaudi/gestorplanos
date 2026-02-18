@@ -60,13 +60,13 @@ export function SportyTemplate({ matches, title, logoUrl, whatsapp, primaryColor
                 <span className="font-black text-[0.9em]" style={{ color: accentColor }}>{formatTime(m.date)}</span>
                 <p className="text-[0.45em] uppercase tracking-widest opacity-60 mt-0.5 truncate">{m.league.name}</p>
                 {m.channels && m.channels.length > 0 && (
-                  <div className="flex gap-1 mt-1 justify-center items-center flex-wrap">
+                  <div className="flex gap-1.5 mt-1 justify-center items-center">
                     {m.channels.slice(0, 3).map((ch) => {
                       const info = CHANNEL_MAP[ch];
                       return info ? (
-                        <img key={ch} src={info.logo} alt={info.name} title={info.name} className="object-contain" style={{ height: "0.85em", maxHeight: "13px", width: "auto", filter: "brightness(0) invert(1)", opacity: 0.85 }} />
+                        <img key={ch} src={info.logo} alt={info.name} title={info.name} className="object-contain" style={{ height: "1.4em", maxHeight: "22px", width: "auto" }} />
                       ) : (
-                        <span key={ch} className="text-[0.35em] px-1 py-0.5 rounded font-bold" style={{ background: "rgba(255,255,255,0.15)" }}>{ch}</span>
+                        <span key={ch} className="text-[0.35em] px-1.5 py-0.5 rounded font-bold" style={{ background: "rgba(255,255,255,0.15)" }}>{ch}</span>
                       );
                     })}
                   </div>
