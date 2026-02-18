@@ -8,8 +8,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { Settings, Save, Upload, Loader2, Trash2, Shield, Eye, EyeOff, MessageSquare, Mail } from "lucide-react";
+import { Settings, Save, Upload, Loader2, Trash2, Shield, Eye, EyeOff, MessageSquare, Mail, Gamepad2 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface PlatformSettings {
   id: string;
@@ -23,6 +24,16 @@ interface PlatformSettings {
   tmdb_api_key: string;
   whatsapp_verification_enabled: boolean;
   email_verification_enabled: boolean;
+  football_api_key: string;
+  football_api_provider: string;
+  football_timezone: string;
+  football_date_format: string;
+  football_default_font: string;
+  football_primary_color: string;
+  football_secondary_color: string;
+  football_accent_color: string;
+  football_default_logo_url: string | null;
+  football_banners_enabled: boolean;
 }
 
 const AdminSettings = () => {
@@ -43,7 +54,7 @@ const AdminSettings = () => {
   const [hasGlobalConfig, setHasGlobalConfig] = useState(false);
   const [savingGlobal, setSavingGlobal] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
-
+  const [showFootballKey, setShowFootballKey] = useState(false);
   const callEvolutionApi = useCallback(async (action: string, extraParams = {}) => {
     const { data: { session } } = await supabase.auth.getSession();
     const res = await fetch(
@@ -159,6 +170,16 @@ const AdminSettings = () => {
         tmdb_api_key: settings.tmdb_api_key,
         whatsapp_verification_enabled: settings.whatsapp_verification_enabled,
         email_verification_enabled: settings.email_verification_enabled,
+        football_api_key: settings.football_api_key,
+        football_api_provider: settings.football_api_provider,
+        football_timezone: settings.football_timezone,
+        football_date_format: settings.football_date_format,
+        football_default_font: settings.football_default_font,
+        football_primary_color: settings.football_primary_color,
+        football_secondary_color: settings.football_secondary_color,
+        football_accent_color: settings.football_accent_color,
+        football_default_logo_url: settings.football_default_logo_url,
+        football_banners_enabled: settings.football_banners_enabled,
       } as any)
       .eq("id", settings.id);
 
@@ -435,7 +456,119 @@ const AdminSettings = () => {
         </CardContent>
       </Card>
 
-      {/* Evolution API Config */}
+      {/* Football / Jogos do Dia Config */}
+      <Card className="border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Gamepad2 className="h-5 w-5 text-primary" />
+            Jogos do Dia – Configurações
+          </CardTitle>
+          <CardDescription>Configure o módulo de banners esportivos para todos os usuários.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between rounded-lg border p-4">
+            <div>
+              <p className="font-medium">Ativar módulo Jogos do Dia</p>
+              <p className="text-sm text-muted-foreground">Permite que usuários gerem banners esportivos</p>
+            </div>
+            <Switch
+              checked={settings.football_banners_enabled}
+              onCheckedChange={(v) => setSettings({ ...settings, football_banners_enabled: v })}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label>API Key de Futebol</Label>
+            <div className="relative">
+              <Input
+                type={showFootballKey ? "text" : "password"}
+                value={settings.football_api_key ?? ""}
+                onChange={(e) => setSettings({ ...settings, football_api_key: e.target.value })}
+                placeholder="Chave da API-Football (api-sports.io)"
+              />
+              <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowFootballKey(!showFootballKey)}>
+                {showFootballKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Provedor de Dados</Label>
+              <Select value={settings.football_api_provider} onValueChange={(v) => setSettings({ ...settings, football_api_provider: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="api-football">API-Football (api-sports.io)</SelectItem>
+                  <SelectItem value="football-data">Football-Data.org</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Fuso Horário</Label>
+              <Select value={settings.football_timezone} onValueChange={(v) => setSettings({ ...settings, football_timezone: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="America/Sao_Paulo">São Paulo (BRT)</SelectItem>
+                  <SelectItem value="America/Manaus">Manaus (AMT)</SelectItem>
+                  <SelectItem value="America/Fortaleza">Fortaleza (BRT)</SelectItem>
+                  <SelectItem value="America/Bahia">Bahia (BRT)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Formato de Data/Hora</Label>
+              <Select value={settings.football_date_format} onValueChange={(v) => setSettings({ ...settings, football_date_format: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="DD/MM HH:mm">DD/MM HH:mm</SelectItem>
+                  <SelectItem value="DD/MM/YYYY HH:mm">DD/MM/YYYY HH:mm</SelectItem>
+                  <SelectItem value="HH:mm">Apenas hora (HH:mm)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Fonte Padrão</Label>
+              <Select value={settings.football_default_font} onValueChange={(v) => setSettings({ ...settings, football_default_font: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Inter">Inter</SelectItem>
+                  <SelectItem value="Roboto">Roboto</SelectItem>
+                  <SelectItem value="Montserrat">Montserrat</SelectItem>
+                  <SelectItem value="Oswald">Oswald</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div className="space-y-2">
+              <Label>Cor Primária</Label>
+              <div className="flex items-center gap-2">
+                <input type="color" value={settings.football_primary_color} onChange={(e) => setSettings({ ...settings, football_primary_color: e.target.value })} className="h-10 w-10 cursor-pointer rounded border" />
+                <Input value={settings.football_primary_color} onChange={(e) => setSettings({ ...settings, football_primary_color: e.target.value })} className="flex-1" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Cor Secundária</Label>
+              <div className="flex items-center gap-2">
+                <input type="color" value={settings.football_secondary_color} onChange={(e) => setSettings({ ...settings, football_secondary_color: e.target.value })} className="h-10 w-10 cursor-pointer rounded border" />
+                <Input value={settings.football_secondary_color} onChange={(e) => setSettings({ ...settings, football_secondary_color: e.target.value })} className="flex-1" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Cor Destaque</Label>
+              <div className="flex items-center gap-2">
+                <input type="color" value={settings.football_accent_color} onChange={(e) => setSettings({ ...settings, football_accent_color: e.target.value })} className="h-10 w-10 cursor-pointer rounded border" />
+                <Input value={settings.football_accent_color} onChange={(e) => setSettings({ ...settings, football_accent_color: e.target.value })} className="flex-1" />
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card className="border-primary/20">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
