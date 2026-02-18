@@ -43,7 +43,7 @@ export function SportyTemplate({ matches, title, logoUrl, whatsapp, primaryColor
 
       <div className="relative z-10 flex flex-col h-full p-[5%] pt-[6%]">
         <div className="flex items-center gap-3 mb-[4%]">
-          {logoUrl && <img src={logoUrl} alt="Logo" className="h-14 w-auto object-contain" crossOrigin="anonymous" />}
+          {logoUrl && <img src={logoUrl} alt="Logo" className="h-14 w-auto object-contain" />}
           <div>
             <h1 className="font-black uppercase tracking-wider" style={{ fontSize: isStory ? "2em" : "1.6em", color: accentColor, textShadow: "2px 2px 8px rgba(0,0,0,0.5)" }}>{title}</h1>
             <p className="text-sm opacity-70">{new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}</p>
@@ -64,7 +64,7 @@ export function SportyTemplate({ matches, title, logoUrl, whatsapp, primaryColor
                     {m.channels.slice(0, 3).map((ch) => {
                       const info = CHANNEL_MAP[ch];
                       return info ? (
-                        <img key={ch} src={info.logo} alt={info.name} title={info.name} className="object-contain" style={{ height: "0.85em", maxHeight: "13px", width: "auto", filter: "brightness(0) invert(1)", opacity: 0.85 }} crossOrigin="anonymous" />
+                        <img key={ch} src={info.logo} alt={info.name} title={info.name} className="object-contain" style={{ height: "0.85em", maxHeight: "13px", width: "auto", filter: "brightness(0) invert(1)", opacity: 0.85 }} />
                       ) : (
                         <span key={ch} className="text-[0.35em] px-1 py-0.5 rounded font-bold" style={{ background: "rgba(255,255,255,0.15)" }}>{ch}</span>
                       );
@@ -74,13 +74,13 @@ export function SportyTemplate({ matches, title, logoUrl, whatsapp, primaryColor
               </div>
               <div className="flex-1 flex items-center gap-[3%]">
                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <img src={m.home.logo} alt="" className="object-contain shrink-0" style={{ width: "2em", height: "2em", maxWidth: "32px", maxHeight: "32px" }} crossOrigin="anonymous" />
+                  <img src={m.home.logo} alt="" className="object-contain shrink-0" style={{ width: "2em", height: "2em", maxWidth: "32px", maxHeight: "32px" }} />
                   <span className="text-[0.65em] font-bold truncate">{m.home.name}</span>
                 </div>
                 <span className="text-[0.6em] font-black opacity-40 shrink-0">VS</span>
                 <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
                   <span className="text-[0.65em] font-bold truncate text-right">{m.away.name}</span>
-                  <img src={m.away.logo} alt="" className="object-contain shrink-0" style={{ width: "2em", height: "2em", maxWidth: "32px", maxHeight: "32px" }} crossOrigin="anonymous" />
+                  <img src={m.away.logo} alt="" className="object-contain shrink-0" style={{ width: "2em", height: "2em", maxWidth: "32px", maxHeight: "32px" }} />
                 </div>
               </div>
             </div>
@@ -88,7 +88,7 @@ export function SportyTemplate({ matches, title, logoUrl, whatsapp, primaryColor
         </div>
 
         <div className="mt-[3%] flex items-center justify-center gap-4 pt-[2%]" style={{ borderTop: `2px solid ${accentColor}` }}>
-          {logoUrl && <img src={logoUrl} alt="" className="h-8 w-auto object-contain" crossOrigin="anonymous" />}
+          {logoUrl && <img src={logoUrl} alt="" className="h-8 w-auto object-contain" />}
           {whatsapp && <span className="text-[0.75em] font-bold">📱 {whatsapp}</span>}
         </div>
       </div>

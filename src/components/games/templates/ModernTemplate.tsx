@@ -44,7 +44,7 @@ export function ModernTemplate({ matches, title, logoUrl, whatsapp, primaryColor
             <h1 className="font-black uppercase tracking-wider" style={{ fontSize: isStory ? "1.8em" : "1.5em", color: accentColor }}>{title}</h1>
             <p className="text-sm opacity-70 mt-0.5">{new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "numeric", month: "long" })}</p>
           </div>
-          {logoUrl && <img src={logoUrl} alt="Logo" className="h-12 w-auto object-contain" crossOrigin="anonymous" />}
+          {logoUrl && <img src={logoUrl} alt="Logo" className="h-12 w-auto object-contain" />}
         </div>
 
         <div className="flex-1 grid gap-[2%]" style={{ gridTemplateColumns: "1fr 1fr", gridTemplateRows: `repeat(${Math.ceil(matches.length / 2)}, 1fr)` }}>
@@ -53,7 +53,7 @@ export function ModernTemplate({ matches, title, logoUrl, whatsapp, primaryColor
               <p className="text-[0.6em] uppercase tracking-widest opacity-60 mb-[4%] truncate">{m.league.name}</p>
               <div className="flex items-center justify-between gap-[4%]">
                 <div className="flex flex-col items-center flex-1 min-w-0">
-                  <img src={m.home.logo} alt="" className="object-contain mb-1" style={{ width: "2.5em", height: "2.5em", maxWidth: "40px", maxHeight: "40px" }} crossOrigin="anonymous" />
+                  <img src={m.home.logo} alt="" className="object-contain mb-1" style={{ width: "2.5em", height: "2.5em", maxWidth: "40px", maxHeight: "40px" }} />
                   <span className="text-[0.55em] font-bold text-center truncate w-full">{m.home.name}</span>
                 </div>
                 <div className="text-center shrink-0 flex flex-col items-center gap-1">
@@ -63,7 +63,7 @@ export function ModernTemplate({ matches, title, logoUrl, whatsapp, primaryColor
                       {m.channels.map((ch) => {
                         const info = CHANNEL_MAP[ch];
                         return info ? (
-                          <img key={ch} src={info.logo} alt={info.name} title={info.name} className="object-contain" style={{ height: "0.9em", maxHeight: "14px", width: "auto", filter: "brightness(0) invert(1)", opacity: 0.85 }} crossOrigin="anonymous" />
+                          <img key={ch} src={info.logo} alt={info.name} title={info.name} className="object-contain" style={{ height: "0.9em", maxHeight: "14px", width: "auto", filter: "brightness(0) invert(1)", opacity: 0.85 }} />
                         ) : (
                           <span key={ch} className="text-[0.35em] px-1 py-0.5 rounded-full font-bold" style={{ background: accentColor, color: primaryColor }}>{ch}</span>
                         );
@@ -72,7 +72,7 @@ export function ModernTemplate({ matches, title, logoUrl, whatsapp, primaryColor
                   )}
                 </div>
                 <div className="flex flex-col items-center flex-1 min-w-0">
-                  <img src={m.away.logo} alt="" className="object-contain mb-1" style={{ width: "2.5em", height: "2.5em", maxWidth: "40px", maxHeight: "40px" }} crossOrigin="anonymous" />
+                  <img src={m.away.logo} alt="" className="object-contain mb-1" style={{ width: "2.5em", height: "2.5em", maxWidth: "40px", maxHeight: "40px" }} />
                   <span className="text-[0.55em] font-bold text-center truncate w-full">{m.away.name}</span>
                 </div>
               </div>
@@ -81,7 +81,7 @@ export function ModernTemplate({ matches, title, logoUrl, whatsapp, primaryColor
         </div>
 
         <div className="mt-[3%] flex items-center justify-between pt-[2%]" style={{ borderTop: `1px solid rgba(255,255,255,0.15)` }}>
-          {logoUrl && <img src={logoUrl} alt="" className="h-8 w-auto object-contain" crossOrigin="anonymous" />}
+          {logoUrl && <img src={logoUrl} alt="" className="h-8 w-auto object-contain" />}
           {whatsapp && (
             <div className="flex items-center gap-2">
               <span className="text-[0.7em]">📱</span>
