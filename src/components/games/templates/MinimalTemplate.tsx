@@ -40,7 +40,7 @@ export function MinimalTemplate({ matches, title, logoUrl, whatsapp, primaryColo
     >
       {/* Background image */}
       {backgroundUrl && (
-        <div className="absolute inset-0" style={{ backgroundImage: `url(${backgroundUrl})`, backgroundSize: "cover", backgroundPosition: "center", opacity: 0.2 }} />
+        <div className="absolute inset-0" style={{ backgroundImage: `url(${backgroundUrl})`, backgroundSize: "100% 100%", backgroundPosition: "center" }} />
       )}
       <div className="relative z-10 flex flex-col h-full p-[6%]">
         {/* Header */}
