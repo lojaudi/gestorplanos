@@ -94,21 +94,27 @@ const Auth = () => {
         setEmailSent(true);
         toast({ title: "E-mail enviado!", description: "Verifique sua caixa de entrada para confirmar o cadastro." });
       } else {
-        // No verification - create account directly (auto-confirmed)
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { full_name: fullName, phone: phone || undefined },
-          },
-        });
-        if (error) throw error;
+        // No verification - create account via server (auto-confirmed)
+        const res = await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/evolution-api`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json", apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+            body: JSON.stringify({
+              action: "create-account-direct",
+              email,
+              password,
+              full_name: fullName,
+              phone: phone || undefined,
+            }),
+          }
+        );
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Erro ao criar conta");
 
-        // Update profile with phone if provided
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user && phone) {
-          await supabase.from("profiles").update({ phone }).eq("user_id", user.id);
-        }
+        // Login immediately
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
 
         toast({ title: "Conta criada!", description: "Seu cadastro foi realizado com sucesso." });
         navigate("/");
