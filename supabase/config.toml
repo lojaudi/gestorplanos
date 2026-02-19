@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.football-api]
 verify_jwt = false
+
+[functions.auto-billing]
+verify_jwt = false

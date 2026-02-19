@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -30,6 +31,8 @@ import {
   Loader2,
   MessageSquare,
   QrCode,
+  Bot,
+  Save,
 } from "lucide-react";
 import {
   Dialog,
@@ -88,6 +91,13 @@ export default function Billing() {
   const [generatingPix, setGeneratingPix] = useState(false);
   const [gatewayEnabled, setGatewayEnabled] = useState(false);
   const [fixedPixKey, setFixedPixKey] = useState("");
+  // Automation state
+  const [autoEnabled, setAutoEnabled] = useState(false);
+  const [autoBeforeDue, setAutoBeforeDue] = useState(true);
+  const [autoOnDue, setAutoOnDue] = useState(true);
+  const [autoAfterDue, setAutoAfterDue] = useState(true);
+  const [savingAuto, setSavingAuto] = useState(false);
+  const [hasAutoConfig, setHasAutoConfig] = useState(false);
 
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -120,6 +130,24 @@ export default function Billing() {
       const configData = await res.json();
       setGatewayEnabled(configData.config?.is_enabled || false);
       setFixedPixKey(configData.config?.pix_key || "");
+    } catch {
+      // ignore
+    }
+
+    // Fetch automation config
+    try {
+      const { data: autoConfig } = await supabase
+        .from("billing_automation_config")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      if (autoConfig) {
+        setHasAutoConfig(true);
+        setAutoEnabled(autoConfig.is_enabled);
+        setAutoBeforeDue(autoConfig.notify_before_due);
+        setAutoOnDue(autoConfig.notify_on_due);
+        setAutoAfterDue(autoConfig.notify_after_due);
+      }
     } catch {
       // ignore
     }
@@ -342,6 +370,37 @@ export default function Billing() {
     setGeneratingPix(false);
   };
 
+  const handleSaveAutomation = async () => {
+    if (!user) return;
+    setSavingAuto(true);
+    try {
+      if (hasAutoConfig) {
+        await supabase
+          .from("billing_automation_config")
+          .update({
+            is_enabled: autoEnabled,
+            notify_before_due: autoBeforeDue,
+            notify_on_due: autoOnDue,
+            notify_after_due: autoAfterDue,
+          })
+          .eq("user_id", user.id);
+      } else {
+        await supabase.from("billing_automation_config").insert({
+          user_id: user.id,
+          is_enabled: autoEnabled,
+          notify_before_due: autoBeforeDue,
+          notify_on_due: autoOnDue,
+          notify_after_due: autoAfterDue,
+        });
+        setHasAutoConfig(true);
+      }
+      toast({ title: "Configuração de automação salva!" });
+    } catch (err: any) {
+      toast({ title: err.message, variant: "destructive" });
+    }
+    setSavingAuto(false);
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
@@ -524,6 +583,77 @@ export default function Billing() {
           </>
         )}
       </div>
+
+      {/* Automation Card */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Bot className="h-5 w-5 text-primary" />
+            Automação de Cobranças
+          </CardTitle>
+          <CardDescription>
+            Configure o envio automático de mensagens via WhatsApp baseado no vencimento dos clientes. As mensagens são enviadas diariamente às 10h usando os templates configurados.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="auto-toggle" className="font-medium">
+              Ativar envio automático
+            </Label>
+            <Switch
+              id="auto-toggle"
+              checked={autoEnabled}
+              onCheckedChange={setAutoEnabled}
+            />
+          </div>
+
+          <div className="space-y-3 rounded-lg border p-3">
+            <p className="text-sm font-medium text-foreground">Momentos de envio:</p>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="auto-before"
+                checked={autoBeforeDue}
+                onCheckedChange={(v) => setAutoBeforeDue(!!v)}
+              />
+              <Label htmlFor="auto-before" className="text-sm">1 dia antes do vencimento</Label>
+              <Badge variant="secondary" className="ml-auto text-xs">Template: vencendo_amanha</Badge>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="auto-on"
+                checked={autoOnDue}
+                onCheckedChange={(v) => setAutoOnDue(!!v)}
+              />
+              <Label htmlFor="auto-on" className="text-sm">No dia do vencimento</Label>
+              <Badge variant="secondary" className="ml-auto text-xs">Template: vencendo_hoje</Badge>
+            </div>
+            <div className="flex items-center gap-2">
+              <Checkbox
+                id="auto-after"
+                checked={autoAfterDue}
+                onCheckedChange={(v) => setAutoAfterDue(!!v)}
+              />
+              <Label htmlFor="auto-after" className="text-sm">1 dia após o vencimento</Label>
+              <Badge variant="secondary" className="ml-auto text-xs">Template: vencido</Badge>
+            </div>
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            ⚠️ Certifique-se de ter templates cadastrados com os tipos <code className="bg-muted px-1 rounded">vencendo_amanha</code>, <code className="bg-muted px-1 rounded">vencendo_hoje</code> e <code className="bg-muted px-1 rounded">vencido</code> para que a automação funcione corretamente.
+          </p>
+
+          <Button onClick={handleSaveAutomation} disabled={savingAuto}>
+            {savingAuto ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+            Salvar Automação
+          </Button>
+
+          {hasAutoConfig && (
+            <Badge variant={autoEnabled ? "default" : "secondary"} className="ml-2">
+              {autoEnabled ? "Automação Ativa" : "Automação Inativa"}
+            </Badge>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Controls */}
       <Card>
