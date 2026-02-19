@@ -2,7 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
-import { Gamepad2, Loader2, RefreshCw } from "lucide-react";
+import { Gamepad2, Loader2, RefreshCw, Wand2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GamesDayConfigSection } from "@/components/games/GamesDayConfigSection";
 import { MatchSelectionGrid, Match } from "@/components/games/MatchSelectionGrid";
@@ -45,6 +45,7 @@ const GamesDay = () => {
 
   const [template, setTemplate] = useState<TemplateType>("modern");
   const [format, setFormat] = useState<"square" | "story">("square");
+  const [generatingPlayer, setGeneratingPlayer] = useState(false);
 
   // Load user config + platform defaults
   useEffect(() => {
@@ -235,6 +236,38 @@ const GamesDay = () => {
 
   const leagues = [...new Set(matches.map((m) => m.league.name))].sort();
 
+  const handleGeneratePlayer = async () => {
+    if (selectedMatches.length === 0) {
+      toast({ title: "Selecione ao menos um jogo", variant: "destructive" });
+      return;
+    }
+    setGeneratingPlayer(true);
+    try {
+      const teams = selectedMatches.flatMap((m) => [
+        { name: m.home.name },
+        { name: m.away.name },
+      ]);
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-player-image`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token}`,
+          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: JSON.stringify({ teams }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || "Erro ao gerar imagem");
+      setConfig((prev) => ({ ...prev, background_url: `${json.url}?t=${Date.now()}` }));
+      toast({ title: `Jogador do ${json.team} gerado com IA!` });
+    } catch (err: any) {
+      toast({ title: "Erro ao gerar jogador", description: err.message, variant: "destructive" });
+    } finally {
+      setGeneratingPlayer(false);
+    }
+  };
+
   // Split selected matches into groups of 6
   const bannerGroups: Match[][] = [];
   for (let i = 0; i < selectedMatches.length; i += 6) {
@@ -290,6 +323,12 @@ const GamesDay = () => {
       {bannerGroups.length > 0 && (
         <>
           <BannerTemplateSelector selected={template} onChange={setTemplate} />
+          <div className="flex justify-center">
+            <Button onClick={handleGeneratePlayer} disabled={generatingPlayer} variant="outline" className="gap-2">
+              {generatingPlayer ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+              {generatingPlayer ? "Gerando jogador com IA..." : "Gerar Jogador com IA"}
+            </Button>
+          </div>
           {bannerGroups.map((group, idx) => (
             <GameBannerPreview
               key={idx}
