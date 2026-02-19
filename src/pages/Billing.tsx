@@ -71,7 +71,7 @@ interface Plan {
   price: number | null;
 }
 
-type FilterType = "all" | "due_today" | "overdue" | "next_3_days" | "active";
+type FilterType = "all" | "due_today" | "overdue" | "due_tomorrow" | "active";
 
 export default function Billing() {
   const { user } = useAuth();
@@ -158,13 +158,13 @@ export default function Billing() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const today = new Date().toISOString().split("T")[0];
-  const in3Days = new Date(Date.now() + 3 * 86400000).toISOString().split("T")[0];
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
 
   const filteredClients = clients.filter((c) => {
     switch (filter) {
       case "due_today": return c.due_date === today;
       case "overdue": return c.due_date < today;
-      case "next_3_days": return c.due_date > today && c.due_date <= in3Days;
+      case "due_tomorrow": return c.due_date === tomorrow;
       case "active": return c.due_date >= today;
       default: return true;
     }
@@ -499,24 +499,24 @@ export default function Billing() {
           className="h-auto flex-col gap-1 p-4 border-orange-500/30 hover:bg-orange-500/10"
           disabled={sending || !templateId}
           onClick={() => {
-            const next3Clients = clients.filter((c) => c.due_date > today && c.due_date <= in3Days);
-            if (next3Clients.length === 0) {
-              toast({ title: "Nenhum cliente vencendo nos próximos 3 dias", variant: "destructive" });
+            const tomorrowClients = clients.filter((c) => c.due_date === tomorrow);
+            if (tomorrowClients.length === 0) {
+              toast({ title: "Nenhum cliente vencendo amanhã", variant: "destructive" });
               return;
             }
             if (!templateId) {
               toast({ title: "Selecione um template primeiro", variant: "destructive" });
               return;
             }
-            setFilter("next_3_days");
-            setSelected(new Set(next3Clients.map((c) => c.id)));
-            handleSendBulk(next3Clients);
+            setFilter("due_tomorrow");
+            setSelected(new Set(tomorrowClients.map((c) => c.id)));
+            handleSendBulk(tomorrowClients);
           }}
         >
           <AlertTriangle className="h-5 w-5 text-orange-500" />
-          <span className="font-semibold">Enviar cobrança - Próximos 3 dias</span>
+          <span className="font-semibold">Enviar cobrança - Vence Amanhã</span>
           <span className="text-xs text-muted-foreground">
-            {clients.filter((c) => c.due_date > today && c.due_date <= in3Days).length} cliente(s)
+            {clients.filter((c) => c.due_date === tomorrow).length} cliente(s)
           </span>
         </Button>
         <Button
@@ -674,7 +674,7 @@ export default function Billing() {
                   <SelectItem value="all">Todos</SelectItem>
                   <SelectItem value="due_today">Vence Hoje</SelectItem>
                   <SelectItem value="overdue">Vencidos</SelectItem>
-                  <SelectItem value="next_3_days">Próximos 3 dias</SelectItem>
+                  <SelectItem value="due_tomorrow">Vence Amanhã</SelectItem>
                   <SelectItem value="active">Ativos</SelectItem>
                 </SelectContent>
               </Select>

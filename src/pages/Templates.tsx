@@ -29,7 +29,7 @@ type Template = Tables<"message_templates">;
 const templateTypes = [
   { value: "vencendo_hoje", label: "Vencendo Hoje" },
   { value: "vencido", label: "Vencido" },
-  { value: "proximos_3_dias", label: "Próximos 3 Dias" },
+  { value: "vencendo_amanha", label: "Vence Amanhã" },
   { value: "confirmacao_pagamento", label: "Confirmação de Pagamento" },
 ];
 
@@ -71,7 +71,7 @@ const getTypeBadgeVariant = (type: string) => {
   switch (type) {
     case "vencendo_hoje": return "secondary" as const;
     case "vencido": return "destructive" as const;
-    case "proximos_3_dias": return "default" as const;
+    case "vencendo_amanha": return "default" as const;
     case "confirmacao_pagamento": return "outline" as const;
     default: return "outline" as const;
   }
