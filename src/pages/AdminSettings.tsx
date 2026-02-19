@@ -8,9 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { Settings, Save, Upload, Loader2, Trash2, Shield, Eye, EyeOff, MessageSquare, Mail, Gamepad2 } from "lucide-react";
+import { Settings, Save, Upload, Loader2, Trash2, Shield, Eye, EyeOff, MessageSquare, Mail, Gamepad2, RefreshCw } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface PlatformSettings {
   id: string;
@@ -36,6 +37,14 @@ interface PlatformSettings {
   football_banners_enabled: boolean;
   football_api_key_secondary: string;
   football_api_key_tertiary: string;
+  football_apisport_leagues: number[];
+}
+
+interface ApiSportLeague {
+  id: number;
+  name: string;
+  country: string;
+  logo: string;
 }
 
 const AdminSettings = () => {
@@ -59,6 +68,8 @@ const AdminSettings = () => {
   const [showFootballKey, setShowFootballKey] = useState(false);
   const [showFootballKeySecondary, setShowFootballKeySecondary] = useState(false);
   const [showFootballKeyTertiary, setShowFootballKeyTertiary] = useState(false);
+  const [apisportLeagues, setApisportLeagues] = useState<ApiSportLeague[]>([]);
+  const [loadingLeagues, setLoadingLeagues] = useState(false);
   const callEvolutionApi = useCallback(async (action: string, extraParams = {}) => {
     const { data: { session } } = await supabase.auth.getSession();
     const res = await fetch(
@@ -85,8 +96,46 @@ const AdminSettings = () => {
       .select("*")
       .limit(1)
       .maybeSingle();
-    if (data) setSettings(data);
+    if (data) {
+      setSettings({
+        ...data,
+        football_apisport_leagues: Array.isArray(data.football_apisport_leagues) 
+          ? (data.football_apisport_leagues as number[]) 
+          : [],
+      } as PlatformSettings);
+    }
     setLoading(false);
+  };
+
+  const fetchApisportLeagues = async () => {
+    if (!settings?.football_api_key_tertiary) {
+      toast({ title: "Configure a API Key primeiro", variant: "destructive" });
+      return;
+    }
+    setLoadingLeagues(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/football-api`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.access_token}`,
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({ action: "get-leagues" }),
+        }
+      );
+      const json = await res.json();
+      if (json.leagues) {
+        setApisportLeagues(json.leagues);
+        toast({ title: `${json.leagues.length} ligas encontradas` });
+      }
+    } catch (err: any) {
+      toast({ title: "Erro ao buscar ligas", description: err.message, variant: "destructive" });
+    }
+    setLoadingLeagues(false);
   };
 
   const fetchGlobalEvolutionConfig = useCallback(async () => {
@@ -185,7 +234,8 @@ const AdminSettings = () => {
         football_default_logo_url: settings.football_default_logo_url,
         football_banners_enabled: settings.football_banners_enabled,
         football_api_key_secondary: settings.football_api_key_secondary || null,
-        football_api_key_tertiary: (settings as any).football_api_key_tertiary || null,
+        football_api_key_tertiary: settings.football_api_key_tertiary || null,
+        football_apisport_leagues: settings.football_apisport_leagues || [],
       } as any)
       .eq("id", settings.id);
 
@@ -550,25 +600,79 @@ const AdminSettings = () => {
           )}
 
           {settings.football_api_provider === "apisport" && (
-            <div className="space-y-2">
-              <Label>API Key - ApiSport.online (SportData)</Label>
-              <div className="relative">
-                <Input
-                  type={showFootballKeyTertiary ? "text" : "password"}
-                  value={(settings as any).football_api_key_tertiary ?? ""}
-                  onChange={(e) => setSettings({ ...settings, football_api_key_tertiary: e.target.value })}
-                  placeholder="Chave da ApiSport.online"
-                />
-                <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowFootballKeyTertiary(!showFootballKeyTertiary)}>
-                  {showFootballKeyTertiary ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>API Key - ApiSport.online (SportData)</Label>
+                <div className="relative">
+                  <Input
+                    type={showFootballKeyTertiary ? "text" : "password"}
+                    value={settings.football_api_key_tertiary ?? ""}
+                    onChange={(e) => setSettings({ ...settings, football_api_key_tertiary: e.target.value })}
+                    placeholder="Chave da ApiSport.online"
+                  />
+                  <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowFootballKeyTertiary(!showFootballKeyTertiary)}>
+                    {showFootballKeyTertiary ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Obtenha sua chave em{" "}
+                  <a href="https://apisport.online/register" target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                    apisport.online
+                  </a>
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Obtenha sua chave em{" "}
-                <a href="https://apisport.online/register" target="_blank" rel="noopener noreferrer" className="text-primary underline">
-                  apisport.online
-                </a>
-              </p>
+
+              {/* League selector */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Ligas Selecionadas</Label>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={fetchApisportLeagues} 
+                    disabled={loadingLeagues}
+                  >
+                    {loadingLeagues ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-2 h-3 w-3" />}
+                    Buscar Ligas
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Busque as ligas disponíveis na API e selecione quais deseja monitorar. Deixe vazio para buscar todas.
+                </p>
+                {settings.football_apisport_leagues.length > 0 && (
+                  <p className="text-xs text-primary font-medium">
+                    {settings.football_apisport_leagues.length} liga(s) selecionada(s)
+                  </p>
+                )}
+                {apisportLeagues.length > 0 && (
+                  <div className="max-h-64 overflow-y-auto rounded-md border p-3 space-y-1">
+                    {apisportLeagues.map((league) => {
+                      const isSelected = settings.football_apisport_leagues.includes(league.id);
+                      return (
+                        <label key={league.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50 cursor-pointer">
+                          <Checkbox
+                            checked={isSelected}
+                            onCheckedChange={(checked) => {
+                              const current = settings.football_apisport_leagues;
+                              const next = checked
+                                ? [...current, league.id]
+                                : current.filter((id) => id !== league.id);
+                              setSettings({ ...settings, football_apisport_leagues: next });
+                            }}
+                          />
+                          {league.logo && (
+                            <img src={league.logo} alt="" className="h-5 w-5 object-contain" />
+                          )}
+                          <span className="text-sm">{league.name}</span>
+                          {league.country && (
+                            <span className="text-xs text-muted-foreground">({league.country})</span>
+                          )}
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
