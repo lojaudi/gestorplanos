@@ -98,11 +98,8 @@ export function SportyTemplate({ matches, title, logoUrl, whatsapp, primaryColor
           {/* Header */}
           <div className="flex items-center justify-center" style={{ marginBottom: "3%", gap: "3%" }}>
             <div className="text-right">
-              <h1 className="font-black uppercase" style={{ fontSize: "2.2em", color: accentColor, letterSpacing: "0.05em", lineHeight: 1 }}>
-                JOGOS
-              </h1>
-              <h1 className="font-black uppercase" style={{ fontSize: "2.2em", color: "#fff", letterSpacing: "0.05em", lineHeight: 1 }}>
-                DO DIA
+              <h1 className="font-black uppercase" style={{ fontSize: "2.2em", color: accentColor, letterSpacing: "0.05em", lineHeight: 1.05 }}>
+                {title || "JOGOS DO DIA"}
               </h1>
             </div>
             <div className="flex flex-col items-center rounded-lg" style={{ background: accentColor, padding: "3% 5%", minWidth: "2.5em" }}>

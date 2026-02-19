@@ -98,8 +98,7 @@ export function ModernTemplate({ matches, title, logoUrl, whatsapp, primaryColor
           {/* Header - Title + Date */}
           <div className="flex items-center justify-center" style={{ marginBottom: "3%", gap: "3%" }}>
             <h1 className="font-black uppercase text-right" style={{ fontSize: "2.2em", letterSpacing: "0.04em", lineHeight: 1.05 }}>
-              <span style={{ color: accentColor }}>JOGOS</span><br />
-              <span>DO DIA</span>
+              <span style={{ color: accentColor }}>{title || "JOGOS DO DIA"}</span>
             </h1>
             <div className="flex flex-col items-center rounded-lg" style={{ background: accentColor, padding: "3% 5%", minWidth: "2.5em" }}>
               <span className="font-black" style={{ fontSize: "1.8em", lineHeight: 1 }}>{day}</span>
