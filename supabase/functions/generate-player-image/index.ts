@@ -59,35 +59,50 @@ serve(async (req) => {
 
     const prompt = `Generate a photorealistic image of a professional football/soccer player in action pose, wearing the official jersey/kit of ${bestTeam.name}. The player should be a generic athletic male player (not a real person), shown from the waist up in a dynamic pose. The background should be transparent or very dark/black. The image should be high quality, dramatic lighting, suitable for a sports banner. Portrait orientation. The jersey should clearly show the team colors of ${bestTeam.name}. No text or watermarks.`;
 
-    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash-image",
-        messages: [{ role: "user", content: prompt }],
-        modalities: ["image", "text"],
-      }),
-    });
+    const models = ["google/gemini-2.5-flash-image", "google/gemini-3-pro-image-preview"];
+    let aiResponse: Response | null = null;
+    let lastError = "";
 
-    if (!aiResponse.ok) {
-      const errText = await aiResponse.text();
-      console.error("AI gateway error:", aiResponse.status, errText);
-      if (aiResponse.status === 429) {
+    for (const model of models) {
+      console.log("Trying model:", model);
+      const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: "user", content: prompt }],
+          modalities: ["image", "text"],
+        }),
+      });
+
+      if (resp.ok) {
+        aiResponse = resp;
+        break;
+      }
+
+      lastError = await resp.text();
+      console.error(`Model ${model} failed:`, resp.status, lastError);
+
+      if (resp.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limit exceeded, try again later" }), {
           status: 429,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      if (aiResponse.status === 402) {
+      if (resp.status === 402) {
         return new Response(JSON.stringify({ error: "AI credits exhausted" }), {
           status: 402,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      return new Response(JSON.stringify({ error: "AI generation failed" }), {
+      // For 500 errors, try next model
+    }
+
+    if (!aiResponse) {
+      return new Response(JSON.stringify({ error: "AI generation failed after all retries" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
