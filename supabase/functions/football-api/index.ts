@@ -167,33 +167,48 @@ function mapFootballDataStatus(status: string): string {
 
 // ── apisport.online (SportData) ──
 async function fetchFromApiSport(apiKey: string, date: string, timezone: string) {
-  // Try fixtures endpoint with date parameter
-  const url = `https://api.apisport.online/api/v1/fixtures?date=${date}`;
-  console.log(`[apisport] Fetching: ${url}`);
-  
-  const res = await fetch(url, { headers: { "x-api-key": apiKey } });
+  const allItems: any[] = [];
+  let page = 1;
+  const maxPages = 10; // safety limit
 
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Erro na ApiSport.online: ${res.status} – ${text}`);
+  // Fetch all pages
+  while (page <= maxPages) {
+    const url = `https://api.apisport.online/api/v1/fixtures?date=${date}&page=${page}`;
+    console.log(`[apisport] Fetching page ${page}: ${url}`);
+
+    const res = await fetch(url, { headers: { "x-api-key": apiKey } });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`Erro na ApiSport.online: ${res.status} – ${text}`);
+    }
+
+    const json = await res.json();
+    const rawData = json.data || json.response || json.fixtures || json.results || json.matches || [];
+    const items = Array.isArray(rawData) ? rawData : [];
+
+    if (items.length === 0) break;
+
+    allItems.push(...items);
+
+    // Check pagination
+    const pagination = json.pagination;
+    if (pagination) {
+      const totalPages = pagination.totalPages || pagination.total_pages || pagination.lastPage || pagination.last_page || 1;
+      console.log(`[apisport] Page ${page}/${totalPages}, items this page: ${items.length}, total so far: ${allItems.length}`);
+      if (page >= totalPages) break;
+    } else {
+      break; // No pagination info, assume single page
+    }
+
+    page++;
   }
 
-  const json = await res.json();
-  console.log(`[apisport] Raw response keys:`, JSON.stringify(Object.keys(json)));
-  
-  // Log first item to understand structure
-  const rawData = json.response || json.data || json.fixtures || json.results || json.matches || [];
-  if (Array.isArray(rawData) && rawData.length > 0) {
-    console.log(`[apisport] First item sample:`, JSON.stringify(rawData[0]).substring(0, 500));
-  } else if (!Array.isArray(rawData)) {
-    console.log(`[apisport] Response is not array, full keys:`, JSON.stringify(json).substring(0, 1000));
+  console.log(`[apisport] Total fixtures fetched: ${allItems.length}`);
+  if (allItems.length > 0) {
+    console.log(`[apisport] First item keys:`, JSON.stringify(Object.keys(allItems[0])));
   }
 
-  const items = Array.isArray(rawData) ? rawData : [];
-  
-  return items.map((item: any) => {
-    // Adaptive parsing - try multiple known formats
-    
+  return allItems.map((item: any) => {
     // Format 1: api-football style (fixture.id, teams.home, etc.)
     if (item.fixture) {
       return {
@@ -205,17 +220,17 @@ async function fetchFromApiSport(apiKey: string, date: string, timezone: string)
           id: item.league?.id || 0,
           name: item.league?.name || "Unknown",
           country: item.league?.country || "",
-          logo: item.league?.logo || "",
+          logo: item.league?.logo || item.league?.logoUrl || "",
         },
         home: {
           id: item.teams?.home?.id || 0,
           name: item.teams?.home?.name || "Home",
-          logo: item.teams?.home?.logo || "",
+          logo: item.teams?.home?.logo || item.teams?.home?.logoUrl || "",
         },
         away: {
           id: item.teams?.away?.id || 0,
           name: item.teams?.away?.name || "Away",
-          logo: item.teams?.away?.logo || "",
+          logo: item.teams?.away?.logo || item.teams?.away?.logoUrl || "",
         },
         goals: {
           home: item.goals?.home ?? null,
@@ -223,41 +238,52 @@ async function fetchFromApiSport(apiKey: string, date: string, timezone: string)
         },
       };
     }
-    
-    // Format 2: Flat structure (id, home_team, away_team, league_name, etc.)
-    if (item.home_team || item.homeTeam || item.home) {
-      const homeObj = item.home_team || item.homeTeam || item.home || {};
-      const awayObj = item.away_team || item.awayTeam || item.away || {};
+
+    // Format 2: apisport.online native format (homeTeam, awayTeam, league with logoUrl)
+    if (item.homeTeam || item.home_team || item.home) {
+      const homeObj = item.homeTeam || item.home_team || item.home || {};
+      const awayObj = item.awayTeam || item.away_team || item.away || {};
       const leagueObj = item.league || {};
-      
-      const homeName = typeof homeObj === "string" ? homeObj : (homeObj.name || homeObj.team_name || "Home");
-      const awayName = typeof awayObj === "string" ? awayObj : (awayObj.name || awayObj.team_name || "Away");
-      const homeLogo = typeof homeObj === "string" ? "" : (homeObj.logo || homeObj.crest || homeObj.image_path || "");
-      const awayLogo = typeof awayObj === "string" ? "" : (awayObj.logo || awayObj.crest || awayObj.image_path || "");
+      const countryObj = leagueObj.country || {};
+
+      const homeName = typeof homeObj === "string" ? homeObj : (homeObj.shortName || homeObj.name || homeObj.team_name || "Home");
+      const awayName = typeof awayObj === "string" ? awayObj : (awayObj.shortName || awayObj.name || awayObj.team_name || "Away");
+      const homeLogo = typeof homeObj === "string" ? "" : (homeObj.logoUrl || homeObj.logo || homeObj.crest || homeObj.image_path || "");
+      const awayLogo = typeof awayObj === "string" ? "" : (awayObj.logoUrl || awayObj.logo || awayObj.crest || awayObj.image_path || "");
       const homeId = typeof homeObj === "string" ? 0 : (homeObj.id || homeObj.team_id || 0);
       const awayId = typeof awayObj === "string" ? 0 : (awayObj.id || awayObj.team_id || 0);
-      
+
+      // Extract country name (can be string or object)
+      const countryName = typeof countryObj === "string" ? countryObj : (countryObj.name || item.country || "");
+
+      // Extract date/time - apisport uses startTime (ISO string)
+      const matchDate = item.startTime || item.startTimestamp
+        ? (item.startTime || new Date((item.startTimestamp || 0) * 1000).toISOString())
+        : (item.scheduledAt || item.date || item.utcDate || item.match_date || item.starting_at || item.kick_off || "");
+      const matchTimestamp = item.startTimestamp
+        || (matchDate ? Math.floor(new Date(matchDate).getTime() / 1000) : 0);
+
       return {
         id: item.id || item.fixture_id || item.match_id || Math.random(),
-        date: item.date || item.utcDate || item.match_date || item.starting_at || item.kick_off || new Date().toISOString(),
-        timestamp: item.timestamp || Math.floor(new Date(item.date || item.utcDate || item.match_date || item.starting_at || "").getTime() / 1000),
-        status: item.status?.short || item.status || item.state || "NS",
+        date: matchDate,
+        timestamp: matchTimestamp,
+        status: item.status?.short || item.status?.type || item.status || item.state || "NS",
         league: {
           id: leagueObj.id || item.league_id || item.competition_id || 0,
           name: leagueObj.name || item.league_name || item.competition_name || "Unknown",
-          country: leagueObj.country || item.country || "",
-          logo: leagueObj.logo || leagueObj.emblem || item.league_logo || "",
+          country: countryName,
+          logo: leagueObj.logoUrl || leagueObj.logo || leagueObj.emblem || item.league_logo || "",
         },
         home: { id: homeId, name: homeName, logo: homeLogo },
         away: { id: awayId, name: awayName, logo: awayLogo },
         goals: {
-          home: item.goals?.home ?? item.score?.home ?? item.home_score ?? null,
-          away: item.goals?.away ?? item.score?.away ?? item.away_score ?? null,
+          home: item.result?.home ?? item.goals?.home ?? item.score?.home ?? item.homeScore?.current ?? item.home_score ?? null,
+          away: item.result?.away ?? item.goals?.away ?? item.score?.away ?? item.awayScore?.current ?? item.away_score ?? null,
         },
       };
     }
-    
-    // Format 3: Unknown - log and return basic
+
+    // Format 3: Unknown
     console.log(`[apisport] Unknown item format:`, JSON.stringify(item).substring(0, 300));
     return {
       id: item.id || Math.random(),
@@ -332,10 +358,13 @@ serve(async (req) => {
           ? settings.football_apisport_leagues 
           : [];
         matches = await fetchFromApiSport(apiKey, date, timezone);
+        console.log(`[apisport] All match league IDs:`, JSON.stringify(matches.map((m: any) => ({ lid: m.league.id, league: m.league.name, game: `${m.home.name} vs ${m.away.name}` }))));
         // Filter by selected leagues if any are configured
         if (selectedLeagues.length > 0) {
+          console.log(`[apisport] Filtering by configured leagues:`, JSON.stringify(selectedLeagues));
           const leagueSet = new Set(selectedLeagues);
           matches = matches.filter((m: any) => leagueSet.has(m.league.id));
+          console.log(`[apisport] After filter: ${matches.length} matches`);
         }
       } else {
         matches = await fetchFromApiFootball(apiKey, date, timezone);
