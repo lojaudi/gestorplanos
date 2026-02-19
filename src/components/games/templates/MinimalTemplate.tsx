@@ -29,7 +29,8 @@ export function MinimalTemplate({ matches, title, logoUrl, whatsapp, primaryColo
   const { day, month } = formatDay();
 
   const matchCount = matches.length;
-  const logoSize = matchCount <= 4 ? "3.5em" : matchCount <= 6 ? "2.8em" : matchCount <= 8 ? "2.2em" : "1.8em";
+  const logoSize = matchCount <= 4 ? "3em" : matchCount <= 6 ? "2.5em" : matchCount <= 8 ? "2em" : "1.6em";
+  const nameSize = matchCount <= 4 ? "0.45em" : matchCount <= 6 ? "0.4em" : matchCount <= 8 ? "0.35em" : "0.3em";
   const fontSize = matchCount <= 4 ? "0.85em" : matchCount <= 6 ? "0.7em" : matchCount <= 8 ? "0.55em" : "0.48em";
   const timeFontSize = matchCount <= 4 ? "1.4em" : matchCount <= 6 ? "1.1em" : matchCount <= 8 ? "0.9em" : "0.75em";
   const channelHeight = matchCount <= 4 ? "0.85em" : matchCount <= 6 ? "0.7em" : matchCount <= 8 ? "0.55em" : "0.45em";
@@ -90,36 +91,38 @@ export function MinimalTemplate({ matches, title, logoUrl, whatsapp, primaryColo
                 <span className="font-black" style={{ fontSize: timeFontSize, color: accentColor }}>{formatTime(m.date)}</span>
               </div>
 
-              {/* Home team logo */}
-              <div className="shrink-0 flex items-center justify-center" style={{ width: logoSize, height: logoSize }}>
-                <img src={m.home.logo} alt={m.home.name} className="object-contain" style={{ maxWidth: "100%", maxHeight: "100%" }} />
+              {/* Home team */}
+              <div className="shrink-0 flex flex-col items-center" style={{ width: logoSize }}>
+                <div className="flex items-center justify-center" style={{ width: logoSize, height: logoSize }}>
+                  <img src={m.home.logo} alt={m.home.name} className="object-contain" style={{ maxWidth: "100%", maxHeight: "100%" }} />
+                </div>
+                <span className="font-bold text-center leading-tight mt-[2px] w-full truncate" style={{ fontSize: nameSize }}>{m.home.name}</span>
               </div>
 
               {/* X */}
               <span className="font-black shrink-0 mx-[1.5%]" style={{ fontSize: "0.9em", color: "#bbb" }}>x</span>
 
-              {/* Away team logo */}
-              <div className="shrink-0 flex items-center justify-center" style={{ width: logoSize, height: logoSize }}>
-                <img src={m.away.logo} alt={m.away.name} className="object-contain" style={{ maxWidth: "100%", maxHeight: "100%" }} />
+              {/* Away team */}
+              <div className="shrink-0 flex flex-col items-center" style={{ width: logoSize }}>
+                <div className="flex items-center justify-center" style={{ width: logoSize, height: logoSize }}>
+                  <img src={m.away.logo} alt={m.away.name} className="object-contain" style={{ maxWidth: "100%", maxHeight: "100%" }} />
+                </div>
+                <span className="font-bold text-center leading-tight mt-[2px] w-full truncate" style={{ fontSize: nameSize }}>{m.away.name}</span>
               </div>
 
-              {/* Names + channels */}
-              <div className="flex-1 min-w-0 ml-[2%] flex flex-col justify-center">
-                <span className="font-bold truncate" style={{ fontSize, lineHeight: 1.3 }}>{m.home.name}</span>
-                <span className="font-bold truncate" style={{ fontSize, lineHeight: 1.3 }}>x {m.away.name}</span>
-                {m.channels && m.channels.length > 0 && (
-                  <div className="flex gap-[6px] items-center mt-[3px]">
-                    {m.channels.slice(0, 3).map((ch) => {
-                      const info = CHANNEL_MAP[ch];
-                      return info ? (
-                        <img key={ch} src={info.logo} alt={info.name} title={info.name} className="object-contain" style={{ height: channelHeight, width: "auto" }} />
-                      ) : (
-                        <span key={ch} className="font-bold" style={{ fontSize: "0.4em", background: "rgba(0,0,0,0.08)", padding: "2px 6px", borderRadius: "4px" }}>{ch}</span>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+              {/* Channels */}
+              {m.channels && m.channels.length > 0 && (
+                <div className="flex-1 min-w-0 ml-[2%] flex items-center gap-[6px] flex-wrap">
+                  {m.channels.slice(0, 3).map((ch) => {
+                    const info = CHANNEL_MAP[ch];
+                    return info ? (
+                      <img key={ch} src={info.logo} alt={info.name} title={info.name} className="object-contain" style={{ height: channelHeight, width: "auto" }} />
+                    ) : (
+                      <span key={ch} className="font-bold" style={{ fontSize: "0.4em", background: "rgba(0,0,0,0.08)", padding: "2px 6px", borderRadius: "4px" }}>{ch}</span>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           ))}
         </div>
