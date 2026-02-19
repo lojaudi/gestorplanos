@@ -96,6 +96,9 @@ export default function Billing() {
   const [autoBeforeDue, setAutoBeforeDue] = useState(true);
   const [autoOnDue, setAutoOnDue] = useState(true);
   const [autoAfterDue, setAutoAfterDue] = useState(true);
+  const [hourBeforeDue, setHourBeforeDue] = useState(10);
+  const [hourOnDue, setHourOnDue] = useState(10);
+  const [hourAfterDue, setHourAfterDue] = useState(15);
   const [savingAuto, setSavingAuto] = useState(false);
   const [hasAutoConfig, setHasAutoConfig] = useState(false);
 
@@ -147,6 +150,9 @@ export default function Billing() {
         setAutoBeforeDue(autoConfig.notify_before_due);
         setAutoOnDue(autoConfig.notify_on_due);
         setAutoAfterDue(autoConfig.notify_after_due);
+        setHourBeforeDue((autoConfig as any).send_hour_before_due ?? autoConfig.send_hour ?? 10);
+        setHourOnDue((autoConfig as any).send_hour_on_due ?? autoConfig.send_hour ?? 10);
+        setHourAfterDue((autoConfig as any).send_hour_after_due ?? autoConfig.send_hour ?? 15);
       }
     } catch {
       // ignore
@@ -194,7 +200,9 @@ export default function Billing() {
 
   const resolveTemplate = (template: Template, client: Client, pixCode?: string, paymentLinkId?: string) => {
     const serviceName = services.find((s) => s.id === client.service_id)?.name || "";
-    const planName = plans.find((p) => p.id === client.plan_id)?.name || "";
+    const plan = plans.find((p) => p.id === client.plan_id);
+    const planName = plan?.name || "";
+    const planPrice = plan?.price != null ? plan.price.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "";
     const dueDate = new Date(client.due_date + "T12:00:00");
     const formattedDue = dueDate.toLocaleDateString("pt-BR");
 
@@ -208,6 +216,7 @@ export default function Billing() {
       .replace(/{nome}/g, client.name)
       .replace(/{servico}/g, serviceName)
       .replace(/{plano}/g, planName)
+      .replace(/{valor_plano}/g, planPrice)
       .replace(/{data_vencimento}/g, formattedDue)
       .replace(/{data_pagamento}/g, new Date().toLocaleDateString("pt-BR"))
       .replace(/{proximo_vencimento}/g, formattedNextDue)
@@ -374,23 +383,24 @@ export default function Billing() {
     if (!user) return;
     setSavingAuto(true);
     try {
+      const payload: any = {
+        is_enabled: autoEnabled,
+        notify_before_due: autoBeforeDue,
+        notify_on_due: autoOnDue,
+        notify_after_due: autoAfterDue,
+        send_hour_before_due: hourBeforeDue,
+        send_hour_on_due: hourOnDue,
+        send_hour_after_due: hourAfterDue,
+      };
       if (hasAutoConfig) {
         await supabase
           .from("billing_automation_config")
-          .update({
-            is_enabled: autoEnabled,
-            notify_before_due: autoBeforeDue,
-            notify_on_due: autoOnDue,
-            notify_after_due: autoAfterDue,
-          })
+          .update(payload)
           .eq("user_id", user.id);
       } else {
         await supabase.from("billing_automation_config").insert({
           user_id: user.id,
-          is_enabled: autoEnabled,
-          notify_before_due: autoBeforeDue,
-          notify_on_due: autoOnDue,
-          notify_after_due: autoAfterDue,
+          ...payload,
         });
         setHasAutoConfig(true);
       }
@@ -592,7 +602,7 @@ export default function Billing() {
             Automação de Cobranças
           </CardTitle>
           <CardDescription>
-            Configure o envio automático de mensagens via WhatsApp baseado no vencimento dos clientes. As mensagens são enviadas diariamente às 10h usando os templates configurados.
+            Configure o envio automático de mensagens via WhatsApp baseado no vencimento dos clientes. Escolha o horário de envio para cada tipo de cobrança.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -608,15 +618,23 @@ export default function Billing() {
           </div>
 
           <div className="space-y-3 rounded-lg border p-3">
-            <p className="text-sm font-medium text-foreground">Momentos de envio:</p>
+            <p className="text-sm font-medium text-foreground">Momentos e horários de envio:</p>
             <div className="flex items-center gap-2">
               <Checkbox
                 id="auto-before"
                 checked={autoBeforeDue}
                 onCheckedChange={(v) => setAutoBeforeDue(!!v)}
               />
-              <Label htmlFor="auto-before" className="text-sm">1 dia antes do vencimento</Label>
-              <Badge variant="secondary" className="ml-auto text-xs">Template: vencendo_amanha</Badge>
+              <Label htmlFor="auto-before" className="text-sm flex-1">1 dia antes do vencimento</Label>
+              <Select value={String(hourBeforeDue)} onValueChange={(v) => setHourBeforeDue(Number(v))}>
+                <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 24 }, (_, i) => (
+                    <SelectItem key={i} value={String(i)}>{String(i).padStart(2, "0")}:00</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Badge variant="secondary" className="text-xs">vencendo_amanha</Badge>
             </div>
             <div className="flex items-center gap-2">
               <Checkbox
@@ -624,8 +642,16 @@ export default function Billing() {
                 checked={autoOnDue}
                 onCheckedChange={(v) => setAutoOnDue(!!v)}
               />
-              <Label htmlFor="auto-on" className="text-sm">No dia do vencimento</Label>
-              <Badge variant="secondary" className="ml-auto text-xs">Template: vencendo_hoje</Badge>
+              <Label htmlFor="auto-on" className="text-sm flex-1">No dia do vencimento</Label>
+              <Select value={String(hourOnDue)} onValueChange={(v) => setHourOnDue(Number(v))}>
+                <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 24 }, (_, i) => (
+                    <SelectItem key={i} value={String(i)}>{String(i).padStart(2, "0")}:00</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Badge variant="secondary" className="text-xs">vencendo_hoje</Badge>
             </div>
             <div className="flex items-center gap-2">
               <Checkbox
@@ -633,8 +659,16 @@ export default function Billing() {
                 checked={autoAfterDue}
                 onCheckedChange={(v) => setAutoAfterDue(!!v)}
               />
-              <Label htmlFor="auto-after" className="text-sm">1 dia após o vencimento</Label>
-              <Badge variant="secondary" className="ml-auto text-xs">Template: vencido</Badge>
+              <Label htmlFor="auto-after" className="text-sm flex-1">1 dia após o vencimento</Label>
+              <Select value={String(hourAfterDue)} onValueChange={(v) => setHourAfterDue(Number(v))}>
+                <SelectTrigger className="w-24"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {Array.from({ length: 24 }, (_, i) => (
+                    <SelectItem key={i} value={String(i)}>{String(i).padStart(2, "0")}:00</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Badge variant="secondary" className="text-xs">vencido</Badge>
             </div>
           </div>
 

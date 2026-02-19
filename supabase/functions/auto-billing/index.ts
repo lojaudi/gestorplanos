@@ -55,7 +55,11 @@ serve(async (req) => {
     const tomorrow = getTomorrow();
     const yesterday = getYesterday();
 
-    console.log(`[auto-billing] Running for today=${today}, tomorrow=${tomorrow}, yesterday=${yesterday}`);
+    // Get current BRT hour
+    const nowBrt = new Date(Date.now() - 3 * 60 * 60 * 1000);
+    const currentHour = nowBrt.getHours();
+
+    console.log(`[auto-billing] Running for today=${today}, tomorrow=${tomorrow}, yesterday=${yesterday}, currentHour=${currentHour} BRT`);
 
     // Get all users with automation enabled
     const { data: configs, error: configErr } = await supabase
@@ -147,17 +151,22 @@ serve(async (req) => {
       // Determine which notifications to send
       const notifications: { client: typeof clients[0]; type: string; templateType: string }[] = [];
 
+      // Get per-type send hours (fallback to send_hour for backwards compat)
+      const hourBeforeDue = config.send_hour_before_due ?? config.send_hour ?? 10;
+      const hourOnDue = config.send_hour_on_due ?? config.send_hour ?? 10;
+      const hourAfterDue = config.send_hour_after_due ?? config.send_hour ?? 15;
+
       for (const client of clients) {
-        // 1 day before due (tomorrow is due date)
-        if (config.notify_before_due && client.due_date === tomorrow) {
+        // 1 day before due (tomorrow is due date) - check hour matches
+        if (config.notify_before_due && client.due_date === tomorrow && currentHour === hourBeforeDue) {
           notifications.push({ client, type: "before_due", templateType: "vencendo_amanha" });
         }
         // On due date
-        if (config.notify_on_due && client.due_date === today) {
+        if (config.notify_on_due && client.due_date === today && currentHour === hourOnDue) {
           notifications.push({ client, type: "on_due", templateType: "vencendo_hoje" });
         }
         // 1 day after due (yesterday was due date)
-        if (config.notify_after_due && client.due_date === yesterday) {
+        if (config.notify_after_due && client.due_date === yesterday && currentHour === hourAfterDue) {
           notifications.push({ client, type: "after_due", templateType: "vencido" });
         }
       }
@@ -192,7 +201,9 @@ serve(async (req) => {
       // Find matching template for each notification type
       const resolveTemplate = (template: { content: string }, client: typeof clients[0], pixCode?: string, paymentLinkId?: string) => {
         const serviceName = (userServices || []).find((s: any) => s.id === client.service_id)?.name || "";
-        const planName = (userPlans || []).find((p: any) => p.id === client.plan_id)?.name || "";
+        const plan = (userPlans || []).find((p: any) => p.id === client.plan_id);
+        const planName = plan?.name || "";
+        const planPrice = plan?.price != null ? Number(plan.price).toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "";
         const dueDate = new Date(client.due_date + "T12:00:00");
         const formattedDue = dueDate.toLocaleDateString("pt-BR");
         const nextDue = new Date(dueDate);
@@ -204,6 +215,7 @@ serve(async (req) => {
           .replace(/{nome}/g, client.name)
           .replace(/{servico}/g, serviceName)
           .replace(/{plano}/g, planName)
+          .replace(/{valor_plano}/g, planPrice)
           .replace(/{data_vencimento}/g, formattedDue)
           .replace(/{data_pagamento}/g, new Date().toLocaleDateString("pt-BR"))
           .replace(/{proximo_vencimento}/g, formattedNextDue)

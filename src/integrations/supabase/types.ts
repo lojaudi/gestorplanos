@@ -65,6 +65,9 @@ export type Database = {
           notify_before_due: boolean
           notify_on_due: boolean
           send_hour: number
+          send_hour_after_due: number
+          send_hour_before_due: number
+          send_hour_on_due: number
           updated_at: string
           user_id: string
         }
@@ -76,6 +79,9 @@ export type Database = {
           notify_before_due?: boolean
           notify_on_due?: boolean
           send_hour?: number
+          send_hour_after_due?: number
+          send_hour_before_due?: number
+          send_hour_on_due?: number
           updated_at?: string
           user_id: string
         }
@@ -87,6 +93,9 @@ export type Database = {
           notify_before_due?: boolean
           notify_on_due?: boolean
           send_hour?: number
+          send_hour_after_due?: number
+          send_hour_before_due?: number
+          send_hour_on_due?: number
           updated_at?: string
           user_id?: string
         }
