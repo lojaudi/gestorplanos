@@ -100,10 +100,11 @@ async function fetchFromApiFootball(apiKey: string, date: string, timezone: stri
 }
 
 // ── football-data.org ──
-async function fetchFromFootballData(apiKey: string, date: string) {
+async function fetchFromFootballData(apiKey: string, date: string, competitions?: string[]) {
   const allMatches: any[] = [];
+  const competitionCodes = competitions || FOOTBALLDATA_COMPETITIONS;
 
-  for (const code of FOOTBALLDATA_COMPETITIONS) {
+  for (const code of competitionCodes) {
     try {
       const url = `https://api.football-data.org/v4/competitions/${code}/matches?dateFrom=${date}&dateTo=${date}`;
       const res = await fetch(url, { headers: { "X-Auth-Token": apiKey } });
@@ -284,11 +285,13 @@ serve(async (req) => {
 
     const { data: settings } = await supabase
       .from("platform_settings")
-      .select("football_api_key, football_api_key_secondary, football_api_key_tertiary, football_api_provider, football_timezone, football_apisport_leagues")
+      .select("football_api_key, football_api_key_secondary, football_api_key_tertiary, football_api_provider, football_timezone, football_apisport_leagues, football_footballdata_leagues")
       .limit(1)
       .maybeSingle();
 
-    const provider = settings?.football_api_provider || "api-football";
+    // Allow provider override from request (for fetching leagues from a specific provider)
+    const providerOverride = params.provider;
+    const provider = providerOverride || settings?.football_api_provider || "api-football";
     const timezone = settings?.football_timezone || "America/Sao_Paulo";
 
     // Pick the right API key based on provider
@@ -320,7 +323,10 @@ serve(async (req) => {
 
       let matches: any[];
       if (provider === "football-data") {
-        matches = await fetchFromFootballData(apiKey, date);
+        const selectedCompetitions: string[] = Array.isArray(settings?.football_footballdata_leagues) && (settings.football_footballdata_leagues as string[]).length > 0
+          ? (settings.football_footballdata_leagues as string[])
+          : FOOTBALLDATA_COMPETITIONS.map(String);
+        matches = await fetchFromFootballData(apiKey, date, selectedCompetitions);
       } else if (provider === "apisport") {
         const selectedLeagues: number[] = Array.isArray(settings?.football_apisport_leagues) 
           ? settings.football_apisport_leagues 
@@ -489,21 +495,22 @@ serve(async (req) => {
       let leagues: any[] = [];
 
       if (provider === "football-data") {
-        // Return the fixed list for football-data.org
-        for (const code of FOOTBALLDATA_COMPETITIONS) {
-          try {
-            const url = `https://api.football-data.org/v4/competitions/${code}`;
-            const res = await fetch(url, { headers: { "X-Auth-Token": apiKey } });
-            if (res.ok) {
-              const json = await res.json();
-              leagues.push({
-                id: json.id,
-                name: json.name,
-                country: json.area?.name || "Brazil",
-                logo: json.emblem || "",
-              });
-            }
-          } catch { /* skip */ }
+        // Fetch all available competitions from football-data.org
+        try {
+          const url = `https://api.football-data.org/v4/competitions`;
+          const res = await fetch(url, { headers: { "X-Auth-Token": apiKey } });
+          if (res.ok) {
+            const json = await res.json();
+            const competitions = json.competitions || [];
+            leagues = competitions.map((comp: any) => ({
+              id: comp.code || String(comp.id),
+              name: comp.name,
+              country: comp.area?.name || "",
+              logo: comp.emblem || "",
+            }));
+          }
+        } catch (err) {
+          console.log(`[football-data] Competitions fetch error:`, err);
         }
       } else if (provider === "apisport") {
         try {

@@ -348,6 +348,7 @@ export type Database = {
           football_date_format: string | null
           football_default_font: string | null
           football_default_logo_url: string | null
+          football_footballdata_leagues: Json | null
           football_primary_color: string | null
           football_secondary_color: string | null
           football_timezone: string | null
@@ -375,6 +376,7 @@ export type Database = {
           football_date_format?: string | null
           football_default_font?: string | null
           football_default_logo_url?: string | null
+          football_footballdata_leagues?: Json | null
           football_primary_color?: string | null
           football_secondary_color?: string | null
           football_timezone?: string | null
@@ -402,6 +404,7 @@ export type Database = {
           football_date_format?: string | null
           football_default_font?: string | null
           football_default_logo_url?: string | null
+          football_footballdata_leagues?: Json | null
           football_primary_color?: string | null
           football_secondary_color?: string | null
           football_timezone?: string | null
