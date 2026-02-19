@@ -56,6 +56,75 @@ export type Database = {
         }
         Relationships: []
       }
+      billing_automation_config: {
+        Row: {
+          created_at: string
+          id: string
+          is_enabled: boolean
+          notify_after_due: boolean
+          notify_before_due: boolean
+          notify_on_due: boolean
+          send_hour: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          notify_after_due?: boolean
+          notify_before_due?: boolean
+          notify_on_due?: boolean
+          send_hour?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          notify_after_due?: boolean
+          notify_before_due?: boolean
+          notify_on_due?: boolean
+          send_hour?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      billing_notifications_log: {
+        Row: {
+          client_id: string
+          due_date: string
+          id: string
+          message_content: string | null
+          notification_type: string
+          sent_at: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          client_id: string
+          due_date: string
+          id?: string
+          message_content?: string | null
+          notification_type: string
+          sent_at?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          client_id?: string
+          due_date?: string
+          id?: string
+          message_content?: string | null
+          notification_type?: string
+          sent_at?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           created_at: string
