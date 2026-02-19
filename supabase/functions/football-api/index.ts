@@ -284,7 +284,7 @@ serve(async (req) => {
 
     const { data: settings } = await supabase
       .from("platform_settings")
-      .select("football_api_key, football_api_key_secondary, football_api_key_tertiary, football_api_provider, football_timezone")
+      .select("football_api_key, football_api_key_secondary, football_api_key_tertiary, football_api_provider, football_timezone, football_apisport_leagues")
       .limit(1)
       .maybeSingle();
 
@@ -322,7 +322,15 @@ serve(async (req) => {
       if (provider === "football-data") {
         matches = await fetchFromFootballData(apiKey, date);
       } else if (provider === "apisport") {
+        const selectedLeagues: number[] = Array.isArray(settings?.football_apisport_leagues) 
+          ? settings.football_apisport_leagues 
+          : [];
         matches = await fetchFromApiSport(apiKey, date, timezone);
+        // Filter by selected leagues if any are configured
+        if (selectedLeagues.length > 0) {
+          const leagueSet = new Set(selectedLeagues);
+          matches = matches.filter((m: any) => leagueSet.has(m.league.id));
+        }
       } else {
         matches = await fetchFromApiFootball(apiKey, date, timezone);
       }
