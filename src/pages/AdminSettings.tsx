@@ -35,6 +35,7 @@ interface PlatformSettings {
   football_default_logo_url: string | null;
   football_banners_enabled: boolean;
   football_api_key_secondary: string;
+  football_api_key_tertiary: string;
 }
 
 const AdminSettings = () => {
@@ -57,6 +58,7 @@ const AdminSettings = () => {
   const [showApiKey, setShowApiKey] = useState(false);
   const [showFootballKey, setShowFootballKey] = useState(false);
   const [showFootballKeySecondary, setShowFootballKeySecondary] = useState(false);
+  const [showFootballKeyTertiary, setShowFootballKeyTertiary] = useState(false);
   const callEvolutionApi = useCallback(async (action: string, extraParams = {}) => {
     const { data: { session } } = await supabase.auth.getSession();
     const res = await fetch(
@@ -183,6 +185,7 @@ const AdminSettings = () => {
         football_default_logo_url: settings.football_default_logo_url,
         football_banners_enabled: settings.football_banners_enabled,
         football_api_key_secondary: settings.football_api_key_secondary || null,
+        football_api_key_tertiary: (settings as any).football_api_key_tertiary || null,
       } as any)
       .eq("id", settings.id);
 
@@ -488,6 +491,7 @@ const AdminSettings = () => {
                 <SelectContent>
                   <SelectItem value="api-football">API-Football (api-sports.io)</SelectItem>
                   <SelectItem value="football-data">Football-Data.org</SelectItem>
+                  <SelectItem value="apisport">ApiSport.online (SportData)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -540,6 +544,29 @@ const AdminSettings = () => {
                 Obtenha sua chave em{" "}
                 <a href="https://www.football-data.org/client/register" target="_blank" rel="noopener noreferrer" className="text-primary underline">
                   football-data.org
+                </a>
+              </p>
+            </div>
+          )}
+
+          {settings.football_api_provider === "apisport" && (
+            <div className="space-y-2">
+              <Label>API Key - ApiSport.online (SportData)</Label>
+              <div className="relative">
+                <Input
+                  type={showFootballKeyTertiary ? "text" : "password"}
+                  value={(settings as any).football_api_key_tertiary ?? ""}
+                  onChange={(e) => setSettings({ ...settings, football_api_key_tertiary: e.target.value })}
+                  placeholder="Chave da ApiSport.online"
+                />
+                <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowFootballKeyTertiary(!showFootballKeyTertiary)}>
+                  {showFootballKeyTertiary ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Obtenha sua chave em{" "}
+                <a href="https://apisport.online/register" target="_blank" rel="noopener noreferrer" className="text-primary underline">
+                  apisport.online
                 </a>
               </p>
             </div>

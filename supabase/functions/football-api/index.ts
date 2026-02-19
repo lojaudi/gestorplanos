@@ -164,6 +164,113 @@ function mapFootballDataStatus(status: string): string {
   return map[status] || status;
 }
 
+// ── apisport.online (SportData) ──
+async function fetchFromApiSport(apiKey: string, date: string, timezone: string) {
+  // Try fixtures endpoint with date parameter
+  const url = `https://api.apisport.online/api/v1/fixtures?date=${date}`;
+  console.log(`[apisport] Fetching: ${url}`);
+  
+  const res = await fetch(url, { headers: { "x-api-key": apiKey } });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Erro na ApiSport.online: ${res.status} – ${text}`);
+  }
+
+  const json = await res.json();
+  console.log(`[apisport] Raw response keys:`, JSON.stringify(Object.keys(json)));
+  
+  // Log first item to understand structure
+  const rawData = json.response || json.data || json.fixtures || json.results || json.matches || [];
+  if (Array.isArray(rawData) && rawData.length > 0) {
+    console.log(`[apisport] First item sample:`, JSON.stringify(rawData[0]).substring(0, 500));
+  } else if (!Array.isArray(rawData)) {
+    console.log(`[apisport] Response is not array, full keys:`, JSON.stringify(json).substring(0, 1000));
+  }
+
+  const items = Array.isArray(rawData) ? rawData : [];
+  
+  return items.map((item: any) => {
+    // Adaptive parsing - try multiple known formats
+    
+    // Format 1: api-football style (fixture.id, teams.home, etc.)
+    if (item.fixture) {
+      return {
+        id: item.fixture.id,
+        date: item.fixture.date,
+        timestamp: item.fixture.timestamp,
+        status: item.fixture.status?.short || item.fixture.status || "NS",
+        league: {
+          id: item.league?.id || 0,
+          name: item.league?.name || "Unknown",
+          country: item.league?.country || "",
+          logo: item.league?.logo || "",
+        },
+        home: {
+          id: item.teams?.home?.id || 0,
+          name: item.teams?.home?.name || "Home",
+          logo: item.teams?.home?.logo || "",
+        },
+        away: {
+          id: item.teams?.away?.id || 0,
+          name: item.teams?.away?.name || "Away",
+          logo: item.teams?.away?.logo || "",
+        },
+        goals: {
+          home: item.goals?.home ?? null,
+          away: item.goals?.away ?? null,
+        },
+      };
+    }
+    
+    // Format 2: Flat structure (id, home_team, away_team, league_name, etc.)
+    if (item.home_team || item.homeTeam || item.home) {
+      const homeObj = item.home_team || item.homeTeam || item.home || {};
+      const awayObj = item.away_team || item.awayTeam || item.away || {};
+      const leagueObj = item.league || {};
+      
+      const homeName = typeof homeObj === "string" ? homeObj : (homeObj.name || homeObj.team_name || "Home");
+      const awayName = typeof awayObj === "string" ? awayObj : (awayObj.name || awayObj.team_name || "Away");
+      const homeLogo = typeof homeObj === "string" ? "" : (homeObj.logo || homeObj.crest || homeObj.image_path || "");
+      const awayLogo = typeof awayObj === "string" ? "" : (awayObj.logo || awayObj.crest || awayObj.image_path || "");
+      const homeId = typeof homeObj === "string" ? 0 : (homeObj.id || homeObj.team_id || 0);
+      const awayId = typeof awayObj === "string" ? 0 : (awayObj.id || awayObj.team_id || 0);
+      
+      return {
+        id: item.id || item.fixture_id || item.match_id || Math.random(),
+        date: item.date || item.utcDate || item.match_date || item.starting_at || item.kick_off || new Date().toISOString(),
+        timestamp: item.timestamp || Math.floor(new Date(item.date || item.utcDate || item.match_date || item.starting_at || "").getTime() / 1000),
+        status: item.status?.short || item.status || item.state || "NS",
+        league: {
+          id: leagueObj.id || item.league_id || item.competition_id || 0,
+          name: leagueObj.name || item.league_name || item.competition_name || "Unknown",
+          country: leagueObj.country || item.country || "",
+          logo: leagueObj.logo || leagueObj.emblem || item.league_logo || "",
+        },
+        home: { id: homeId, name: homeName, logo: homeLogo },
+        away: { id: awayId, name: awayName, logo: awayLogo },
+        goals: {
+          home: item.goals?.home ?? item.score?.home ?? item.home_score ?? null,
+          away: item.goals?.away ?? item.score?.away ?? item.away_score ?? null,
+        },
+      };
+    }
+    
+    // Format 3: Unknown - log and return basic
+    console.log(`[apisport] Unknown item format:`, JSON.stringify(item).substring(0, 300));
+    return {
+      id: item.id || Math.random(),
+      date: item.date || new Date().toISOString(),
+      timestamp: item.timestamp || 0,
+      status: "NS",
+      league: { id: 0, name: "Unknown", country: "", logo: "" },
+      home: { id: 0, name: "Unknown", logo: "" },
+      away: { id: 0, name: "Unknown", logo: "" },
+      goals: { home: null, away: null },
+    };
+  });
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -177,7 +284,7 @@ serve(async (req) => {
 
     const { data: settings } = await supabase
       .from("platform_settings")
-      .select("football_api_key, football_api_key_secondary, football_api_provider, football_timezone")
+      .select("football_api_key, football_api_key_secondary, football_api_key_tertiary, football_api_provider, football_timezone")
       .limit(1)
       .maybeSingle();
 
@@ -188,6 +295,8 @@ serve(async (req) => {
     let apiKey: string | null = null;
     if (provider === "football-data") {
       apiKey = (settings as any)?.football_api_key_secondary;
+    } else if (provider === "apisport") {
+      apiKey = (settings as any)?.football_api_key_tertiary;
     } else {
       apiKey = settings?.football_api_key;
     }
@@ -212,6 +321,8 @@ serve(async (req) => {
       let matches: any[];
       if (provider === "football-data") {
         matches = await fetchFromFootballData(apiKey, date);
+      } else if (provider === "apisport") {
+        matches = await fetchFromApiSport(apiKey, date, timezone);
       } else {
         matches = await fetchFromApiFootball(apiKey, date, timezone);
       }
@@ -385,6 +496,27 @@ serve(async (req) => {
               });
             }
           } catch { /* skip */ }
+        }
+      } else if (provider === "apisport") {
+        try {
+          const url = "https://api.apisport.online/api/v1/leagues";
+          const res = await fetch(url, { headers: { "x-api-key": apiKey } });
+          if (res.ok) {
+            const json = await res.json();
+            console.log(`[apisport] Leagues response keys:`, JSON.stringify(Object.keys(json)));
+            const rawLeagues = json.response || json.data || json.leagues || json.results || [];
+            const items = Array.isArray(rawLeagues) ? rawLeagues : [];
+            leagues = items.map((item: any) => ({
+              id: item.league?.id || item.id || 0,
+              name: item.league?.name || item.name || "Unknown",
+              country: item.country?.name || item.country || "",
+              logo: item.league?.logo || item.logo || "",
+            }));
+          } else {
+            console.log(`[apisport] Leagues error: ${res.status}`);
+          }
+        } catch (err) {
+          console.log(`[apisport] Leagues fetch error:`, err);
         }
       } else {
         const url = "https://v3.football.api-sports.io/leagues?current=true";

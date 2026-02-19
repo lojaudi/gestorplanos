@@ -341,6 +341,7 @@ export type Database = {
           football_accent_color: string | null
           football_api_key: string | null
           football_api_key_secondary: string | null
+          football_api_key_tertiary: string | null
           football_api_provider: string | null
           football_banners_enabled: boolean | null
           football_date_format: string | null
@@ -366,6 +367,7 @@ export type Database = {
           football_accent_color?: string | null
           football_api_key?: string | null
           football_api_key_secondary?: string | null
+          football_api_key_tertiary?: string | null
           football_api_provider?: string | null
           football_banners_enabled?: boolean | null
           football_date_format?: string | null
@@ -391,6 +393,7 @@ export type Database = {
           football_accent_color?: string | null
           football_api_key?: string | null
           football_api_key_secondary?: string | null
+          football_api_key_tertiary?: string | null
           football_api_provider?: string | null
           football_banners_enabled?: boolean | null
           football_date_format?: string | null
