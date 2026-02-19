@@ -57,14 +57,19 @@ serve(async (req) => {
 
     console.log("Generating player image for team:", bestTeam.name);
 
-    const prompt = `Generate a photorealistic image of a professional football/soccer player in action pose, wearing the official jersey/kit of ${bestTeam.name}. The player should be a generic athletic male player (not a real person), shown from the waist up in a dynamic pose. The background should be transparent or very dark/black. The image should be high quality, dramatic lighting, suitable for a sports banner. Portrait orientation. The jersey should clearly show the team colors of ${bestTeam.name}. No text or watermarks.`;
+    const prompt = `A digital illustration of a soccer player wearing a ${bestTeam.name} jersey, dynamic action pose, dark background, portrait orientation, high quality sports art style, no text.`;
 
-    const models = ["google/gemini-2.5-flash-image", "google/gemini-3-pro-image-preview"];
+    const attempts = [
+      { model: "google/gemini-2.5-flash-image", delay: 0 },
+      { model: "google/gemini-3-pro-image-preview", delay: 2000 },
+      { model: "google/gemini-2.5-flash-image", delay: 3000 },
+    ];
     let aiResponse: Response | null = null;
     let lastError = "";
 
-    for (const model of models) {
-      console.log("Trying model:", model);
+    for (const { model, delay } of attempts) {
+      if (delay > 0) await new Promise((r) => setTimeout(r, delay));
+      console.log("Trying model:", model, "attempt delay:", delay);
       const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -98,7 +103,6 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      // For 500 errors, try next model
     }
 
     if (!aiResponse) {
