@@ -43,7 +43,7 @@ export function ModernTemplate({ matches, title, logoUrl, whatsapp, primaryColor
       style={{
         width: "100%",
         aspectRatio: `${w}/${h}`,
-        background: `linear-gradient(180deg, #0a1628 0%, #1a2a4a 50%, #0d1b30 100%)`,
+        background: `linear-gradient(180deg, ${primaryColor} 0%, ${secondaryColor} 50%, ${primaryColor}dd 100%)`,
         color: "#fff",
         fontFamily: "'Inter', 'Segoe UI', sans-serif",
       }}
@@ -58,10 +58,10 @@ export function ModernTemplate({ matches, title, logoUrl, whatsapp, primaryColor
         <div className="relative" style={{ width: "38%", overflow: "hidden" }}>
           {/* Gradient overlay for blending */}
           <div className="absolute inset-0 z-10" style={{
-            background: "linear-gradient(to right, transparent 60%, #0a1628 100%)",
+            background: `linear-gradient(to right, transparent 60%, ${primaryColor} 100%)`,
           }} />
           <div className="absolute inset-0 z-10" style={{
-            background: "linear-gradient(to top, #0d1b30 0%, transparent 20%)",
+            background: `linear-gradient(to top, ${primaryColor}dd 0%, transparent 20%)`,
           }} />
 
           {backgroundUrl ? (

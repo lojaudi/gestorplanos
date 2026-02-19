@@ -43,7 +43,7 @@ export function SportyTemplate({ matches, title, logoUrl, whatsapp, primaryColor
       style={{
         width: "100%",
         aspectRatio: `${w}/${h}`,
-        background: `linear-gradient(135deg, #0d0d1a 0%, #1a1a2e 50%, ${primaryColor}33 100%)`,
+        background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 50%, ${primaryColor}dd 100%)`,
         color: "#fff",
         fontFamily: "'Inter', 'Segoe UI', sans-serif",
       }}
@@ -60,10 +60,10 @@ export function SportyTemplate({ matches, title, logoUrl, whatsapp, primaryColor
         {/* Left column - Player / Branding (38%) */}
         <div className="relative" style={{ width: "38%", overflow: "hidden" }}>
           <div className="absolute inset-0 z-10" style={{
-            background: "linear-gradient(to right, transparent 50%, #0d0d1a 100%)",
+            background: `linear-gradient(to right, transparent 50%, ${primaryColor} 100%)`,
           }} />
           <div className="absolute inset-0 z-10" style={{
-            background: "linear-gradient(to top, #0d0d1a 0%, transparent 15%)",
+            background: `linear-gradient(to top, ${primaryColor} 0%, transparent 15%)`,
           }} />
 
           {backgroundUrl ? (
