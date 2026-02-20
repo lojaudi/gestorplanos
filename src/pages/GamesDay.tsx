@@ -284,13 +284,13 @@ const GamesDay = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            <Gamepad2 className="h-6 w-6 text-primary" />
+          <h1 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2">
+            <Gamepad2 className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
             Jogos do Dia
           </h1>
-          <p className="text-muted-foreground">Gere banners esportivos e envie para seus clientes</p>
+          <p className="text-sm text-muted-foreground">Gere banners esportivos e envie para seus clientes</p>
         </div>
         <Button variant="outline" size="sm" onClick={fetchMatches} disabled={matchesLoading}>
           <RefreshCw className={`mr-2 h-4 w-4 ${matchesLoading ? "animate-spin" : ""}`} />
