@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
 import {
   Table,
   TableBody,
@@ -73,6 +74,23 @@ export function AdminAutomationPanel() {
 
   const formatHour = (h: number) => `${String(h).padStart(2, "0")}:00`;
 
+  const toggleEnabled = async (row: AutomationRow) => {
+    const newVal = !row.is_enabled;
+    const { error } = await supabase
+      .from("billing_automation_config")
+      .update({ is_enabled: newVal })
+      .eq("user_id", row.user_id);
+
+    if (error) {
+      toast({ title: "Erro ao atualizar automação", variant: "destructive" });
+    } else {
+      toast({ title: `Automação ${newVal ? "ativada" : "desativada"} para ${row.userName}` });
+      setRows((prev) =>
+        prev.map((r) => (r.user_id === row.user_id ? { ...r, is_enabled: newVal } : r))
+      );
+    }
+  };
+
   const enabledCount = rows.filter((r) => r.is_enabled).length;
 
   return (
@@ -100,31 +118,23 @@ export function AdminAutomationPanel() {
             <TableHeader>
               <TableRow>
                 <TableHead>Usuário</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Antes (1 dia)</TableHead>
-                <TableHead>No Dia</TableHead>
-                <TableHead>Após (1 dia)</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map((row) => (
-                <TableRow key={row.user_id}>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium text-sm">{row.userName}</p>
-                      <p className="text-xs text-muted-foreground">{row.userEmail}</p>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {row.is_enabled ? (
-                      <Badge className="bg-green-500/10 text-green-600 border-green-500/20 gap-1">
-                        <Power className="h-3 w-3" /> Ativa
-                      </Badge>
-                    ) : (
-                      <Badge variant="outline" className="gap-1 text-muted-foreground">
-                        <PowerOff className="h-3 w-3" /> Inativa
-                      </Badge>
-                    )}
+                  <TableHead>Ativo</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((row) => (
+                  <TableRow key={row.user_id}>
+                    <TableCell>
+                      <div>
+                        <p className="font-medium text-sm">{row.userName}</p>
+                        <p className="text-xs text-muted-foreground">{row.userEmail}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Switch
+                        checked={row.is_enabled}
+                        onCheckedChange={() => toggleEnabled(row)}
+                      />
                   </TableCell>
                   <TableCell>
                     {row.notify_before_due ? (
