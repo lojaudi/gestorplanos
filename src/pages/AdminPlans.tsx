@@ -154,6 +154,7 @@ const AdminPlans = () => {
     p.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   const getDurationLabel = (months: number) => {
+    if (months === 0) return "7 dias (Trial)";
     const opt = durationOptions.find((d) => d.value === String(months));
     return opt ? opt.label : `${months} meses`;
   };
