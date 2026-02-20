@@ -31,7 +31,7 @@ type Plan = Tables<"plans">;
 
 type ClientWithRelations = Client & {
   services: { name: string } | null;
-  plans: { name: string; duration_months: number } | null;
+  plans: { name: string; duration_months: number; price: number | null } | null;
 };
 
 const getStatus = (dueDate: string) => {
@@ -64,6 +64,7 @@ const Clients = () => {
   const [saving, setSaving] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState("all");
+  const [planFilter, setPlanFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [pageSize, setPageSize] = useState<string>("10");
   const [currentPage, setCurrentPage] = useState(1);
@@ -79,7 +80,7 @@ const Clients = () => {
   const fetchData = async () => {
     if (!user) return;
     const [clientsRes, servicesRes, plansRes] = await Promise.all([
-      supabase.from("clients").select("*, services(name), plans(name, duration_months)").order("created_at", { ascending: false }),
+      supabase.from("clients").select("*, services(name), plans(name, duration_months, price)").order("created_at", { ascending: false }),
       supabase.from("services").select("*").order("name"),
       supabase.from("plans").select("*").order("name"),
     ]);
@@ -95,6 +96,7 @@ const Clients = () => {
     return clients.filter((c) => {
       const status = getStatus(c.due_date);
       if (statusFilter !== "all" && status !== statusFilter) return false;
+      if (planFilter !== "all" && c.plan_id !== planFilter) return false;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         return (
@@ -105,7 +107,7 @@ const Clients = () => {
       }
       return true;
     });
-  }, [clients, statusFilter, searchQuery]);
+  }, [clients, statusFilter, planFilter, searchQuery]);
 
   const totalPages = useMemo(() => {
     if (pageSize === "all") return 1;
@@ -113,7 +115,7 @@ const Clients = () => {
   }, [filteredClients.length, pageSize]);
 
   // Reset to page 1 when filters or pageSize change
-  useEffect(() => { setCurrentPage(1); }, [statusFilter, searchQuery, pageSize]);
+  useEffect(() => { setCurrentPage(1); }, [statusFilter, planFilter, searchQuery, pageSize]);
 
   const paginatedClients = useMemo(() => {
     if (pageSize === "all") return filteredClients;
@@ -284,10 +286,21 @@ const Clients = () => {
             <SelectValue placeholder="Filtrar por status" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">Todos</SelectItem>
+            <SelectItem value="all">Todos os Status</SelectItem>
             <SelectItem value="ativo">Ativos</SelectItem>
             <SelectItem value="vencendo">Vencendo Hoje</SelectItem>
             <SelectItem value="vencido">Vencidos</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={planFilter} onValueChange={setPlanFilter}>
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue placeholder="Filtrar por plano" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os Planos</SelectItem>
+            {plans.map((p) => (
+              <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
@@ -331,6 +344,7 @@ const Clients = () => {
                 <TableHead>Telefone</TableHead>
                 <TableHead className="hidden md:table-cell">Serviço</TableHead>
                 <TableHead className="hidden md:table-cell">Plano</TableHead>
+                <TableHead className="hidden lg:table-cell">Valor</TableHead>
                 <TableHead>Vencimento</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-24 text-right">Ações</TableHead>
@@ -339,13 +353,13 @@ const Clients = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={10} className="text-center py-8 text-muted-foreground">
                     Carregando...
                   </TableCell>
                 </TableRow>
               ) : paginatedClients.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center py-8">
+                  <TableCell colSpan={10} className="text-center py-8">
                     <Users className="mx-auto mb-2 h-8 w-8 text-muted-foreground/50" />
                     <p className="text-muted-foreground">Nenhum cliente encontrado</p>
                   </TableCell>
@@ -368,6 +382,11 @@ const Clients = () => {
                       <TableCell>{c.phone}</TableCell>
                       <TableCell className="hidden md:table-cell">{c.services?.name || "—"}</TableCell>
                       <TableCell className="hidden md:table-cell">{c.plans?.name || "—"}</TableCell>
+                      <TableCell className="hidden lg:table-cell">
+                        {c.plans?.price != null
+                          ? `R$ ${c.plans.price.toFixed(2).replace(".", ",")}`
+                          : "—"}
+                      </TableCell>
                       <TableCell>{new Date(c.due_date + "T00:00:00").toLocaleDateString("pt-BR")}</TableCell>
                       <TableCell>
                         <Badge variant={cfg.variant}>{cfg.label}</Badge>
