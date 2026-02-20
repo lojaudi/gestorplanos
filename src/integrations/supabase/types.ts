@@ -191,6 +191,36 @@ export type Database = {
           },
         ]
       }
+      football_daily_cache: {
+        Row: {
+          cache_date: string
+          channels: Json
+          created_at: string
+          id: string
+          matches: Json
+          provider: string
+          updated_at: string
+        }
+        Insert: {
+          cache_date?: string
+          channels?: Json
+          created_at?: string
+          id?: string
+          matches?: Json
+          provider?: string
+          updated_at?: string
+        }
+        Update: {
+          cache_date?: string
+          channels?: Json
+          created_at?: string
+          id?: string
+          matches?: Json
+          provider?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       football_user_config: {
         Row: {
           accent_color: string | null
