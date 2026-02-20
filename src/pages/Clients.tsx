@@ -55,6 +55,7 @@ const Clients = () => {
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [bulkDeleteMode, setBulkDeleteMode] = useState<"selected" | "expired" | null>(null);
   const [editing, setEditing] = useState<ClientWithRelations | null>(null);
   const [saving, setSaving] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -182,6 +183,31 @@ const Clients = () => {
     setDeleteId(null);
   };
 
+  const expiredClients = useMemo(() => {
+    const today = new Date().toISOString().split("T")[0];
+    return clients.filter((c) => c.due_date < today);
+  }, [clients]);
+
+  const handleBulkDelete = async () => {
+    if (!bulkDeleteMode) return;
+    const idsToDelete = bulkDeleteMode === "selected"
+      ? Array.from(selected)
+      : expiredClients.map((c) => c.id);
+
+    if (idsToDelete.length === 0) return;
+    setSaving(true);
+    const { error } = await supabase.from("clients").delete().in("id", idsToDelete);
+    if (error) {
+      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: `${idsToDelete.length} cliente(s) excluído(s)!` });
+      setSelected(new Set());
+      fetchData();
+    }
+    setSaving(false);
+    setBulkDeleteMode(null);
+  };
+
   const toggleSelect = (id: string) => {
     setSelected((prev) => {
       const n = new Set(prev);
@@ -234,12 +260,24 @@ const Clients = () => {
         </Select>
       </div>
 
-      {selected.size > 0 && (
-        <div className="flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
-          <span className="text-sm font-medium">{selected.size} selecionado(s)</span>
-          <Button variant="outline" size="sm" onClick={() => setSelected(new Set())}>
-            Limpar seleção
-          </Button>
+      {(selected.size > 0 || expiredClients.length > 0) && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
+          {selected.size > 0 && (
+            <>
+              <span className="text-sm font-medium">{selected.size} selecionado(s)</span>
+              <Button variant="destructive" size="sm" onClick={() => setBulkDeleteMode("selected")}>
+                <Trash2 className="mr-1 h-4 w-4" /> Excluir selecionados
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setSelected(new Set())}>
+                Limpar seleção
+              </Button>
+            </>
+          )}
+          {expiredClients.length > 0 && (
+            <Button variant="destructive" size="sm" onClick={() => setBulkDeleteMode("expired")}>
+              <Trash2 className="mr-1 h-4 w-4" /> Excluir vencidos ({expiredClients.length})
+            </Button>
+          )}
         </div>
       )}
 
@@ -367,7 +405,28 @@ const Clients = () => {
               <Label htmlFor="clientDueDate">Data de Vencimento</Label>
               <Input id="clientDueDate" type="date" value={formDueDate} onChange={(e) => setFormDueDate(e.target.value)} />
             </div>
-          </div>
+      {/* Bulk Delete Confirmation */}
+      <AlertDialog open={!!bulkDeleteMode} onOpenChange={() => setBulkDeleteMode(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {bulkDeleteMode === "selected"
+                ? `Excluir ${selected.size} cliente(s) selecionado(s)?`
+                : `Excluir ${expiredClients.length} cliente(s) vencido(s)?`}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. Todos os dados desses clientes serão removidos permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} disabled={saving}>
+              {saving ? "Excluindo..." : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
             <Button onClick={handleSave} disabled={!formName.trim() || !formPhone.trim() || saving}>
