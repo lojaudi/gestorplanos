@@ -82,7 +82,7 @@ const userNav: NavEntry[] = [
     label: "Módulos",
     icon: Puzzle,
     items: [
-      { icon: Megaphone, label: "Campanha", soon: true },
+      { icon: Megaphone, label: "Campanha", path: "/campaign" },
       { icon: Gamepad2, label: "Jogos do Dia", path: "/games-day" },
       { icon: Image, label: "Banners Filmes/Séries", path: "/movies-series" },
     ],
@@ -107,14 +107,6 @@ const adminNav: NavEntry[] = [
       { icon: Users, label: "Gerenciar Usuários", path: "/admin/users" },
       { icon: UserPlus, label: "Criar Planos Usuários", path: "/admin/plans" },
       { icon: ClipboardList, label: "Gerenciar Planos Usuários", path: "/admin/plans" },
-    ],
-  },
-  {
-    label: "Módulos",
-    icon: Puzzle,
-    items: [
-      { icon: PenLine, label: "Gerenciar Módulos", soon: true },
-      { icon: Settings, label: "Editar Módulos", soon: true },
     ],
   },
 ];

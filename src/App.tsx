@@ -27,6 +27,7 @@ import Tutorials from "./pages/Tutorials";
 import AdminPlans from "./pages/AdminPlans";
 import MoviesSeries from "./pages/MoviesSeries";
 import GamesDay from "./pages/GamesDay";
+import Campaign from "./pages/Campaign";
 
 const queryClient = new QueryClient();
 
@@ -57,6 +58,7 @@ const App = () => (
               <Route path="/tutorials" element={<ProtectedPage><Tutorials /></ProtectedPage>} />
               <Route path="/movies-series" element={<ProtectedPage><MoviesSeries /></ProtectedPage>} />
               <Route path="/games-day" element={<ProtectedPage><GamesDay /></ProtectedPage>} />
+              <Route path="/campaign" element={<ProtectedPage><Campaign /></ProtectedPage>} />
               <Route path="/pay" element={<PaymentPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
