@@ -18,8 +18,11 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Crown, Users, Megaphone, Gamepad2, Image } from "lucide-react";
+import { Plus, Pencil, Trash2, Crown, Users, Megaphone, Gamepad2, Image, Calendar } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 
 interface AdminPlan {
   id: string;
@@ -31,15 +34,24 @@ interface AdminPlan {
   module_games: boolean;
   module_banners: boolean;
   is_active: boolean;
+  duration_months: number;
   created_at: string;
   updated_at: string;
 }
+
+const durationOptions = [
+  { value: "1", label: "Mensal (1 mês)" },
+  { value: "3", label: "Trimestral (3 meses)" },
+  { value: "6", label: "Semestral (6 meses)" },
+  { value: "12", label: "Anual (12 meses)" },
+];
 
 const defaultForm = {
   name: "",
   description: "",
   price: "",
   max_clients: "50",
+  duration_months: "1",
   module_campaigns: false,
   module_games: false,
   module_banners: false,
@@ -83,6 +95,7 @@ const AdminPlans = () => {
       description: p.description || "",
       price: String(p.price),
       max_clients: String(p.max_clients),
+      duration_months: String(p.duration_months),
       module_campaigns: p.module_campaigns,
       module_games: p.module_games,
       module_banners: p.module_banners,
@@ -100,6 +113,7 @@ const AdminPlans = () => {
       description: form.description.trim() || null,
       price: parseFloat(form.price) || 0,
       max_clients: parseInt(form.max_clients) || 50,
+      duration_months: parseInt(form.duration_months) || 1,
       module_campaigns: form.module_campaigns,
       module_games: form.module_games,
       module_banners: form.module_banners,
@@ -139,6 +153,11 @@ const AdminPlans = () => {
   const formatPrice = (p: number) =>
     p.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
+  const getDurationLabel = (months: number) => {
+    const opt = durationOptions.find((d) => d.value === String(months));
+    return opt ? opt.label : `${months} meses`;
+  };
+
   const modulesList = (p: AdminPlan) => {
     const modules: string[] = [];
     if (p.module_campaigns) modules.push("Campanha");
@@ -165,6 +184,7 @@ const AdminPlans = () => {
             <TableHeader>
               <TableRow>
                 <TableHead>Nome</TableHead>
+                <TableHead>Duração</TableHead>
                 <TableHead>Valor</TableHead>
                 <TableHead>Máx. Clientes</TableHead>
                 <TableHead>Módulos</TableHead>
@@ -175,13 +195,13 @@ const AdminPlans = () => {
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                     Carregando...
                   </TableCell>
                 </TableRow>
               ) : plans.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-8">
+                  <TableCell colSpan={7} className="text-center py-8">
                     <Crown className="mx-auto mb-2 h-8 w-8 text-muted-foreground/50" />
                     <p className="text-muted-foreground">Nenhum plano cadastrado</p>
                   </TableCell>
@@ -198,6 +218,12 @@ const AdminPlans = () => {
                       )}
                     </TableCell>
                     <TableCell>{formatPrice(p.price)}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                        {getDurationLabel(p.duration_months)}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
                         <Users className="h-3.5 w-3.5 text-muted-foreground" />
@@ -291,6 +317,17 @@ const AdminPlans = () => {
                   placeholder="50"
                 />
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Duração do Plano</Label>
+              <Select value={form.duration_months} onValueChange={(v) => setForm({ ...form, duration_months: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {durationOptions.map((d) => (
+                    <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             {/* Modules */}
