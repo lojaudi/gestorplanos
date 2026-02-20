@@ -172,11 +172,19 @@ const Clients = () => {
       plan_id: formPlanId || null,
       due_date: formDueDate,
     };
+    console.log("[Clients] handleSave payload:", JSON.stringify(payload));
+    console.log("[Clients] editing:", editing?.id, "formPlanId:", formPlanId, "formServiceId:", formServiceId);
     try {
       if (editing) {
-        const { error } = await supabase.from("clients").update(payload).eq("id", editing.id);
+        const { error, data, count } = await supabase.from("clients").update(payload).eq("id", editing.id).select();
+        console.log("[Clients] update result - error:", error, "data:", data, "count:", count);
         if (error) throw error;
-        toast({ title: "Cliente atualizado!" });
+        if (!data || data.length === 0) {
+          console.warn("[Clients] Update returned no rows - possible RLS issue");
+          toast({ title: "Aviso", description: "A atualização pode não ter sido aplicada. Tente novamente.", variant: "destructive" });
+        } else {
+          toast({ title: "Cliente atualizado!" });
+        }
       } else {
         const { error } = await supabase.from("clients").insert({ ...payload, user_id: user.id });
         if (error) throw error;
@@ -185,6 +193,7 @@ const Clients = () => {
       setDialogOpen(false);
       fetchData();
     } catch (error: any) {
+      console.error("[Clients] Save error:", error);
       toast({ title: "Erro", description: error.message, variant: "destructive" });
     } finally {
       setSaving(false);
