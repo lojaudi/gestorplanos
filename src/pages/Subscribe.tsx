@@ -21,6 +21,7 @@ interface AdminPlan {
 }
 
 const durationLabels: Record<number, string> = {
+  0: "7 dias",
   1: "Mensal",
   3: "Trimestral",
   6: "Semestral",
