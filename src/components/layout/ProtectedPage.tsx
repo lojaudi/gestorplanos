@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "./AppLayout";
+import PlanGuard from "./PlanGuard";
 
 export default function ProtectedPage({ children }: { children: ReactNode }) {
   const { user, isLoading } = useAuth();
@@ -18,5 +19,9 @@ export default function ProtectedPage({ children }: { children: ReactNode }) {
     return <Navigate to="/auth" replace />;
   }
 
-  return <AppLayout>{children}</AppLayout>;
+  return (
+    <AppLayout>
+      <PlanGuard>{children}</PlanGuard>
+    </AppLayout>
+  );
 }

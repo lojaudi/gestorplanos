@@ -89,6 +89,22 @@ serve(async (req) => {
       const userId = config.user_id;
       console.log(`[auto-billing] Processing user: ${userId}`);
 
+      // Check if user's plan is expired beyond 10-day grace period
+      const { data: userProfile } = await supabase
+        .from("profiles")
+        .select("plan_expires_at")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (userProfile?.plan_expires_at) {
+        const expiresAt = new Date(userProfile.plan_expires_at);
+        const gracePeriodEnd = new Date(expiresAt.getTime() + 10 * 24 * 60 * 60 * 1000);
+        if (new Date() > gracePeriodEnd) {
+          console.log(`[auto-billing] User ${userId} plan expired beyond 10-day grace period, skipping`);
+          continue;
+        }
+      }
+
       // Get user's WhatsApp config
       const { data: waConfig } = await supabase
         .from("whatsapp_config")
