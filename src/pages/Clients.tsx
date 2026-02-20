@@ -21,8 +21,9 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Users, Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Plus, Pencil, Trash2, Users, Search, ChevronLeft, ChevronRight, PenLine } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
+import { BulkEditClientsDialog } from "@/components/clients/BulkEditClientsDialog";
 
 type Client = Tables<"clients">;
 type Service = Tables<"services">;
@@ -58,6 +59,7 @@ const Clients = () => {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [bulkDeleteMode, setBulkDeleteMode] = useState<"selected" | "expired" | null>(null);
+  const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [editing, setEditing] = useState<ClientWithRelations | null>(null);
   const [saving, setSaving] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -286,6 +288,9 @@ const Clients = () => {
           {selected.size > 0 && (
             <>
               <span className="text-sm font-medium">{selected.size} selecionado(s)</span>
+              <Button variant="outline" size="sm" onClick={() => setBulkEditOpen(true)}>
+                <PenLine className="mr-1 h-4 w-4" /> Editar em massa
+              </Button>
               <Button variant="destructive" size="sm" onClick={() => setBulkDeleteMode("selected")}>
                 <Trash2 className="mr-1 h-4 w-4" /> Excluir selecionados
               </Button>
@@ -518,6 +523,17 @@ const Clients = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Bulk Edit Dialog */}
+      <BulkEditClientsDialog
+        open={bulkEditOpen}
+        onOpenChange={setBulkEditOpen}
+        selectedIds={Array.from(selected)}
+        selectedNames={clients.filter((c) => selected.has(c.id)).map((c) => c.name)}
+        services={services}
+        plans={plans}
+        onUpdated={() => { fetchData(); setSelected(new Set()); }}
+      />
     </div>
   );
 };
