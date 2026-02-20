@@ -24,6 +24,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { EditUserDialog } from "@/components/admin/EditUserDialog";
+import { AdminAutomationPanel } from "@/components/admin/AdminAutomationPanel";
 import { Pencil } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 interface UserProfile {
@@ -321,6 +322,8 @@ const AdminUsers = () => {
           )}
         </CardContent>
       </Card>
+
+      <AdminAutomationPanel />
 
       <EditUserDialog
         user={editUser}
