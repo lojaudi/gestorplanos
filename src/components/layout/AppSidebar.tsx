@@ -20,6 +20,7 @@ import {
   Gamepad2,
   Image,
   Puzzle,
+  Crown,
   PenLine,
   UserPlus,
   ClipboardList,
@@ -78,6 +79,7 @@ const userNav: NavEntry[] = [
     ],
   },
   { icon: Video, label: "Tutoriais", path: "/tutorials" },
+  { icon: Crown, label: "Meu Plano", path: "/subscribe" },
   {
     label: "Módulos",
     icon: Puzzle,
