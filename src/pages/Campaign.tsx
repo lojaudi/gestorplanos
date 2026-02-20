@@ -114,23 +114,20 @@ export default function Campaign() {
       const token = session?.session?.access_token;
 
       if (imageUrl) {
-        // Send as media with caption
         const { error } = await supabase.functions.invoke("evolution-api", {
           body: {
             action: "send-bulk-media",
-            recipients: clients.map((c) => ({ phone: c.phone, name: c.name })),
-            mediaUrl: imageUrl,
+            messages: clients.map((c) => ({ phone: c.phone, client_id: c.id, template_type: "campanha" })),
+            imageUrl,
             caption: message.trim(),
-            mediaType: "image",
           },
         });
         if (error) throw error;
       } else {
-        // Send as text only
         const { error } = await supabase.functions.invoke("evolution-api", {
           body: {
             action: "send-bulk",
-            recipients: clients.map((c) => ({ phone: c.phone, message: message.trim() })),
+            messages: clients.map((c) => ({ phone: c.phone, message: message.trim(), client_id: c.id, template_type: "campanha" })),
           },
         });
         if (error) throw error;
