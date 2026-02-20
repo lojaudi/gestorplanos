@@ -41,8 +41,9 @@ export function ModernTemplate({ matches, title, logoUrl, whatsapp, primaryColor
     <div
       className="relative overflow-hidden"
       style={{
-        width: "100%",
-        aspectRatio: `${w}/${h}`,
+        width: w,
+        height: h,
+        fontSize: 28,
         background: `linear-gradient(180deg, ${primaryColor} 0%, ${secondaryColor} 50%, ${primaryColor}dd 100%)`,
         color: "#fff",
         fontFamily: "'Inter', 'Segoe UI', sans-serif",
