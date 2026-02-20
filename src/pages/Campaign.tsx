@@ -110,11 +110,8 @@ export default function Campaign() {
         }
       }
 
-      const { data: session } = await supabase.auth.getSession();
-      const token = session?.session?.access_token;
-
       if (imageUrl) {
-        const { error } = await supabase.functions.invoke("evolution-api", {
+        const { data, error } = await supabase.functions.invoke("evolution-api", {
           body: {
             action: "send-bulk-media",
             messages: clients.map((c) => ({ phone: c.phone, client_id: c.id, template_type: "campanha" })),
@@ -122,15 +119,21 @@ export default function Campaign() {
             caption: message.trim(),
           },
         });
-        if (error) throw error;
+        if (error) {
+          const errBody = data || (error as any)?.context;
+          throw new Error(errBody?.error || error.message);
+        }
       } else {
-        const { error } = await supabase.functions.invoke("evolution-api", {
+        const { data, error } = await supabase.functions.invoke("evolution-api", {
           body: {
             action: "send-bulk",
             messages: clients.map((c) => ({ phone: c.phone, message: message.trim(), client_id: c.id, template_type: "campanha" })),
           },
         });
-        if (error) throw error;
+        if (error) {
+          const errBody = data || (error as any)?.context;
+          throw new Error(errBody?.error || error.message);
+        }
       }
 
       toast({ title: "Campanha enviada!", description: `Mensagem enviada para ${clients.length} clientes (${targetLabel}).` });
