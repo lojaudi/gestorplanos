@@ -25,6 +25,7 @@ import {
   UserPlus,
   ClipboardList,
   Globe,
+  BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -79,6 +80,7 @@ const userNav: NavEntry[] = [
     ],
   },
   { icon: Video, label: "Tutoriais", path: "/tutorials" },
+  { icon: BookOpen, label: "Material de Apoio", path: "/support-materials" },
   { icon: Crown, label: "Meu Plano", path: "/subscribe" },
   {
     label: "Módulos",
@@ -109,6 +111,7 @@ const adminNav: NavEntry[] = [
       { icon: Users, label: "Gerenciar Usuários", path: "/admin/users" },
       { icon: UserPlus, label: "Criar Planos Usuários", path: "/admin/plans" },
       { icon: ClipboardList, label: "Gerenciar Planos Usuários", path: "/admin/plans" },
+      { icon: BookOpen, label: "Material de Apoio", path: "/admin/support-materials" },
     ],
   },
 ];

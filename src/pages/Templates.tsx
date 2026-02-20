@@ -276,13 +276,15 @@ const Templates = () => {
 
             <div className="space-y-2">
               <Label htmlFor="templateContent">Conteúdo da Mensagem</Label>
+              <p className="text-xs text-muted-foreground">Emojis são suportados! Use-os para personalizar suas mensagens 🎨✨</p>
               <Textarea
                 id="templateContent"
                 value={formContent}
                 onChange={(e) => setFormContent(e.target.value)}
-                placeholder="Olá {nome}, sua assinatura do serviço {servico} (plano {plano}) vence em {data_vencimento}..."
+                placeholder="Olá {nome} 👋, sua assinatura do serviço {servico} (plano {plano}) vence em {data_vencimento}..."
                 rows={6}
                 maxLength={2000}
+                className="text-base"
               />
               <p className="text-xs text-muted-foreground">{formContent.length}/2000 caracteres</p>
             </div>

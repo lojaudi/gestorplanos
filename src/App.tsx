@@ -29,6 +29,8 @@ import MoviesSeries from "./pages/MoviesSeries";
 import GamesDay from "./pages/GamesDay";
 import Campaign from "./pages/Campaign";
 import Subscribe from "./pages/Subscribe";
+import AdminSupportMaterials from "./pages/AdminSupportMaterials";
+import SupportMaterialsPage from "./pages/SupportMaterials";
 
 const queryClient = new QueryClient();
 
@@ -61,6 +63,8 @@ const App = () => (
               <Route path="/games-day" element={<ProtectedPage><GamesDay /></ProtectedPage>} />
               <Route path="/campaign" element={<ProtectedPage><Campaign /></ProtectedPage>} />
               <Route path="/subscribe" element={<ProtectedPage><Subscribe /></ProtectedPage>} />
+              <Route path="/support-materials" element={<ProtectedPage><SupportMaterialsPage /></ProtectedPage>} />
+              <Route path="/admin/support-materials" element={<ProtectedPage><AdminSupportMaterials /></ProtectedPage>} />
               <Route path="/pay" element={<PaymentPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
