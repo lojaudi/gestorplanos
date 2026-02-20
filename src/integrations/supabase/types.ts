@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           created_at: string
           description: string | null
+          duration_months: number
           id: string
           is_active: boolean
           max_clients: number
@@ -31,6 +32,7 @@ export type Database = {
         Insert: {
           created_at?: string
           description?: string | null
+          duration_months?: number
           id?: string
           is_active?: boolean
           max_clients?: number
@@ -44,6 +46,7 @@ export type Database = {
         Update: {
           created_at?: string
           description?: string | null
+          duration_months?: number
           id?: string
           is_active?: boolean
           max_clients?: number
