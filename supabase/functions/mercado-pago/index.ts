@@ -80,6 +80,23 @@ serve(async (req) => {
       });
     }
 
+    // Check if admin has gateway configured (any authenticated user can check)
+    if (action === "check-admin-gateway") {
+      const { admin_user_id } = params;
+      if (!admin_user_id) return errorResponse("admin_user_id é obrigatório");
+
+      const svc = getServiceClient();
+      const { data: config } = await svc
+        .from("payment_gateway_config")
+        .select("is_enabled")
+        .eq("user_id", admin_user_id)
+        .eq("provider", "mercado_pago")
+        .eq("is_enabled", true)
+        .maybeSingle();
+
+      return jsonResponse({ has_gateway: !!config });
+    }
+
     // All other actions require authentication
     const user = await getAuthUser(req);
     if (!user) return errorResponse("Não autenticado", 401);
