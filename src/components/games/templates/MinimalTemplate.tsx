@@ -41,8 +41,9 @@ export function MinimalTemplate({ matches, title, logoUrl, whatsapp, primaryColo
     <div
       className="relative overflow-hidden"
       style={{
-        width: "100%",
-        aspectRatio: `${w}/${h}`,
+        width: w,
+        height: h,
+        fontSize: 28,
         background: "#f0f2f5",
         color: "#1a1a1a",
         fontFamily: "'Inter', 'Segoe UI', sans-serif",
