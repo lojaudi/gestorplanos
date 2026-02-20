@@ -29,13 +29,14 @@ export function SportyTemplate({ matches, title, logoUrl, whatsapp, primaryColor
   const { day, month } = formatDay();
 
   const mc = matches.length;
-  const teamLogoSize = mc <= 4 ? "2.4em" : mc <= 6 ? "2em" : mc <= 8 ? "1.7em" : "1.4em";
-  const timeFontSize = mc <= 4 ? "1.3em" : mc <= 6 ? "1.1em" : mc <= 8 ? "0.9em" : "0.75em";
-  const namesFontSize = mc <= 4 ? "0.5em" : mc <= 6 ? "0.44em" : mc <= 8 ? "0.38em" : "0.32em";
-  const channelHeight = mc <= 4 ? "0.7em" : mc <= 6 ? "0.6em" : mc <= 8 ? "0.5em" : "0.4em";
-  const leagueSize = mc <= 4 ? "2.4em" : mc <= 6 ? "2em" : mc <= 8 ? "1.7em" : "1.4em";
-  const rowPad = mc <= 4 ? "2%" : mc <= 6 ? "1.5%" : mc <= 8 ? "1%" : "0.7%";
-  const gapSize = mc <= 4 ? "1.2%" : mc <= 6 ? "1%" : mc <= 8 ? "0.7%" : "0.5%";
+  const baseFontSize = mc <= 4 ? 42 : mc <= 6 ? 38 : mc <= 8 ? 34 : 30;
+  const teamLogoSize = mc <= 4 ? "2.6em" : mc <= 6 ? "2.2em" : mc <= 8 ? "1.9em" : "1.6em";
+  const timeFontSize = mc <= 4 ? "1.4em" : mc <= 6 ? "1.2em" : mc <= 8 ? "1em" : "0.85em";
+  const namesFontSize = mc <= 4 ? "0.55em" : mc <= 6 ? "0.48em" : mc <= 8 ? "0.42em" : "0.36em";
+  const channelHeight = mc <= 4 ? "0.8em" : mc <= 6 ? "0.7em" : mc <= 8 ? "0.6em" : "0.5em";
+  const leagueSize = mc <= 4 ? "2.6em" : mc <= 6 ? "2.2em" : mc <= 8 ? "1.9em" : "1.6em";
+  const rowPad = mc <= 4 ? "2.5%" : mc <= 6 ? "2%" : mc <= 8 ? "1.5%" : "1%";
+  const gapSize = mc <= 4 ? "1.5%" : mc <= 6 ? "1.2%" : mc <= 8 ? "0.9%" : "0.6%";
 
   return (
     <div
@@ -43,7 +44,7 @@ export function SportyTemplate({ matches, title, logoUrl, whatsapp, primaryColor
       style={{
         width: w,
         height: h,
-        fontSize: 28,
+        fontSize: baseFontSize,
         background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 50%, ${primaryColor}dd 100%)`,
         color: "#fff",
         fontFamily: "'Inter', 'Segoe UI', sans-serif",
