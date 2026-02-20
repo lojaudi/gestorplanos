@@ -74,13 +74,14 @@ export function GameBannerPreview({ matches, template, title, logoUrl, whatsapp,
 
   const templateProps = { matches, title, logoUrl, whatsapp, primaryColor, secondaryColor, accentColor, backgroundUrl };
 
-  // Responsive scaling: fit the 1404px-wide banner into the container
+  // Responsive scaling with minimum readable size
   useEffect(() => {
     const updateScale = () => {
       if (containerRef.current) {
         const containerWidth = containerRef.current.offsetWidth;
         const bannerWidth = 1404;
-        setScale(Math.min(1, containerWidth / bannerWidth));
+        // Min scale 0.55 so elements stay readable on mobile
+        setScale(Math.max(0.55, Math.min(1, containerWidth / bannerWidth)));
       }
     };
     updateScale();
@@ -182,7 +183,7 @@ export function GameBannerPreview({ matches, template, title, logoUrl, whatsapp,
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div ref={containerRef} className="w-full overflow-hidden" style={{ height: 1600 * scale }}>
+        <div ref={containerRef} className="w-full overflow-x-auto overflow-y-hidden rounded-lg" style={{ height: 1600 * scale }}>
           <div
             ref={bannerRef}
             style={{
