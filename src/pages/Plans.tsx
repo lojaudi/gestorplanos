@@ -83,8 +83,13 @@ const Plans = () => {
     };
     try {
       if (editing) {
-        const { error } = await supabase.from("plans").update(payload).eq("id", editing.id);
+        const { error, data } = await supabase.from("plans").update(payload).eq("id", editing.id).eq("user_id", user.id).select();
+        console.log("[Plans] update result:", { error, data, payload, editingId: editing.id });
         if (error) throw error;
+        if (!data || data.length === 0) {
+          toast({ title: "Erro", description: "Não foi possível atualizar o plano. Tente novamente.", variant: "destructive" });
+          return;
+        }
         toast({ title: "Plano atualizado!" });
       } else {
         const { error } = await supabase.from("plans").insert({ ...payload, user_id: user.id });
