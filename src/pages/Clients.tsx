@@ -344,7 +344,7 @@ const Clients = () => {
                 <TableHead>Telefone</TableHead>
                 <TableHead className="hidden md:table-cell">Serviço</TableHead>
                 <TableHead className="hidden md:table-cell">Plano</TableHead>
-                <TableHead className="hidden lg:table-cell">Valor</TableHead>
+                <TableHead className="hidden md:table-cell">Valor</TableHead>
                 <TableHead>Vencimento</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="w-24 text-right">Ações</TableHead>
@@ -382,7 +382,7 @@ const Clients = () => {
                       <TableCell>{c.phone}</TableCell>
                       <TableCell className="hidden md:table-cell">{c.services?.name || "—"}</TableCell>
                       <TableCell className="hidden md:table-cell">{c.plans?.name || "—"}</TableCell>
-                      <TableCell className="hidden lg:table-cell">
+                      <TableCell className="hidden md:table-cell">
                         {c.plans?.price != null
                           ? `R$ ${c.plans.price.toFixed(2).replace(".", ",")}`
                           : "—"}
