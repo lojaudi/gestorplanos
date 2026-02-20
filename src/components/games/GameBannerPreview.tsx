@@ -80,8 +80,8 @@ export function GameBannerPreview({ matches, template, title, logoUrl, whatsapp,
       if (containerRef.current) {
         const containerWidth = containerRef.current.offsetWidth;
         const bannerWidth = 1404;
-        // Min scale 0.55 so elements stay readable on mobile
-        setScale(Math.max(0.55, Math.min(1, containerWidth / bannerWidth)));
+        // Min scale 0.75 so elements stay readable on mobile
+        setScale(Math.max(0.75, Math.min(1, containerWidth / bannerWidth)));
       }
     };
     updateScale();
