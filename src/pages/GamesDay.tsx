@@ -92,43 +92,6 @@ const GamesDay = () => {
     if (user) fetchMatches();
   }, [user]);
 
-  const scrapeChannels = async (matchList: Match[]) => {
-    if (!matchList.length) return;
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/football-api`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session?.access_token}`,
-          apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-        },
-        body: JSON.stringify({
-          action: "scrape-channels",
-          matches: matchList.map((m) => ({ home: m.home.name, away: m.away.name, leagueId: m.league.id, league: m.league.name })),
-        }),
-      });
-      const json = await res.json();
-      const channelMap: Record<string, string[]> = json.channels || {};
-
-      setMatches((prev) =>
-        prev.map((m) => {
-          const key = Object.keys(channelMap).find((k) => {
-            const kLower = k.toLowerCase();
-            return kLower.includes(m.home.name.toLowerCase().split(" ")[0]) &&
-                   kLower.includes(m.away.name.toLowerCase().split(" ")[0]);
-          });
-          if (key && channelMap[key].length > 0) {
-            return { ...m, channels: channelMap[key] };
-          }
-          return m;
-        })
-      );
-    } catch (err) {
-      console.log("Scrape channels failed (non-critical):", err);
-    }
-  };
-
   const fetchMatches = async () => {
     setMatchesLoading(true);
     try {
@@ -144,9 +107,18 @@ const GamesDay = () => {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Erro ao buscar jogos");
-      const matchList = (json.matches || []).map((m: Match) => ({ ...m, channels: [] }));
+
+      const channelMap: Record<string, string[]> = json.channels || {};
+      const matchList = (json.matches || []).map((m: Match) => {
+        // Try to find channels from channel map
+        const key = Object.keys(channelMap).find((k) => {
+          const kLower = k.toLowerCase();
+          return kLower.includes(m.home.name.toLowerCase().split(" ")[0]) &&
+                 kLower.includes(m.away.name.toLowerCase().split(" ")[0]);
+        });
+        return { ...m, channels: key ? channelMap[key] : [] };
+      });
       setMatches(matchList);
-      scrapeChannels(matchList);
     } catch (err: any) {
       toast({ title: "Erro ao buscar jogos", description: err.message, variant: "destructive" });
     } finally {
