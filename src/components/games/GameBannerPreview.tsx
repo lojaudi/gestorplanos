@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
@@ -66,21 +66,45 @@ function restoreImages(swapped: { el: HTMLImageElement; orig: string }[]) {
 
 export function GameBannerPreview({ matches, template, title, logoUrl, whatsapp, primaryColor, secondaryColor, accentColor, backgroundUrl, userId, bannerIndex, totalBanners }: Props) {
   const bannerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [copying, setCopying] = useState(false);
   const [sendingAll, setSendingAll] = useState(false);
   const [sendingActive, setSendingActive] = useState(false);
+  const [scale, setScale] = useState(1);
 
   const templateProps = { matches, title, logoUrl, whatsapp, primaryColor, secondaryColor, accentColor, backgroundUrl };
 
+  // Responsive scaling: fit the 1404px-wide banner into the container
+  useEffect(() => {
+    const updateScale = () => {
+      if (containerRef.current) {
+        const containerWidth = containerRef.current.offsetWidth;
+        const bannerWidth = 1404;
+        setScale(Math.min(1, containerWidth / bannerWidth));
+      }
+    };
+    updateScale();
+    window.addEventListener("resize", updateScale);
+    return () => window.removeEventListener("resize", updateScale);
+  }, []);
+
   const generateBlob = async (): Promise<Blob | null> => {
     if (!bannerRef.current) return null;
-    const swapped = await proxyAllImages(bannerRef.current);
+    // Temporarily remove scale transform for full-resolution capture
+    const el = bannerRef.current;
+    const origTransform = el.style.transform;
+    const origTransformOrigin = el.style.transformOrigin;
+    el.style.transform = "none";
+    el.style.transformOrigin = "";
+    const swapped = await proxyAllImages(el);
     try {
       const { default: html2canvas } = await import("html2canvas");
-      const canvas = await html2canvas(bannerRef.current, { useCORS: true, allowTaint: true, scale: 2, logging: false, imageTimeout: 30000 });
+      const canvas = await html2canvas(el, { useCORS: true, allowTaint: true, scale: 2, logging: false, imageTimeout: 30000, width: 1404, height: 1600 });
       restoreImages(swapped);
+      el.style.transform = origTransform;
+      el.style.transformOrigin = origTransformOrigin;
       return new Promise((resolve) => { canvas.toBlob((blob) => resolve(blob), "image/png"); });
-    } catch (err) { restoreImages(swapped); throw err; }
+    } catch (err) { restoreImages(swapped); el.style.transform = origTransform; el.style.transformOrigin = origTransformOrigin; throw err; }
   };
 
   const handleCopy = async () => {
@@ -158,10 +182,20 @@ export function GameBannerPreview({ matches, template, title, logoUrl, whatsapp,
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div ref={bannerRef} style={{ maxWidth: 420, margin: "0 auto" }}>
-          {template === "modern" && <ModernTemplate {...templateProps} />}
-          {template === "sporty" && <SportyTemplate {...templateProps} />}
-          {template === "minimal" && <MinimalTemplate {...templateProps} />}
+        <div ref={containerRef} className="w-full overflow-hidden" style={{ height: 1600 * scale }}>
+          <div
+            ref={bannerRef}
+            style={{
+              width: 1404,
+              height: 1600,
+              transform: `scale(${scale})`,
+              transformOrigin: "top left",
+            }}
+          >
+            {template === "modern" && <ModernTemplate {...templateProps} />}
+            {template === "sporty" && <SportyTemplate {...templateProps} />}
+            {template === "minimal" && <MinimalTemplate {...templateProps} />}
+          </div>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-2">

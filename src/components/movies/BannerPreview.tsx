@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -122,11 +122,29 @@ function restoreImages(swapped: { el: HTMLImageElement; orig: string }[]) {
 
 export function BannerPreview({ selected, logoUrl, onBack, userId }: Props) {
   const bannerRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [customMessage, setCustomMessage] = useState("");
   const [whatsappNumber, setWhatsappNumber] = useState("");
   const [copying, setCopying] = useState(false);
   const [sendingAll, setSendingAll] = useState(false);
   const [sendingActive, setSendingActive] = useState(false);
+  const [scale, setScale] = useState(1);
+
+  const BANNER_WIDTH = 480;
+  const BANNER_HEIGHT = Math.round(480 * (16 / 9));
+
+  // Responsive scaling
+  useEffect(() => {
+    const updateScale = () => {
+      if (containerRef.current) {
+        const containerWidth = containerRef.current.offsetWidth;
+        setScale(Math.min(1, containerWidth / BANNER_WIDTH));
+      }
+    };
+    updateScale();
+    window.addEventListener("resize", updateScale);
+    return () => window.removeEventListener("resize", updateScale);
+  }, []);
 
   const title = selected.title || selected.name || "";
   const year = (selected.release_date || selected.first_air_date || "").slice(0, 4);
@@ -134,22 +152,30 @@ export function BannerPreview({ selected, logoUrl, onBack, userId }: Props) {
 
   const generateBannerBlob = async (): Promise<Blob | null> => {
     if (!bannerRef.current) return null;
-    const swapped = await proxyAllImages(bannerRef.current);
+    // Remove scale for full-res capture
+    const el = bannerRef.current;
+    const origTransform = el.style.transform;
+    el.style.transform = "none";
+    const swapped = await proxyAllImages(el);
     try {
       const { default: html2canvas } = await import("html2canvas");
-      const canvas = await html2canvas(bannerRef.current, {
+      const canvas = await html2canvas(el, {
         useCORS: true,
         allowTaint: true,
         scale: 2,
         logging: false,
         imageTimeout: 30000,
+        width: BANNER_WIDTH,
+        height: BANNER_HEIGHT,
       });
       restoreImages(swapped);
+      el.style.transform = origTransform;
       return new Promise((resolve) => {
         canvas.toBlob((blob) => resolve(blob), "image/png");
       });
     } catch (err) {
       restoreImages(swapped);
+      el.style.transform = origTransform;
       throw err;
     }
   };
@@ -310,11 +336,17 @@ export function BannerPreview({ selected, logoUrl, onBack, userId }: Props) {
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Visual Banner */}
-          <div
-            ref={bannerRef}
-            className="relative w-full overflow-hidden rounded-xl"
-            style={{ aspectRatio: "9/16", maxWidth: 480, margin: "0 auto" }}
-          >
+          <div ref={containerRef} className="w-full overflow-hidden" style={{ height: BANNER_HEIGHT * scale }}>
+            <div
+              ref={bannerRef}
+              className="relative overflow-hidden rounded-xl"
+              style={{
+                width: BANNER_WIDTH,
+                height: BANNER_HEIGHT,
+                transform: `scale(${scale})`,
+                transformOrigin: "top left",
+              }}
+            >
             {/* Background: blurred poster */}
             {selected.poster_path && (
               <img
@@ -490,6 +522,7 @@ export function BannerPreview({ selected, logoUrl, onBack, userId }: Props) {
                   </p>
                 </div>
               )}
+            </div>
             </div>
           </div>
 
