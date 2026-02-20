@@ -21,7 +21,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Users, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Users, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Client = Tables<"clients">;
@@ -46,6 +46,8 @@ const statusConfig = {
   vencido: { label: "Vencido", variant: "destructive" as const },
 };
 
+const PAGE_SIZE_OPTIONS = ["10", "25", "50", "100", "all"] as const;
+
 const Clients = () => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -61,6 +63,8 @@ const Clients = () => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [pageSize, setPageSize] = useState<string>("10");
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Form state
   const [formName, setFormName] = useState("");
@@ -100,6 +104,21 @@ const Clients = () => {
       return true;
     });
   }, [clients, statusFilter, searchQuery]);
+
+  const totalPages = useMemo(() => {
+    if (pageSize === "all") return 1;
+    return Math.max(1, Math.ceil(filteredClients.length / Number(pageSize)));
+  }, [filteredClients.length, pageSize]);
+
+  // Reset to page 1 when filters or pageSize change
+  useEffect(() => { setCurrentPage(1); }, [statusFilter, searchQuery, pageSize]);
+
+  const paginatedClients = useMemo(() => {
+    if (pageSize === "all") return filteredClients;
+    const size = Number(pageSize);
+    const start = (currentPage - 1) * size;
+    return filteredClients.slice(start, start + size);
+  }, [filteredClients, pageSize, currentPage]);
 
   const calcDueDate = (planId: string) => {
     const plan = plans.find((p) => p.id === planId);
@@ -217,10 +236,12 @@ const Clients = () => {
   };
 
   const toggleSelectAll = () => {
-    if (selected.size === filteredClients.length) {
-      setSelected(new Set());
+    const pageIds = paginatedClients.map((c) => c.id);
+    const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selected.has(id));
+    if (allPageSelected) {
+      setSelected((prev) => { const n = new Set(prev); pageIds.forEach((id) => n.delete(id)); return n; });
     } else {
-      setSelected(new Set(filteredClients.map((c) => c.id)));
+      setSelected((prev) => { const n = new Set(prev); pageIds.forEach((id) => n.add(id)); return n; });
     }
   };
 
@@ -288,7 +309,7 @@ const Clients = () => {
               <TableRow>
                 <TableHead className="w-10">
                   <Checkbox
-                    checked={filteredClients.length > 0 && selected.size === filteredClients.length}
+                    checked={paginatedClients.length > 0 && paginatedClients.every((c) => selected.has(c.id))}
                     onCheckedChange={toggleSelectAll}
                   />
                 </TableHead>
@@ -308,7 +329,7 @@ const Clients = () => {
                     Carregando...
                   </TableCell>
                 </TableRow>
-              ) : filteredClients.length === 0 ? (
+              ) : paginatedClients.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} className="text-center py-8">
                     <Users className="mx-auto mb-2 h-8 w-8 text-muted-foreground/50" />
@@ -316,7 +337,7 @@ const Clients = () => {
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredClients.map((c) => {
+                paginatedClients.map((c) => {
                   const status = getStatus(c.due_date);
                   const cfg = statusConfig[status];
                   return (
@@ -355,6 +376,51 @@ const Clients = () => {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Pagination Controls */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Exibir</span>
+          <Select value={pageSize} onValueChange={setPageSize}>
+            <SelectTrigger className="w-24">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PAGE_SIZE_OPTIONS.map((opt) => (
+                <SelectItem key={opt} value={opt}>
+                  {opt === "all" ? "Todos" : opt}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <span className="text-sm text-muted-foreground">
+            de {filteredClients.length} cliente(s)
+          </span>
+        </div>
+        {pageSize !== "all" && totalPages > 1 && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              disabled={currentPage <= 1}
+              onClick={() => setCurrentPage((p) => p - 1)}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <span className="text-sm text-muted-foreground">
+              Página {currentPage} de {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="icon"
+              disabled={currentPage >= totalPages}
+              onClick={() => setCurrentPage((p) => p + 1)}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+      </div>
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -405,28 +471,7 @@ const Clients = () => {
               <Label htmlFor="clientDueDate">Data de Vencimento</Label>
               <Input id="clientDueDate" type="date" value={formDueDate} onChange={(e) => setFormDueDate(e.target.value)} />
             </div>
-      {/* Bulk Delete Confirmation */}
-      <AlertDialog open={!!bulkDeleteMode} onOpenChange={() => setBulkDeleteMode(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              {bulkDeleteMode === "selected"
-                ? `Excluir ${selected.size} cliente(s) selecionado(s)?`
-                : `Excluir ${expiredClients.length} cliente(s) vencido(s)?`}
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Esta ação não pode ser desfeita. Todos os dados desses clientes serão removidos permanentemente.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleBulkDelete} disabled={saving}>
-              {saving ? "Excluindo..." : "Excluir"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+          </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
             <Button onClick={handleSave} disabled={!formName.trim() || !formPhone.trim() || saving}>
@@ -448,6 +493,28 @@ const Clients = () => {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete}>Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Delete Confirmation */}
+      <AlertDialog open={!!bulkDeleteMode} onOpenChange={() => setBulkDeleteMode(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {bulkDeleteMode === "selected"
+                ? `Excluir ${selected.size} cliente(s) selecionado(s)?`
+                : `Excluir ${expiredClients.length} cliente(s) vencido(s)?`}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. Todos os dados desses clientes serão removidos permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} disabled={saving}>
+              {saving ? "Excluindo..." : "Excluir"}
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
