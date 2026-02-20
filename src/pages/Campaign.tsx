@@ -83,6 +83,8 @@ export default function Campaign() {
     return urlData.publicUrl;
   };
 
+  const BATCH_SIZE = 40;
+
   const handleSend = async (filter: "all" | "active" | "expired") => {
     if (!message.trim()) {
       toast({ title: "Mensagem vazia", description: "Digite uma mensagem para enviar.", variant: "destructive" });
@@ -110,35 +112,44 @@ export default function Campaign() {
         }
       }
 
-      if (imageUrl) {
-        const { data, error } = await supabase.functions.invoke("evolution-api", {
-          body: {
-            action: "send-bulk-media",
-            messages: clients.map((c) => ({ phone: c.phone, client_id: c.id, template_type: "campanha" })),
-            imageUrl,
-            caption: message.trim(),
-          },
-        });
-        if (error) {
-          const errBody = data || (error as any)?.context;
-          throw new Error(errBody?.error || error.message);
-        }
-      } else {
-        const { data, error } = await supabase.functions.invoke("evolution-api", {
-          body: {
-            action: "send-bulk",
-            messages: clients.map((c) => ({ phone: c.phone, message: message.trim(), client_id: c.id, template_type: "campanha" })),
-          },
-        });
-        if (error) {
-          const errBody = data || (error as any)?.context;
-          throw new Error(errBody?.error || error.message);
-        }
+      // Split clients into batches to avoid edge function timeout
+      const batches: Client[][] = [];
+      for (let i = 0; i < clients.length; i += BATCH_SIZE) {
+        batches.push(clients.slice(i, i + BATCH_SIZE));
       }
 
-      toast({ title: "Campanha enviada!", description: `Mensagem enviada para ${clients.length} clientes (${targetLabel}).` });
+      let totalSent = 0;
+      for (const batch of batches) {
+        if (imageUrl) {
+          const { data, error } = await supabase.functions.invoke("evolution-api", {
+            body: {
+              action: "send-bulk-media",
+              messages: batch.map((c) => ({ phone: c.phone, client_id: c.id, template_type: "campanha" })),
+              imageUrl,
+              caption: message.trim(),
+            },
+          });
+          if (error) {
+            const errBody = data || (error as any)?.context;
+            throw new Error(errBody?.error || error.message);
+          }
+        } else {
+          const { data, error } = await supabase.functions.invoke("evolution-api", {
+            body: {
+              action: "send-bulk",
+              messages: batch.map((c) => ({ phone: c.phone, message: message.trim(), client_id: c.id, template_type: "campanha" })),
+            },
+          });
+          if (error) {
+            const errBody = data || (error as any)?.context;
+            throw new Error(errBody?.error || error.message);
+          }
+        }
+        totalSent += batch.length;
+      }
 
-      // Log
+      toast({ title: "Campanha enviada!", description: `Mensagem enviada para ${totalSent} clientes (${targetLabel}).` });
+
       await supabase.from("message_logs").insert({
         user_id: user.id,
         message_content: `[Campanha - ${targetLabel}] ${message.trim().slice(0, 200)}`,

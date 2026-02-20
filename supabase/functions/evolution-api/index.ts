@@ -550,6 +550,7 @@ serve(async (req) => {
 
       const supabase = getServiceClient();
       const results = [];
+      const DELAY_MS = 500; // Reduced delay to avoid timeout on large lists
 
       for (const msg of messages) {
         const cleanPhone = msg.phone.replace(/\D/g, "");
@@ -582,7 +583,9 @@ serve(async (req) => {
         });
 
         results.push({ client_id: msg.client_id, phone: msg.phone, status });
-        await new Promise((r) => setTimeout(r, 1500));
+        if (results.length < messages.length) {
+          await new Promise((r) => setTimeout(r, DELAY_MS));
+        }
       }
 
       return jsonResponse({ success: true, results });
@@ -652,7 +655,9 @@ serve(async (req) => {
         });
 
         results.push({ client_id: msg.client_id, phone: msg.phone, status });
-        await new Promise((r) => setTimeout(r, 1500));
+        if (results.length < messages.length) {
+          await new Promise((r) => setTimeout(r, 500));
+        }
       }
 
       return jsonResponse({ success: true, results });
