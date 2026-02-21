@@ -31,6 +31,7 @@ const templateTypes = [
   { value: "vencido", label: "Vencido" },
   { value: "vencendo_amanha", label: "Vence Amanhã" },
   { value: "confirmacao_pagamento", label: "Confirmação de Pagamento" },
+  { value: "cobranca_manual", label: "Cobrança Manual" },
 ];
 
 const variables = [
@@ -75,6 +76,7 @@ const getTypeBadgeVariant = (type: string) => {
     case "vencido": return "destructive" as const;
     case "vencendo_amanha": return "default" as const;
     case "confirmacao_pagamento": return "outline" as const;
+    case "cobranca_manual": return "default" as const;
     default: return "outline" as const;
   }
 };

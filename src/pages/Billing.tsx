@@ -33,6 +33,8 @@ import {
   QrCode,
   Bot,
   Save,
+  Receipt,
+  RefreshCw,
 } from "lucide-react";
 import {
   Dialog,
@@ -69,6 +71,7 @@ interface Plan {
   id: string;
   name: string;
   price: number | null;
+  duration_months: number;
 }
 
 type FilterType = "all" | "due_today" | "overdue" | "due_tomorrow" | "active";
@@ -91,6 +94,8 @@ export default function Billing() {
   const [generatingPix, setGeneratingPix] = useState(false);
   const [gatewayEnabled, setGatewayEnabled] = useState(false);
   const [fixedPixKey, setFixedPixKey] = useState("");
+  const [sendingManualId, setSendingManualId] = useState<string | null>(null);
+  const [confirmingPaymentId, setConfirmingPaymentId] = useState<string | null>(null);
   // Automation state
   const [autoEnabled, setAutoEnabled] = useState(false);
   const [autoBeforeDue, setAutoBeforeDue] = useState(true);
@@ -108,7 +113,7 @@ export default function Billing() {
       supabase.from("clients").select("id, name, phone, due_date, username, plan_id, service_id").eq("user_id", user.id),
       supabase.from("message_templates").select("*").eq("user_id", user.id),
       supabase.from("services").select("id, name").eq("user_id", user.id),
-      supabase.from("plans").select("id, name, price").eq("user_id", user.id),
+      supabase.from("plans").select("id, name, price, duration_months").eq("user_id", user.id),
     ]);
     setClients(clientsRes.data || []);
     setTemplates(templatesRes.data || []);
@@ -409,6 +414,85 @@ export default function Billing() {
       toast({ title: err.message, variant: "destructive" });
     }
     setSavingAuto(false);
+  };
+
+  const handleManualBilling = async (client: Client) => {
+    const manualTemplate = templates.find((t) => t.type === "cobranca_manual");
+    if (!manualTemplate) {
+      toast({
+        title: "Template não encontrado",
+        description: "Crie um template do tipo 'Cobrança Manual' na página de Templates antes de usar esta função.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setSendingManualId(client.id);
+    try {
+      let pixCode = "";
+      let paymentLinkId = "";
+      if (gatewayEnabled) {
+        const plan = plans.find((p) => p.id === client.plan_id);
+        if (plan?.price && plan.price > 0) {
+          try {
+            const pixResult = await callMercadoPago("create-payment", {
+              client_id: client.id,
+              amount: plan.price,
+              description: `Cobrança Manual - ${client.name}`,
+            });
+            pixCode = pixResult.pix_copy_paste || "";
+            paymentLinkId = pixResult.payment_link_id || "";
+          } catch { /* ignore pix error */ }
+        }
+      } else if (fixedPixKey) {
+        pixCode = fixedPixKey;
+      }
+
+      const messageContent = resolveTemplate(manualTemplate, client, pixCode, paymentLinkId);
+      await callEvolutionApi("send-bulk", {
+        messages: [{ phone: client.phone, message: messageContent, client_id: client.id, template_type: "cobranca_manual" }],
+      });
+      toast({ title: "Cobrança enviada!", description: `Mensagem enviada para ${client.name}` });
+    } catch (err: any) {
+      toast({ title: "Erro ao enviar cobrança", description: err.message, variant: "destructive" });
+    }
+    setSendingManualId(null);
+  };
+
+  const handleConfirmPayment = async (client: Client) => {
+    const confirmTemplate = templates.find((t) => t.type === "confirmacao_pagamento");
+    if (!confirmTemplate) {
+      toast({
+        title: "Template não encontrado",
+        description: "Crie um template do tipo 'Confirmação de Pagamento' na página de Templates antes de usar esta função.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setConfirmingPaymentId(client.id);
+    try {
+      // Calculate new due date based on plan duration
+      const plan = plans.find((p) => p.id === client.plan_id);
+      const durationMonths = plan?.duration_months || 1;
+      const newDueDate = new Date();
+      newDueDate.setMonth(newDueDate.getMonth() + durationMonths);
+      const newDueDateStr = newDueDate.toISOString().split("T")[0];
+
+      // Update client due_date
+      await supabase.from("clients").update({ due_date: newDueDateStr }).eq("id", client.id);
+
+      // Send confirmation message
+      const updatedClient = { ...client, due_date: newDueDateStr };
+      const messageContent = resolveTemplate(confirmTemplate, updatedClient);
+      await callEvolutionApi("send-bulk", {
+        messages: [{ phone: client.phone, message: messageContent, client_id: client.id, template_type: "confirmacao_pagamento" }],
+      });
+
+      toast({ title: "Pagamento confirmado!", description: `${client.name} renovado até ${newDueDate.toLocaleDateString("pt-BR")}` });
+      fetchData(); // Refresh data
+    } catch (err: any) {
+      toast({ title: "Erro ao confirmar pagamento", description: err.message, variant: "destructive" });
+    }
+    setConfirmingPaymentId(null);
   };
 
   if (loading) {
@@ -751,7 +835,7 @@ export default function Billing() {
                 <TableHead>Telefone</TableHead>
                 <TableHead>Vencimento</TableHead>
                 <TableHead>Status</TableHead>
-                {gatewayEnabled && <TableHead>Pix</TableHead>}
+                <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -773,26 +857,44 @@ export default function Billing() {
                     <TableCell>
                       <Badge variant={status.variant}>{status.label}</Badge>
                     </TableCell>
-                    {gatewayEnabled && (
-                      <TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
-                          onClick={() => {
-                            setPixClient(client);
-                            setPixDialogOpen(true);
-                          }}
+                          disabled={sendingManualId === client.id}
+                          onClick={() => handleManualBilling(client)}
+                          title="Enviar cobrança manual"
                         >
-                          <QrCode className="h-4 w-4" />
+                          {sendingManualId === client.id ? (
+                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                          ) : (
+                            <Receipt className="mr-1 h-3 w-3" />
+                          )}
+                          Cobrar
                         </Button>
-                      </TableCell>
-                    )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={confirmingPaymentId === client.id}
+                          onClick={() => handleConfirmPayment(client)}
+                          title="Confirmar pagamento e renovar"
+                        >
+                          {confirmingPaymentId === client.id ? (
+                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                          ) : (
+                            <RefreshCw className="mr-1 h-3 w-3" />
+                          )}
+                          Confirmar Pgto
+                        </Button>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 );
               })}
               {filteredClients.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-10">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
                     Nenhum cliente encontrado com este filtro
                   </TableCell>
               </TableRow>
