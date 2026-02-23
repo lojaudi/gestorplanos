@@ -35,6 +35,7 @@ import {
   Save,
   Receipt,
   RefreshCw,
+  Search,
 } from "lucide-react";
 import {
   Dialog,
@@ -106,6 +107,7 @@ export default function Billing() {
   const [hourAfterDue, setHourAfterDue] = useState(15);
   const [savingAuto, setSavingAuto] = useState(false);
   const [hasAutoConfig, setHasAutoConfig] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -172,13 +174,19 @@ export default function Billing() {
   const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
 
   const filteredClients = clients.filter((c) => {
-    switch (filter) {
-      case "due_today": return c.due_date === today;
-      case "overdue": return c.due_date < today;
-      case "due_tomorrow": return c.due_date === tomorrow;
-      case "active": return c.due_date >= today;
-      default: return true;
-    }
+    const matchesFilter = (() => {
+      switch (filter) {
+        case "due_today": return c.due_date === today;
+        case "overdue": return c.due_date < today;
+        case "due_tomorrow": return c.due_date === tomorrow;
+        case "active": return c.due_date >= today;
+        default: return true;
+      }
+    })();
+    if (!matchesFilter) return false;
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return c.name.toLowerCase().includes(q) || c.phone.includes(q);
   });
 
   const getStatus = (dueDate: string) => {
@@ -783,6 +791,15 @@ export default function Billing() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-wrap gap-4">
+            <div className="relative flex-1 min-w-[200px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Pesquisar cliente por nome ou telefone..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
             <div className="w-48">
               <Select value={filter} onValueChange={(v) => { setFilter(v as FilterType); setSelected(new Set()); }}>
                 <SelectTrigger>
