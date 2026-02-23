@@ -226,12 +226,11 @@ const MoviesSeries = () => {
         onSearch={handleSearch}
       />
 
-      {selected && user && (
+      {selected && (
         <BannerPreview
           selected={selected}
           logoUrl={config?.logo_url || null}
           onBack={() => setSelected(null)}
-          userId={user.id}
         />
       )}
 
