@@ -2,8 +2,7 @@ import { useRef, useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
-import { Copy, Send, Users, Loader2 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { Copy, Download, Loader2 } from "lucide-react";
 import { Match } from "./MatchSelectionGrid";
 import { TemplateType } from "./BannerTemplateSelector";
 import { ModernTemplate } from "./templates/ModernTemplate";
@@ -25,7 +24,7 @@ interface Props {
   totalBanners: number;
 }
 
-function delay(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
+
 
 async function imgToDataUrl(url: string): Promise<string | null> {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
@@ -68,8 +67,7 @@ export function GameBannerPreview({ matches, template, title, logoUrl, whatsapp,
   const bannerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [copying, setCopying] = useState(false);
-  const [sendingAll, setSendingAll] = useState(false);
-  const [sendingActive, setSendingActive] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [scale, setScale] = useState(1);
 
   const templateProps = { matches, title, logoUrl, whatsapp, primaryColor, secondaryColor, accentColor, backgroundUrl };
@@ -126,52 +124,18 @@ export function GameBannerPreview({ matches, template, title, logoUrl, whatsapp,
     finally { setCopying(false); }
   };
 
-  const sendToClients = async (activeOnly: boolean) => {
-    const setter = activeOnly ? setSendingActive : setSendingAll;
-    setter(true);
+  const handleDownload = async () => {
+    setDownloading(true);
     try {
-      const { data: clients, error } = await supabase.from("clients").select("id, name, phone, due_date").eq("user_id", userId);
-      if (error) throw error;
-      let list = clients || [];
-      if (activeOnly) {
-        const today = new Date().toISOString().slice(0, 10);
-        list = list.filter((c) => c.due_date >= today);
-      }
-      if (list.length === 0) { toast({ title: activeOnly ? "Nenhum cliente ativo" : "Nenhum cliente", variant: "destructive" }); setter(false); return; }
-
-      toast({ title: "Gerando banner..." });
       const blob = await generateBlob();
-      if (!blob) { toast({ title: "Erro ao gerar banner", variant: "destructive" }); setter(false); return; }
-
-      const path = `banners/${userId}/${Date.now()}.png`;
-      const { error: upErr } = await supabase.storage.from("platform-assets").upload(path, blob, { contentType: "image/png", upsert: true });
-      if (upErr) throw upErr;
-      const { data: { publicUrl } } = supabase.storage.from("platform-assets").getPublicUrl(path);
-
-      const caption = `⚽ ${title}\n${matches.map((m) => `${m.home.name} x ${m.away.name}`).join("\n")}`;
-      const BATCH_SIZE = 10;
-      let sent = 0, errors = 0;
-
-      for (let i = 0; i < list.length; i += BATCH_SIZE) {
-        const batch = list.slice(i, i + BATCH_SIZE);
-        const { data, error: sendErr } = await supabase.functions.invoke("evolution-api", {
-          body: {
-            action: "send-bulk-media",
-            imageUrl: publicUrl,
-            caption,
-            messages: batch.map((c) => ({ phone: c.phone, client_id: c.id, template_type: "game-banner" })),
-          },
-        });
-        if (sendErr) errors += batch.length;
-        else if (data?.results) {
-          sent += data.results.filter((r: any) => r.status === "sent").length;
-          errors += data.results.filter((r: any) => r.status !== "sent").length;
-        }
-        if (i + BATCH_SIZE < list.length) await delay(60000);
-      }
-      toast({ title: "Envio concluído", description: `${sent} enviados, ${errors} erros de ${list.length} clientes` });
-    } catch (err: any) { toast({ title: "Erro no envio", description: err.message, variant: "destructive" }); }
-    finally { setter(false); }
+      if (!blob) { toast({ title: "Erro ao gerar imagem", variant: "destructive" }); return; }
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `banner-jogos-${bannerIndex + 1}.png`; a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "Banner baixado com sucesso!" });
+    } catch (err: any) { toast({ title: "Erro", description: err.message, variant: "destructive" }); }
+    finally { setDownloading(false); }
   };
 
   return (
@@ -199,17 +163,13 @@ export function GameBannerPreview({ matches, template, title, logoUrl, whatsapp,
         </div>
 
         <div className="flex flex-col sm:flex-row gap-2">
-          <Button onClick={handleCopy} disabled={copying} variant="outline" className="flex-1">
+          <Button onClick={handleCopy} disabled={copying || downloading} variant="outline" className="flex-1">
             {copying ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Copy className="mr-2 h-4 w-4" />}
             Copiar Imagem
           </Button>
-          <Button onClick={() => sendToClients(false)} disabled={sendingAll || sendingActive} className="flex-1">
-            {sendingAll ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Send className="mr-2 h-4 w-4" />}
-            Enviar para Todos
-          </Button>
-          <Button onClick={() => sendToClients(true)} disabled={sendingAll || sendingActive} variant="secondary" className="flex-1">
-            {sendingActive ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Users className="mr-2 h-4 w-4" />}
-            Enviar para Ativos
+          <Button onClick={handleDownload} disabled={copying || downloading} className="flex-1">
+            {downloading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+            Baixar Banner
           </Button>
         </div>
       </CardContent>
