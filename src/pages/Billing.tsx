@@ -307,10 +307,15 @@ export default function Billing() {
           const amount = plan?.price;
 
           if (!amount || amount <= 0) {
-            toast({
-              title: `Cliente "${client.name}" não tem plano com preço definido. Pulando Pix.`,
-              variant: "destructive",
-            });
+            // Fallback to fixed pix key if no plan price
+            if (fixedPixKey) {
+              pixCode = fixedPixKey;
+            } else {
+              toast({
+                title: `Cliente "${client.name}" não tem plano com preço definido. Pulando Pix.`,
+                variant: "destructive",
+              });
+            }
           } else {
             try {
               const pixResult = await callMercadoPago("create-payment", {
@@ -322,10 +327,16 @@ export default function Billing() {
               paymentLinkId = pixResult.payment_link_id || "";
             } catch (pixErr: any) {
               console.error("Erro ao gerar Pix para", client.name, pixErr);
-              toast({
-                title: `Erro ao gerar Pix para ${client.name}: ${pixErr.message}`,
-                variant: "destructive",
-              });
+              // Fallback to fixed pix key on MP error
+              if (fixedPixKey) {
+                pixCode = fixedPixKey;
+                console.log(`Usando chave Pix fixa como fallback para ${client.name}`);
+              } else {
+                toast({
+                  title: `Erro ao gerar Pix para ${client.name}: ${pixErr.message}`,
+                  variant: "destructive",
+                });
+              }
             }
           }
         } else if (useFixedPix) {
@@ -451,7 +462,14 @@ export default function Billing() {
             });
             pixCode = pixResult.pix_copy_paste || "";
             paymentLinkId = pixResult.payment_link_id || "";
-          } catch { /* ignore pix error */ }
+          } catch {
+            // Fallback to fixed pix key on MP error
+            if (fixedPixKey) {
+              pixCode = fixedPixKey;
+            }
+          }
+        } else if (fixedPixKey) {
+          pixCode = fixedPixKey;
         }
       } else if (fixedPixKey) {
         pixCode = fixedPixKey;
