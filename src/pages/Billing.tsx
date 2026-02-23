@@ -54,6 +54,8 @@ interface Client {
   username: string | null;
   plan_id: string | null;
   service_id: string | null;
+  plans: { name: string; price: number | null; duration_months: number } | null;
+  services: { name: string } | null;
 }
 
 interface Template {
@@ -112,12 +114,12 @@ export default function Billing() {
   const fetchData = useCallback(async () => {
     if (!user) return;
     const [clientsRes, templatesRes, servicesRes, plansRes] = await Promise.all([
-      supabase.from("clients").select("id, name, phone, due_date, username, plan_id, service_id").eq("user_id", user.id),
+      supabase.from("clients").select("id, name, phone, due_date, username, plan_id, service_id, plans(name, price, duration_months), services(name)").eq("user_id", user.id),
       supabase.from("message_templates").select("*").eq("user_id", user.id),
       supabase.from("services").select("id, name").eq("user_id", user.id),
       supabase.from("plans").select("id, name, price, duration_months").eq("user_id", user.id),
     ]);
-    setClients(clientsRes.data || []);
+    setClients((clientsRes.data as Client[]) || []);
     setTemplates(templatesRes.data || []);
     setServices(servicesRes.data || []);
     setPlans(plansRes.data || []);
@@ -212,8 +214,8 @@ export default function Billing() {
   };
 
   const resolveTemplate = (template: Template, client: Client, pixCode?: string, paymentLinkId?: string) => {
-    const serviceName = services.find((s) => s.id === client.service_id)?.name || "";
-    const plan = plans.find((p) => p.id === client.plan_id);
+    const serviceName = client.services?.name || services.find((s) => s.id === client.service_id)?.name || "";
+    const plan = client.plans || plans.find((p) => p.id === client.plan_id);
     const planName = plan?.name || "";
     const planPrice = plan?.price != null ? plan.price.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "";
     const dueDate = new Date(client.due_date + "T12:00:00");
@@ -301,7 +303,7 @@ export default function Billing() {
         let paymentLinkId = "";
 
         if (needsMpPix) {
-          const plan = plans.find((p) => p.id === client.plan_id);
+          const plan = client.plans || plans.find((p) => p.id === client.plan_id);
           const amount = plan?.price;
 
           if (!amount || amount <= 0) {
@@ -439,7 +441,7 @@ export default function Billing() {
       let pixCode = "";
       let paymentLinkId = "";
       if (gatewayEnabled) {
-        const plan = plans.find((p) => p.id === client.plan_id);
+        const plan = client.plans || plans.find((p) => p.id === client.plan_id);
         if (plan?.price && plan.price > 0) {
           try {
             const pixResult = await callMercadoPago("create-payment", {
@@ -479,7 +481,7 @@ export default function Billing() {
     setConfirmingPaymentId(client.id);
     try {
       // Calculate new due date based on plan duration
-      const plan = plans.find((p) => p.id === client.plan_id);
+      const plan = client.plans || plans.find((p) => p.id === client.plan_id);
       const durationMonths = plan?.duration_months || 1;
       const newDueDate = new Date();
       newDueDate.setMonth(newDueDate.getMonth() + durationMonths);
