@@ -301,9 +301,17 @@ serve(async (req) => {
               }
             } catch (err) {
               console.error(`[auto-billing] Pix error for ${n.client.name}:`, err);
+              // Fallback to fixed pix key on MP error
+              if (fixedPixKey) {
+                pixCode = fixedPixKey;
+                console.log(`[auto-billing] Using fixed pix key as fallback for ${n.client.name}`);
+              }
             }
           }
-        } else if ((hasMeioPagamento || hasLinkPagamento) && !gatewayEnabled && fixedPixKey) {
+        }
+        
+        // Final fallback: if no pixCode was set and we have a fixed key, use it
+        if ((hasMeioPagamento || hasLinkPagamento) && !pixCode && fixedPixKey) {
           pixCode = fixedPixKey;
         }
 
