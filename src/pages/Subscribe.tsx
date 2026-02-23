@@ -128,14 +128,18 @@ const Subscribe = () => {
       if (json.payment_url) {
         window.open(json.payment_url, "_blank");
       } else if (json.pix_copy_paste) {
-        // Show payment page
         const payUrl = `${window.location.origin}/pay?id=${json.payment_id}`;
         window.open(payUrl, "_blank");
       } else {
-        toast({ title: "Erro ao gerar pagamento", description: json.error || "Tente novamente", variant: "destructive" });
+        // MP failed — fallback to WhatsApp
+        console.error("Mercado Pago failed, falling back to WhatsApp", json);
+        handlePayWhatsApp(plan);
+        toast({ title: "Pagamento via Mercado Pago indisponível. Redirecionando para WhatsApp." });
       }
     } catch (err: any) {
-      toast({ title: "Erro", description: err.message, variant: "destructive" });
+      console.error("Mercado Pago error, falling back to WhatsApp", err);
+      handlePayWhatsApp(plan);
+      toast({ title: "Pagamento via Mercado Pago indisponível. Redirecionando para WhatsApp." });
     }
     setProcessingId(null);
   };
