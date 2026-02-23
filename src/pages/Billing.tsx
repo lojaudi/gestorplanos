@@ -323,8 +323,13 @@ export default function Billing() {
                 amount,
                 description: `Cobrança - ${client.name}`,
               });
-              pixCode = pixResult.pix_copy_paste || "";
-              paymentLinkId = pixResult.payment_link_id || "";
+              if (pixResult.success === false) {
+                // MP failed, use fallback
+                pixCode = pixResult.fallback_pix_key || fixedPixKey || "";
+              } else {
+                pixCode = pixResult.pix_copy_paste || "";
+                paymentLinkId = pixResult.payment_link_id || "";
+              }
             } catch (pixErr: any) {
               console.error("Erro ao gerar Pix para", client.name, pixErr);
               // Fallback to fixed pix key on MP error
@@ -393,17 +398,30 @@ export default function Billing() {
       const result = await res.json();
       if (!res.ok) throw new Error(result.error || "Erro ao gerar Pix");
 
-      const paymentUrl = `${window.location.origin}/pay?id=${result.payment_link_id}`;
-      await navigator.clipboard.writeText(paymentUrl);
-      toast({ title: "Link Pix gerado e copiado para a área de transferência!" });
-      setPixDialogOpen(false);
-      setPixAmount("");
-      setPixDescription("");
+      // Handle MP failure with fallback
+      if (result.success === false) {
+        const fallbackKey = result.fallback_pix_key || fixedPixKey;
+        if (fallbackKey) {
+          await navigator.clipboard.writeText(fallbackKey);
+          toast({ title: "Mercado Pago indisponível. Chave Pix fixa copiada." });
+        } else {
+          toast({ title: result.error || "Erro ao gerar Pix", variant: "destructive" });
+        }
+        setPixDialogOpen(false);
+        setPixAmount("");
+        setPixDescription("");
+      } else {
+        const paymentUrl = `${window.location.origin}/pay?id=${result.payment_link_id}`;
+        await navigator.clipboard.writeText(paymentUrl);
+        toast({ title: "Link Pix gerado e copiado para a área de transferência!" });
+        setPixDialogOpen(false);
+        setPixAmount("");
+        setPixDescription("");
+      }
     } catch (err: any) {
-      // Fallback: if MP fails and fixed pix key exists, copy it instead
       if (fixedPixKey) {
         await navigator.clipboard.writeText(fixedPixKey);
-        toast({ title: "Mercado Pago indisponível. Chave Pix fixa copiada para a área de transferência." });
+        toast({ title: "Mercado Pago indisponível. Chave Pix fixa copiada." });
         setPixDialogOpen(false);
         setPixAmount("");
         setPixDescription("");
@@ -469,13 +487,14 @@ export default function Billing() {
               amount: plan.price,
               description: `Cobrança Manual - ${client.name}`,
             });
-            pixCode = pixResult.pix_copy_paste || "";
-            paymentLinkId = pixResult.payment_link_id || "";
-          } catch {
-            // Fallback to fixed pix key on MP error
-            if (fixedPixKey) {
-              pixCode = fixedPixKey;
+            if (pixResult.success === false) {
+              pixCode = pixResult.fallback_pix_key || fixedPixKey || "";
+            } else {
+              pixCode = pixResult.pix_copy_paste || "";
+              paymentLinkId = pixResult.payment_link_id || "";
             }
+          } catch {
+            if (fixedPixKey) pixCode = fixedPixKey;
           }
         } else if (fixedPixKey) {
           pixCode = fixedPixKey;

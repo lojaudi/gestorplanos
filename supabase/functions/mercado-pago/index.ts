@@ -196,7 +196,13 @@ serve(async (req) => {
 
       if (!mpResponse.ok) {
         console.error("Mercado Pago error:", JSON.stringify(mpData));
-        return errorResponse(`Erro no Mercado Pago: ${mpData.message || JSON.stringify(mpData)}`, 500);
+        // Return structured error with fallback info instead of 500
+        const fixedPixKey = config.pix_key || "";
+        return jsonResponse({
+          success: false,
+          error: mpData.message || "Erro no Mercado Pago",
+          fallback_pix_key: fixedPixKey,
+        }, 200);
       }
 
       const pixInfo = mpData.point_of_interaction?.transaction_data;
