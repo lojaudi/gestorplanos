@@ -400,7 +400,16 @@ export default function Billing() {
       setPixAmount("");
       setPixDescription("");
     } catch (err: any) {
-      toast({ title: err.message, variant: "destructive" });
+      // Fallback: if MP fails and fixed pix key exists, copy it instead
+      if (fixedPixKey) {
+        await navigator.clipboard.writeText(fixedPixKey);
+        toast({ title: "Mercado Pago indisponível. Chave Pix fixa copiada para a área de transferência." });
+        setPixDialogOpen(false);
+        setPixAmount("");
+        setPixDescription("");
+      } else {
+        toast({ title: err.message, variant: "destructive" });
+      }
     }
     setGeneratingPix(false);
   };
