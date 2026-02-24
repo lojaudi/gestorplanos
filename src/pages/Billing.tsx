@@ -221,8 +221,9 @@ export default function Billing() {
     const dueDate = new Date(client.due_date + "T12:00:00");
     const formattedDue = dueDate.toLocaleDateString("pt-BR");
 
+    const durationMonths = plan?.duration_months || 1;
     const nextDue = new Date(dueDate);
-    nextDue.setMonth(nextDue.getMonth() + 1);
+    nextDue.setMonth(nextDue.getMonth() + durationMonths);
     const formattedNextDue = nextDue.toLocaleDateString("pt-BR");
 
     const paymentLink = paymentLinkId ? `${window.location.origin}/pay?id=${paymentLinkId}` : (pixCode || "");

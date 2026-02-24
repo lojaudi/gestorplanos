@@ -156,7 +156,7 @@ serve(async (req) => {
       // Fetch plans and services by their IDs (not filtered by user_id, since clients may reference plans from other users)
       let userPlans: any[] = [];
       if (clientPlanIds.length > 0) {
-        const { data } = await supabase.from("plans").select("id, name, price").in("id", clientPlanIds);
+        const { data } = await supabase.from("plans").select("id, name, price, duration_months").in("id", clientPlanIds);
         userPlans = data || [];
       }
       let userServices: any[] = [];
@@ -232,10 +232,11 @@ serve(async (req) => {
         const plan = (userPlans || []).find((p: any) => p.id === client.plan_id);
         const planName = plan?.name || "";
         const planPrice = plan?.price != null ? Number(plan.price).toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "";
+        const planDuration = plan?.duration_months || 1;
         const dueDate = new Date(client.due_date + "T12:00:00");
         const formattedDue = dueDate.toLocaleDateString("pt-BR");
         const nextDue = new Date(dueDate);
-        nextDue.setMonth(nextDue.getMonth() + 1);
+        nextDue.setMonth(nextDue.getMonth() + planDuration);
         const formattedNextDue = nextDue.toLocaleDateString("pt-BR");
         const paymentLink = paymentLinkId ? `https://gestorplanos.lovable.app/pay?id=${paymentLinkId}` : (pixCode || "");
 
