@@ -35,6 +35,7 @@ interface AdminPlan {
   name: string;
   price: number;
   max_clients: number;
+  duration_months: number;
   module_campaigns: boolean;
   module_games: boolean;
   module_banners: boolean;
@@ -95,9 +96,28 @@ export function EditUserDialog({ user, open, onOpenChange, onUpdated }: EditUser
     setSaving(true);
     try {
       const planId = selectedPlanId === "none" ? null : selectedPlanId;
+
+      // Calculate new plan_expires_at when plan changes
+      const profileUpdate: Record<string, any> = { full_name: fullName, email, admin_plan_id: planId };
+      if (planId && planId !== user.admin_plan_id) {
+        const selectedPlan = plans.find((p) => p.id === planId);
+        if (selectedPlan) {
+          const now = new Date();
+          if (selectedPlan.name === "Free") {
+            // Free/trial: 7 days
+            now.setDate(now.getDate() + 7);
+          } else {
+            now.setMonth(now.getMonth() + selectedPlan.duration_months);
+          }
+          profileUpdate.plan_expires_at = now.toISOString();
+        }
+      } else if (!planId) {
+        profileUpdate.plan_expires_at = null;
+      }
+
       const { error: profileError } = await supabase
         .from("profiles")
-        .update({ full_name: fullName, email, admin_plan_id: planId })
+        .update(profileUpdate)
         .eq("id", user.id);
 
       if (profileError) throw profileError;
