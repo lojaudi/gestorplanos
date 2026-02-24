@@ -213,7 +213,13 @@ export default function Billing() {
     }
   };
 
-  const resolveTemplate = (template: Template, client: Client, pixCode?: string, paymentLinkId?: string) => {
+  const resolveTemplate = (
+    template: Template,
+    client: Client,
+    pixCode?: string,
+    paymentLinkId?: string,
+    overrides?: { nextDueDate?: string },
+  ) => {
     const serviceName = client.services?.name || services.find((s) => s.id === client.service_id)?.name || "";
     const plan = client.plans || plans.find((p) => p.id === client.plan_id);
     const planName = plan?.name || "";
@@ -222,9 +228,11 @@ export default function Billing() {
     const formattedDue = dueDate.toLocaleDateString("pt-BR");
 
     const durationMonths = plan?.duration_months || 1;
-    const nextDue = new Date(dueDate);
-    nextDue.setMonth(nextDue.getMonth() + durationMonths);
-    const formattedNextDue = nextDue.toLocaleDateString("pt-BR");
+    const defaultNextDue = new Date(dueDate);
+    defaultNextDue.setMonth(defaultNextDue.getMonth() + durationMonths);
+    const formattedNextDue = overrides?.nextDueDate
+      ? new Date(overrides.nextDueDate + "T12:00:00").toLocaleDateString("pt-BR")
+      : defaultNextDue.toLocaleDateString("pt-BR");
 
     const paymentLink = paymentLinkId ? `${window.location.origin}/pay?id=${paymentLinkId}` : (pixCode || "");
 
@@ -539,7 +547,9 @@ export default function Billing() {
 
       // Send confirmation message
       const updatedClient = { ...client, due_date: newDueDateStr };
-      const messageContent = resolveTemplate(confirmTemplate, updatedClient);
+      const messageContent = resolveTemplate(confirmTemplate, updatedClient, undefined, undefined, {
+        nextDueDate: newDueDateStr,
+      });
       await callEvolutionApi("send-bulk", {
         messages: [{ phone: client.phone, message: messageContent, client_id: client.id, template_type: "confirmacao_pagamento" }],
       });
