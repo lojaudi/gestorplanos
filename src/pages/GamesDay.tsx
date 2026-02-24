@@ -231,8 +231,31 @@ const GamesDay = () => {
       });
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || "Erro ao gerar imagem");
-      setConfig((prev) => ({ ...prev, background_url: `${json.url}?t=${Date.now()}` }));
+      const newBgUrl = `${json.url}?t=${Date.now()}`;
+      setConfig((prev) => ({ ...prev, background_url: newBgUrl }));
       toast({ title: `Jogador do ${json.team} gerado com IA!` });
+
+      // Persist background_url to DB so it survives page refreshes
+      if (user) {
+        const payload = {
+          user_id: user.id,
+          background_url: newBgUrl,
+        };
+        if (config.id) {
+          await supabase.from("football_user_config").update({ background_url: newBgUrl }).eq("id", config.id);
+        } else {
+          const { data } = await supabase.from("football_user_config").insert({
+            ...payload,
+            logo_url: config.logo_url,
+            whatsapp_number: config.whatsapp_number || null,
+            custom_title: config.custom_title,
+            primary_color: config.primary_color,
+            secondary_color: config.secondary_color,
+            accent_color: config.accent_color,
+          }).select().single();
+          if (data) setConfig((prev) => ({ ...prev, id: data.id }));
+        }
+      }
     } catch (err: any) {
       toast({ title: "Erro ao gerar jogador", description: err.message, variant: "destructive" });
     } finally {
