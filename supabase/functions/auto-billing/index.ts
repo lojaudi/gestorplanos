@@ -149,9 +149,21 @@ serve(async (req) => {
         continue;
       }
 
-      // Get user's services and plans for template resolution
-      const { data: userServices } = await supabase.from("services").select("id, name").eq("user_id", userId);
-      const { data: userPlans } = await supabase.from("plans").select("id, name, price").eq("user_id", userId);
+      // Get plan and service IDs referenced by this user's clients
+      const clientPlanIds = [...new Set(clients.filter((c: any) => c.plan_id).map((c: any) => c.plan_id))];
+      const clientServiceIds = [...new Set(clients.filter((c: any) => c.service_id).map((c: any) => c.service_id))];
+
+      // Fetch plans and services by their IDs (not filtered by user_id, since clients may reference plans from other users)
+      let userPlans: any[] = [];
+      if (clientPlanIds.length > 0) {
+        const { data } = await supabase.from("plans").select("id, name, price").in("id", clientPlanIds);
+        userPlans = data || [];
+      }
+      let userServices: any[] = [];
+      if (clientServiceIds.length > 0) {
+        const { data } = await supabase.from("services").select("id, name").in("id", clientServiceIds);
+        userServices = data || [];
+      }
 
       // Get user's payment config
       const { data: payConfig } = await supabase
