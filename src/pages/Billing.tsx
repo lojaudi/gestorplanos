@@ -535,12 +535,17 @@ export default function Billing() {
     }
     setConfirmingPaymentId(client.id);
     try {
-      // Calculate new due date based on plan duration
+      // Calculate new due date based on plan duration and client status
       const plan = client.plans || plans.find((p) => p.id === client.plan_id);
       const durationMonths = plan?.duration_months || 1;
-      const newDueDate = new Date();
-      newDueDate.setMonth(newDueDate.getMonth() + durationMonths);
-      const newDueDateStr = newDueDate.toISOString().split("T")[0];
+      const today = new Date();
+      today.setHours(12, 0, 0, 0);
+      const currentDueDate = new Date(client.due_date + "T12:00:00");
+      // If client is overdue (due_date < today), renew from today
+      // If client is not overdue, renew from current due_date
+      const baseDate = currentDueDate < today ? new Date(today) : new Date(currentDueDate);
+      baseDate.setMonth(baseDate.getMonth() + durationMonths);
+      const newDueDateStr = baseDate.toISOString().split("T")[0];
 
       // Update client due_date
       await supabase.from("clients").update({ due_date: newDueDateStr }).eq("id", client.id);
@@ -554,7 +559,7 @@ export default function Billing() {
         messages: [{ phone: client.phone, message: messageContent, client_id: client.id, template_type: "confirmacao_pagamento" }],
       });
 
-      toast({ title: "Pagamento confirmado!", description: `${client.name} renovado até ${newDueDate.toLocaleDateString("pt-BR")}` });
+      toast({ title: "Pagamento confirmado!", description: `${client.name} renovado até ${new Date(newDueDateStr + "T12:00:00").toLocaleDateString("pt-BR")}` });
       fetchData(); // Refresh data
     } catch (err: any) {
       toast({ title: "Erro ao confirmar pagamento", description: err.message, variant: "destructive" });

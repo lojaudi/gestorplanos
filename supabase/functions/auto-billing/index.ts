@@ -235,9 +235,12 @@ serve(async (req) => {
         const planDuration = plan?.duration_months || 1;
         const dueDate = new Date(client.due_date + "T12:00:00");
         const formattedDue = dueDate.toLocaleDateString("pt-BR");
-        const nextDue = new Date(dueDate);
-        nextDue.setMonth(nextDue.getMonth() + planDuration);
-        const formattedNextDue = nextDue.toLocaleDateString("pt-BR");
+        // Smart renewal: if overdue, renew from today; if not, renew from due date
+        const nowForRenewal = new Date();
+        nowForRenewal.setHours(12, 0, 0, 0);
+        const renewalBase = dueDate < nowForRenewal ? new Date(nowForRenewal) : new Date(dueDate);
+        renewalBase.setMonth(renewalBase.getMonth() + planDuration);
+        const formattedNextDue = renewalBase.toLocaleDateString("pt-BR");
         const paymentLink = paymentLinkId ? `https://gestorplanos.lovable.app/pay?id=${paymentLinkId}` : (pixCode || "");
 
         return template.content
