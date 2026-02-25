@@ -153,10 +153,8 @@ export function ModernTemplate({ matches, title, logoUrl, whatsapp, primaryColor
                     <div className="flex items-center flex-wrap" style={{ gap: "4px", marginTop: "2px" }}>
                       {m.channels.slice(0, 3).map((ch) => {
                         const info = CHANNEL_MAP[ch];
-                        return info ? (
-                          <img key={ch} src={info.logo} alt={info.name} title={info.name} className="object-contain" style={{ height: channelHeight, width: "auto" }} />
-                        ) : (
-                          <span key={ch} className="font-bold" style={{ fontSize: "0.3em", background: "rgba(255,255,255,0.15)", padding: "1px 4px", borderRadius: "3px" }}>{ch}</span>
+                        return (
+                          <span key={ch} className="font-bold" style={{ fontSize: "0.3em", background: "rgba(255,255,255,0.15)", padding: "1px 6px", borderRadius: "3px" }}>{info?.name || ch}</span>
                         );
                       })}
                     </div>
