@@ -28,6 +28,7 @@ import AdminPlans from "./pages/AdminPlans";
 import MoviesSeries from "./pages/MoviesSeries";
 import GamesDay from "./pages/GamesDay";
 import Campaign from "./pages/Campaign";
+import VideoBanner from "./pages/VideoBanner";
 import Subscribe from "./pages/Subscribe";
 import AdminSupportMaterials from "./pages/AdminSupportMaterials";
 import SupportMaterialsPage from "./pages/SupportMaterials";
@@ -62,6 +63,7 @@ const App = () => (
               <Route path="/movies-series" element={<ProtectedPage><MoviesSeries /></ProtectedPage>} />
               <Route path="/games-day" element={<ProtectedPage><GamesDay /></ProtectedPage>} />
               <Route path="/campaign" element={<ProtectedPage><Campaign /></ProtectedPage>} />
+              <Route path="/video-banner" element={<ProtectedPage><VideoBanner /></ProtectedPage>} />
               <Route path="/subscribe" element={<ProtectedPage><Subscribe /></ProtectedPage>} />
               <Route path="/support-materials" element={<ProtectedPage><SupportMaterialsPage /></ProtectedPage>} />
               <Route path="/admin/support-materials" element={<ProtectedPage><AdminSupportMaterials /></ProtectedPage>} />
