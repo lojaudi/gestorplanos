@@ -278,6 +278,7 @@ async function generateMP4(
   const HEIGHT = VIDEO_H + BANNER_H;
   const FPS = 24;
   const MAX_DURATION = 15;
+  const FRAME_DURATION_US = Math.round(1_000_000 / FPS);
 
   onStatus("Carregando trailer...");
   const video = await loadVideoFromBlob(trailerBlob);
@@ -290,13 +291,8 @@ async function generateMP4(
   bannerCanvas.height = BANNER_H;
   renderStaticBanner(
     bannerCanvas.getContext("2d")!,
-    WIDTH,
-    BANNER_H,
-    bannerImages,
-    title,
-    type,
-    year,
-    duration,
+    WIDTH, BANNER_H, bannerImages,
+    title, type, year, duration,
     selected.overview || "",
     selected.cast.map((c) => c.name),
   );
@@ -305,21 +301,7 @@ async function generateMP4(
   const canvas = document.createElement("canvas");
   canvas.width = WIDTH;
   canvas.height = HEIGHT;
-  const ctx = canvas.getContext("2d")!;
-
-  // Setup muxer + encoder
-  const target = new ArrayBufferTarget();
-  const muxer = new Muxer({
-    target,
-    video: { codec: "avc", width: WIDTH, height: HEIGHT },
-    fastStart: "in-memory",
-  });
-
-  const encoder = new VideoEncoder({
-    output: (chunk: EncodedVideoChunk, meta: EncodedVideoChunkMetadata) =>
-      muxer.addVideoChunk(chunk, meta),
-    error: (e: DOMException) => console.error("Encoder error:", e),
-  });
+  const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
 
   // Find supported codec
   const codecs = ["avc1.42001f", "avc1.4d001f", "avc1.640029"];
@@ -341,43 +323,63 @@ async function generateMP4(
     throw new Error("Navegador não suporta codificação H.264. Use o Google Chrome.");
   }
 
+  // Setup muxer + encoder
+  const target = new ArrayBufferTarget();
+  const muxer = new Muxer({
+    target,
+    video: { codec: "avc", width: WIDTH, height: HEIGHT },
+    fastStart: "in-memory",
+  });
+
+  const encoder = new VideoEncoder({
+    output: (chunk: EncodedVideoChunk, meta: EncodedVideoChunkMetadata) =>
+      muxer.addVideoChunk(chunk, meta),
+    error: (e: DOMException) => console.error("Encoder error:", e),
+  });
+
   encoder.configure({
     codec: selectedCodec,
     width: WIDTH,
     height: HEIGHT,
     bitrate: 4_000_000,
     framerate: FPS,
+    latencyMode: "quality",
   });
 
   onStatus("Renderizando vídeo...");
 
   // Encode frames by seeking through the trailer
   for (let i = 0; i < totalFrames; i++) {
-    const time = Math.min(i / FPS, videoDuration - 0.01);
+    const seekTime = Math.min((i / FPS), videoDuration - 0.05);
 
     // Seek to target time
     await new Promise<void>((resolve) => {
-      if (Math.abs(video.currentTime - time) < 0.02) {
+      const handler = () => resolve();
+      if (Math.abs(video.currentTime - seekTime) < 0.03) {
         resolve();
         return;
       }
-      video.addEventListener("seeked", () => resolve(), { once: true });
-      video.currentTime = time;
+      video.onseeked = handler;
+      video.currentTime = seekTime;
     });
 
-    // Small delay to ensure frame is decoded
-    await new Promise((r) => requestAnimationFrame(r));
+    // Wait for frame to be decoded
+    await new Promise((r) => setTimeout(r, 30));
 
     // Draw trailer video on top
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, WIDTH, VIDEO_H);
     drawVideoCover(ctx, video, WIDTH, VIDEO_H);
 
     // Draw static banner on bottom
     ctx.drawImage(bannerCanvas, 0, VIDEO_H);
 
-    // Encode frame
+    // Use strictly monotonic timestamps
+    const timestamp = i * FRAME_DURATION_US;
+
     const frame = new VideoFrame(canvas, {
-      timestamp: Math.round(time * 1_000_000),
-      duration: Math.round(1_000_000 / FPS),
+      timestamp,
+      duration: FRAME_DURATION_US,
     });
     encoder.encode(frame, { keyFrame: i % (FPS * 2) === 0 });
     frame.close();
@@ -392,7 +394,12 @@ async function generateMP4(
 
   URL.revokeObjectURL(video.src);
 
-  return new Blob([target.buffer], { type: "video/mp4" });
+  const buffer = target.buffer;
+  if (!buffer || buffer.byteLength < 1000) {
+    throw new Error("MP4 gerado está vazio ou corrompido");
+  }
+
+  return new Blob([buffer], { type: "video/mp4" });
 }
 
 // ── Fallback: WebM with backdrop animation ──
