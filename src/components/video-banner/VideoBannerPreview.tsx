@@ -228,16 +228,29 @@ function renderStaticBanner(
 
 async function downloadTrailer(videoId: string): Promise<Blob | null> {
   try {
+    console.log("[VideoBanner] Downloading trailer:", videoId);
     const res = await fetch(`${SUPABASE_URL}/functions/v1/youtube-video-proxy`, {
       method: "POST",
       headers: { "Content-Type": "application/json", apikey: SUPABASE_KEY },
       body: JSON.stringify({ videoId }),
     });
-    if (!res.ok) return null;
+    console.log("[VideoBanner] Proxy response:", res.status, res.headers.get("content-type"));
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      console.error("[VideoBanner] Proxy error:", errText);
+      return null;
+    }
     const ct = res.headers.get("content-type") || "";
-    if (ct.includes("application/json")) return null;
-    return await res.blob();
-  } catch {
+    if (ct.includes("application/json")) {
+      const errData = await res.json().catch(() => ({}));
+      console.error("[VideoBanner] Proxy returned JSON error:", errData);
+      return null;
+    }
+    const blob = await res.blob();
+    console.log("[VideoBanner] Trailer blob:", blob.size, "bytes, type:", blob.type);
+    return blob;
+  } catch (e) {
+    console.error("[VideoBanner] Download error:", e);
     return null;
   }
 }
@@ -250,9 +263,28 @@ function loadVideoFromBlob(blob: Blob): Promise<HTMLVideoElement> {
     video.muted = true;
     video.playsInline = true;
     video.preload = "auto";
-    video.src = URL.createObjectURL(blob);
-    video.oncanplaythrough = () => resolve(video);
-    video.onerror = () => reject(new Error("Falha ao carregar trailer"));
+    video.crossOrigin = "anonymous";
+    const properBlob = blob.type ? blob : new Blob([blob], { type: "video/mp4" });
+    video.src = URL.createObjectURL(properBlob);
+    
+    const timeout = setTimeout(() => {
+      console.error("[VideoBanner] Video load timeout");
+      reject(new Error("Timeout ao carregar trailer"));
+    }, 30000);
+    
+    video.onloadedmetadata = () => {
+      console.log("[VideoBanner] Video metadata:", video.videoWidth, "x", video.videoHeight, "dur:", video.duration);
+    };
+    video.oncanplaythrough = () => {
+      clearTimeout(timeout);
+      console.log("[VideoBanner] Video ready");
+      resolve(video);
+    };
+    video.onerror = () => {
+      clearTimeout(timeout);
+      console.error("[VideoBanner] Video error:", video.error?.message, video.error?.code);
+      reject(new Error(`Falha ao carregar trailer: ${video.error?.message || "erro"}`));
+    };
     video.load();
   });
 }
@@ -281,9 +313,12 @@ async function generateMP4(
   const FRAME_DURATION_US = Math.round(1_000_000 / FPS);
 
   onStatus("Carregando trailer...");
+  console.log("[VideoBanner] Loading video from blob:", trailerBlob.size, "bytes");
   const video = await loadVideoFromBlob(trailerBlob);
+  console.log("[VideoBanner] Video loaded:", video.videoWidth, "x", video.videoHeight, "dur:", video.duration);
   const videoDuration = Math.min(video.duration || 10, MAX_DURATION);
   const totalFrames = Math.ceil(videoDuration * FPS);
+  console.log("[VideoBanner] Will encode", totalFrames, "frames at", FPS, "fps for", videoDuration, "seconds");
 
   // Pre-render static banner
   const bannerCanvas = document.createElement("canvas");
@@ -596,71 +631,49 @@ export function VideoBannerPreview({ selected, logoUrl, onBack }: Props) {
       const slug = title.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase();
       const hasWebCodecs = typeof VideoEncoder !== "undefined";
 
-      let downloaded = false;
-
-      // Try MP4 with real trailer
-      if (trailer && hasWebCodecs) {
-        setStatusText("Baixando trailer...");
-        const trailerBlob = await downloadTrailer(trailer.key);
-        setProgress(25);
-
-        if (trailerBlob && trailerBlob.size > 10_000) {
-          try {
-            const mp4 = await generateMP4(
-              trailerBlob,
-              bannerImages,
-              selected,
-              title,
-              type,
-              year,
-              duration,
-              setStatusText,
-              setProgress,
-            );
-
-            const url = URL.createObjectURL(mp4);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `video-banner-${slug}.mp4`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            setTimeout(() => URL.revokeObjectURL(url), 5000);
-            downloaded = true;
-          } catch (e) {
-            console.warn("MP4 generation failed, falling back:", e);
-          }
-        }
+      // Generate MP4 with real trailer - NO fallback to WebM
+      if (!trailer) {
+        throw new Error("Nenhum trailer encontrado para este título.");
+      }
+      if (!hasWebCodecs) {
+        throw new Error("Seu navegador não suporta WebCodecs. Use o Google Chrome.");
       }
 
-      // Fallback: WebM with backdrop animation
-      if (!downloaded) {
-        setStatusText("Gerando vídeo alternativo...");
-        setProgress(25);
-        const webm = await generateFallbackWebM(
-          bannerImages,
-          selected,
-          title,
-          type,
-          year,
-          duration,
-          backdropImg,
-          setStatusText,
-          setProgress,
-        );
+      console.log("[VideoBanner] Starting MP4 flow. Trailer key:", trailer.key);
+      setStatusText("Baixando trailer...");
+      const trailerBlob = await downloadTrailer(trailer.key);
+      setProgress(25);
 
-        const url = URL.createObjectURL(webm);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `video-banner-${slug}.webm`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 5000);
+      if (!trailerBlob || trailerBlob.size < 10_000) {
+        console.error("[VideoBanner] Trailer blob invalid:", trailerBlob?.size);
+        throw new Error("Não foi possível baixar o trailer. Tente novamente.");
       }
+
+      console.log("[VideoBanner] Trailer OK:", trailerBlob.size, "bytes. Generating MP4...");
+      const mp4 = await generateMP4(
+        trailerBlob,
+        bannerImages,
+        selected,
+        title,
+        type,
+        year,
+        duration,
+        setStatusText,
+        setProgress,
+      );
+
+      console.log("[VideoBanner] MP4 generated:", mp4.size, "bytes");
+      const url = URL.createObjectURL(mp4);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `video-banner-${slug}.mp4`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
 
       setProgress(100);
-      toast({ title: "Vídeo banner gerado com sucesso!" });
+      toast({ title: "Vídeo banner MP4 gerado com sucesso!" });
     } catch (err: any) {
       console.error("Erro ao gerar vídeo:", err);
       toast({
