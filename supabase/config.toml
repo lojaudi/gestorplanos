@@ -11,3 +11,9 @@ verify_jwt = false
 
 [functions.auto-billing]
 verify_jwt = false
+
+[functions.youtube-video-proxy]
+verify_jwt = false
+
+[functions.image-proxy]
+verify_jwt = false
