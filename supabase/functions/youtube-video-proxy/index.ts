@@ -31,13 +31,12 @@ serve(async (req) => {
     }
 
     const COBALT_URL = rawCobaltUrl.replace(/\/+$/, "");
+    console.log(`[yt-proxy] Requesting video ${videoId} from Cobalt`);
 
-    console.log(`Requesting video ${videoId} from Cobalt: ${COBALT_URL}`);
-
-    // Ask Cobalt for the download URL only - don't stream the video
+    // Step 1: Get download URL from Cobalt
     const cobaltRes = await fetch(COBALT_URL, {
       method: "POST",
-      signal: AbortSignal.timeout(30000),
+      signal: AbortSignal.timeout(25000),
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
@@ -45,7 +44,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         url: `https://www.youtube.com/watch?v=${videoId}`,
-        videoQuality: "480",
+        videoQuality: "360",
         filenameStyle: "basic",
         downloadMode: "auto",
       }),
@@ -53,7 +52,7 @@ serve(async (req) => {
 
     if (!cobaltRes.ok) {
       const txt = await cobaltRes.text().catch(() => "");
-      console.error(`Cobalt error: ${cobaltRes.status} - ${txt.slice(0, 200)}`);
+      console.error(`[yt-proxy] Cobalt error: ${cobaltRes.status} - ${txt.slice(0, 200)}`);
       return new Response(
         JSON.stringify({ error: "Cobalt request failed", details: txt.slice(0, 200) }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -61,25 +60,53 @@ serve(async (req) => {
     }
 
     const cobaltData = await cobaltRes.json();
-    console.log(`Cobalt response: status=${cobaltData.status}, url=${cobaltData.url?.slice(0, 80)}`);
-
     const downloadUrl = cobaltData.url;
+    console.log(`[yt-proxy] Cobalt response: status=${cobaltData.status}, url=${downloadUrl?.slice(0, 80)}`);
+
     if (!downloadUrl) {
-      console.error("Cobalt returned no URL:", JSON.stringify(cobaltData).slice(0, 300));
       return new Response(
-        JSON.stringify({ error: "Cobalt returned no download URL", cobaltStatus: cobaltData.status, cobaltError: cobaltData.error?.code }),
+        JSON.stringify({ error: "Cobalt returned no download URL", cobaltStatus: cobaltData.status }),
         { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Return the download URL to the frontend - let it fetch directly
-    return new Response(
-      JSON.stringify({ downloadUrl, status: cobaltData.status }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    // Step 2: Stream the video through this function (to bypass CORS)
+    console.log(`[yt-proxy] Fetching video from: ${downloadUrl.slice(0, 100)}`);
+    const videoRes = await fetch(downloadUrl, {
+      signal: AbortSignal.timeout(50000),
+      headers: { "User-Agent": UA },
+    });
+
+    if (!videoRes.ok || !videoRes.body) {
+      const txt = await videoRes.text().catch(() => "");
+      console.error(`[yt-proxy] Video fetch error: ${videoRes.status} - ${txt.slice(0, 200)}`);
+      return new Response(
+        JSON.stringify({ error: "Failed to fetch video", status: videoRes.status }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const contentType = videoRes.headers.get("content-type") || "video/mp4";
+    const contentLength = videoRes.headers.get("content-length");
+    console.log(`[yt-proxy] Streaming video: type=${contentType}, size=${contentLength || "unknown"}`);
+
+    // Stream video bytes directly to the client
+    const responseHeaders: Record<string, string> = {
+      ...corsHeaders,
+      "Content-Type": contentType,
+      "Cache-Control": "public, max-age=3600",
+    };
+    if (contentLength) {
+      responseHeaders["Content-Length"] = contentLength;
+    }
+
+    return new Response(videoRes.body, {
+      status: 200,
+      headers: responseHeaders,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    console.error("Proxy error:", message);
+    console.error("[yt-proxy] Error:", message);
     return new Response(
       JSON.stringify({ error: message }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
