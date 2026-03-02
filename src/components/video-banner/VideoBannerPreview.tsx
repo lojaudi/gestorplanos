@@ -302,6 +302,9 @@ async function generateMP4WithBackdrop(
 
   onStatus("Renderizando vídeo...");
 
+  // Encode in small batches and flush periodically to avoid memory crash
+  const BATCH = FPS; // flush every 1 second of video (24 frames)
+
   for (let i = 0; i < TOTAL_FRAMES; i++) {
     const t = i / TOTAL_FRAMES;
 
@@ -352,8 +355,12 @@ async function generateMP4WithBackdrop(
 
     onProgress(20 + Math.round((i / TOTAL_FRAMES) * 70));
 
-    // Yield to UI every 12 frames
-    if (i % 12 === 0) await new Promise((r) => setTimeout(r, 0));
+    // Flush encoder every BATCH frames to free memory
+    if ((i + 1) % BATCH === 0) {
+      await encoder.flush();
+      // Yield to UI
+      await new Promise((r) => setTimeout(r, 0));
+    }
   }
 
   onStatus("Finalizando MP4...");
