@@ -631,49 +631,89 @@ export function VideoBannerPreview({ selected, logoUrl, onBack }: Props) {
       const slug = title.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase();
       const hasWebCodecs = typeof VideoEncoder !== "undefined";
 
-      // Generate MP4 with real trailer - NO fallback to WebM
-      if (!trailer) {
-        throw new Error("Nenhum trailer encontrado para este título.");
-      }
       if (!hasWebCodecs) {
         throw new Error("Seu navegador não suporta WebCodecs. Use o Google Chrome.");
       }
 
-      console.log("[VideoBanner] Starting MP4 flow. Trailer key:", trailer.key);
-      setStatusText("Baixando trailer...");
-      const trailerBlob = await downloadTrailer(trailer.key);
-      setProgress(25);
+      let finalBlob: Blob | null = null;
+      let usedFallback = false;
 
-      if (!trailerBlob || trailerBlob.size < 10_000) {
-        console.error("[VideoBanner] Trailer blob invalid:", trailerBlob?.size);
-        throw new Error("Não foi possível baixar o trailer. Tente novamente.");
+      // Try downloading trailer - attempt all available videos
+      if (selected.videos.length > 0) {
+        setStatusText("Baixando trailer...");
+        const videosToTry = [
+          ...(trailer ? [trailer] : []),
+          ...selected.videos.filter((v) => v !== trailer),
+        ];
+
+        for (const vid of videosToTry) {
+          console.log("[VideoBanner] Trying video:", vid.key, vid.name);
+          const blob = await downloadTrailer(vid.key);
+          if (blob && blob.size >= 10_000) {
+            console.log("[VideoBanner] Trailer OK:", blob.size, "bytes from", vid.key);
+            setProgress(25);
+            try {
+              finalBlob = await generateMP4(
+                blob,
+                bannerImages,
+                selected,
+                title,
+                type,
+                year,
+                duration,
+                setStatusText,
+                setProgress,
+              );
+              break;
+            } catch (encErr) {
+              console.error("[VideoBanner] MP4 encode failed for", vid.key, encErr);
+            }
+          } else {
+            console.warn("[VideoBanner] Trailer download failed for", vid.key, blob?.size);
+          }
+        }
       }
 
-      console.log("[VideoBanner] Trailer OK:", trailerBlob.size, "bytes. Generating MP4...");
-      const mp4 = await generateMP4(
-        trailerBlob,
-        bannerImages,
-        selected,
-        title,
-        type,
-        year,
-        duration,
-        setStatusText,
-        setProgress,
-      );
+      // Fallback: generate WebM with backdrop animation
+      if (!finalBlob) {
+        console.log("[VideoBanner] All trailer downloads failed, using backdrop fallback");
+        usedFallback = true;
+        setStatusText("Gerando vídeo com backdrop...");
+        setProgress(25);
+        finalBlob = await generateFallbackWebM(
+          bannerImages,
+          selected,
+          title,
+          type,
+          year,
+          duration,
+          backdropImg,
+          setStatusText,
+          setProgress,
+        );
+      }
 
-      console.log("[VideoBanner] MP4 generated:", mp4.size, "bytes");
-      const url = URL.createObjectURL(mp4);
+      if (!finalBlob || finalBlob.size < 1000) {
+        throw new Error("Falha ao gerar o vídeo banner.");
+      }
+
+      const ext = usedFallback ? "webm" : "mp4";
+      console.log(`[VideoBanner] ${ext.toUpperCase()} generated:`, finalBlob.size, "bytes");
+      const url = URL.createObjectURL(finalBlob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `video-banner-${slug}.mp4`;
+      a.download = `video-banner-${slug}.${ext}`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 5000);
 
       setProgress(100);
-      toast({ title: "Vídeo banner MP4 gerado com sucesso!" });
+      toast({
+        title: usedFallback
+          ? "Vídeo banner gerado com backdrop (trailer indisponível)"
+          : "Vídeo banner MP4 gerado com sucesso!",
+      });
     } catch (err: any) {
       console.error("Erro ao gerar vídeo:", err);
       toast({
