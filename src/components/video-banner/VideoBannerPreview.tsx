@@ -229,15 +229,19 @@ function renderStaticBanner(
 async function downloadTrailer(videoId: string): Promise<Blob | null> {
   try {
     console.log("[VideoBanner] Downloading trailer:", videoId);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 120_000); // 2 min timeout
     const res = await fetch(`${SUPABASE_URL}/functions/v1/youtube-video-proxy`, {
       method: "POST",
+      signal: controller.signal,
       headers: { "Content-Type": "application/json", apikey: SUPABASE_KEY },
       body: JSON.stringify({ videoId }),
     });
+    clearTimeout(timeout);
     console.log("[VideoBanner] Proxy response:", res.status, res.headers.get("content-type"));
     if (!res.ok) {
       const errText = await res.text().catch(() => "");
-      console.error("[VideoBanner] Proxy error:", errText);
+      console.error("[VideoBanner] Proxy error:", res.status, errText.slice(0, 300));
       return null;
     }
     const ct = res.headers.get("content-type") || "";
@@ -248,9 +252,17 @@ async function downloadTrailer(videoId: string): Promise<Blob | null> {
     }
     const blob = await res.blob();
     console.log("[VideoBanner] Trailer blob:", blob.size, "bytes, type:", blob.type);
+    if (blob.size < 10_000) {
+      console.error("[VideoBanner] Blob too small, likely not a valid video");
+      return null;
+    }
     return blob;
-  } catch (e) {
-    console.error("[VideoBanner] Download error:", e);
+  } catch (e: any) {
+    if (e.name === "AbortError") {
+      console.error("[VideoBanner] Download timed out for", videoId);
+    } else {
+      console.error("[VideoBanner] Download error:", e);
+    }
     return null;
   }
 }
