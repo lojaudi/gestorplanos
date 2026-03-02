@@ -623,6 +623,9 @@ export function VideoBannerPreview({ selected, logoUrl, onBack }: Props) {
     }
   }, [selected, logoUrl, title, year, type, duration]);
 
+  const trailer =
+    selected.videos.find((v) => v.type === "Trailer") || selected.videos[0];
+
   return (
     <div className="space-y-4">
       <Card>
@@ -635,16 +638,37 @@ export function VideoBannerPreview({ selected, logoUrl, onBack }: Props) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Info banner */}
+          {/* YouTube Trailer */}
+          {trailer ? (
+            <div className="rounded-lg overflow-hidden border">
+              <div className="aspect-video bg-black">
+                <iframe
+                  src={`https://www.youtube.com/embed/${trailer.key}?autoplay=0&rel=0&controls=1&modestbranding=1&showinfo=0`}
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  title="Trailer"
+                  style={{ border: "none" }}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-lg overflow-hidden border">
+              <div className="aspect-video bg-muted flex items-center justify-center text-muted-foreground">
+                <p>Trailer não encontrado para este título</p>
+              </div>
+            </div>
+          )}
+
+          {/* Info about MP4 */}
           <div className="flex items-start gap-2 p-3 rounded-lg bg-muted text-muted-foreground text-xs">
             <Info className="h-4 w-4 shrink-0 mt-0.5" />
             <p>
-              A prévia abaixo mostra exatamente como o vídeo será gerado: animação na imagem de
-              fundo com informações do título. O arquivo MP4 terá 10 segundos de duração.
+              O vídeo MP4 gerado terá 10 segundos com animação na imagem de fundo e informações do título (prévia abaixo).
             </p>
           </div>
 
-          {/* Animated canvas preview */}
+          {/* Animated canvas preview of what will be downloaded */}
           <div className="rounded-lg overflow-hidden border">
             <AnimatedPreview selected={selected} logoUrl={logoUrl} />
           </div>
