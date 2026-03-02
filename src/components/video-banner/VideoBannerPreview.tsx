@@ -228,30 +228,44 @@ function renderStaticBanner(
 
 async function downloadTrailer(videoId: string): Promise<Blob | null> {
   try {
-    console.log("[VideoBanner] Downloading trailer:", videoId);
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 120_000); // 2 min timeout
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/youtube-video-proxy`, {
+    console.log("[VideoBanner] Step 1: Getting download URL for", videoId);
+
+    // Step 1: Get the download URL from Cobalt via Edge Function
+    const urlRes = await fetch(`${SUPABASE_URL}/functions/v1/youtube-video-proxy`, {
       method: "POST",
-      signal: controller.signal,
       headers: { "Content-Type": "application/json", apikey: SUPABASE_KEY },
       body: JSON.stringify({ videoId }),
     });
+
+    if (!urlRes.ok) {
+      const errText = await urlRes.text().catch(() => "");
+      console.error("[VideoBanner] Edge function error:", urlRes.status, errText.slice(0, 300));
+      return null;
+    }
+
+    const data = await urlRes.json();
+    if (!data.downloadUrl) {
+      console.error("[VideoBanner] No download URL returned:", data);
+      return null;
+    }
+
+    console.log("[VideoBanner] Step 2: Downloading video from:", data.downloadUrl.slice(0, 80));
+
+    // Step 2: Download the video directly from Cobalt's URL
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 120_000);
+    const videoRes = await fetch(data.downloadUrl, {
+      signal: controller.signal,
+    });
     clearTimeout(timeout);
-    console.log("[VideoBanner] Proxy response:", res.status, res.headers.get("content-type"));
-    if (!res.ok) {
-      const errText = await res.text().catch(() => "");
-      console.error("[VideoBanner] Proxy error:", res.status, errText.slice(0, 300));
+
+    if (!videoRes.ok) {
+      console.error("[VideoBanner] Video download failed:", videoRes.status);
       return null;
     }
-    const ct = res.headers.get("content-type") || "";
-    if (ct.includes("application/json")) {
-      const errData = await res.json().catch(() => ({}));
-      console.error("[VideoBanner] Proxy returned JSON error:", errData);
-      return null;
-    }
-    const blob = await res.blob();
-    console.log("[VideoBanner] Trailer blob:", blob.size, "bytes, type:", blob.type);
+
+    const blob = await videoRes.blob();
+    console.log("[VideoBanner] Video blob:", blob.size, "bytes, type:", blob.type);
     if (blob.size < 10_000) {
       console.error("[VideoBanner] Blob too small, likely not a valid video");
       return null;
