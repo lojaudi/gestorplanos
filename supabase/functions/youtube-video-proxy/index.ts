@@ -22,18 +22,21 @@ serve(async (req) => {
       });
     }
 
-    const COBALT_URL = Deno.env.get("COBALT_API_URL");
-    if (!COBALT_URL) {
+    const rawCobaltUrl = Deno.env.get("COBALT_API_URL");
+    if (!rawCobaltUrl) {
       return new Response(
         JSON.stringify({ error: "COBALT_API_URL not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
+    // Remove trailing slash to avoid double-slash issue
+    const COBALT_URL = rawCobaltUrl.replace(/\/+$/, "");
+
     console.log(`Requesting video ${videoId} from Cobalt: ${COBALT_URL}`);
 
     // Step 1: Ask Cobalt for the download URL
-    const cobaltRes = await fetch(`${COBALT_URL}/`, {
+    const cobaltRes = await fetch(COBALT_URL, {
       method: "POST",
       signal: AbortSignal.timeout(30000),
       headers: {
