@@ -76,15 +76,10 @@ interface BannerImages {
 
 function renderStaticBanner(
   ctx: CanvasRenderingContext2D,
-  W: number,
-  H: number,
+  W: number, H: number,
   images: BannerImages,
-  title: string,
-  type: string,
-  year: string,
-  duration: string | null,
-  synopsis: string,
-  castNames: string[],
+  title: string, type: string, year: string, duration: string | null,
+  synopsis: string, castNames: string[],
 ) {
   ctx.fillStyle = "#111";
   ctx.fillRect(0, 0, W, H);
@@ -97,7 +92,6 @@ function renderStaticBanner(
     ctx.fillRect(0, 0, W, H);
   }
 
-  // Poster
   const posterW = 130, posterH = 195;
   if (images.poster) {
     ctx.save();
@@ -114,14 +108,11 @@ function renderStaticBanner(
   }
 
   const textX = 170;
-
-  // Title
   ctx.fillStyle = "#fff";
   ctx.font = "bold 28px sans-serif";
   ctx.textAlign = "left";
   ctx.fillText(title.toUpperCase(), textX, 48, W - textX - 20);
 
-  // Badges
   const badges = [type, year, duration].filter(Boolean) as string[];
   let bx = textX;
   ctx.font = "bold 13px sans-serif";
@@ -139,7 +130,6 @@ function renderStaticBanner(
     bx += bw + 8;
   });
 
-  // Synopsis
   if (synopsis) {
     ctx.font = "14px sans-serif";
     ctx.fillStyle = "rgba(255,255,255,0.8)";
@@ -161,7 +151,6 @@ function renderStaticBanner(
     if (lc <= 3 && line.trim()) ctx.fillText(line.trim(), textX, ly);
   }
 
-  // Cast
   if (castNames.length > 0) {
     const castY = 180;
     let cx = textX;
@@ -195,7 +184,6 @@ function renderStaticBanner(
     });
   }
 
-  // Logo
   if (images.logo) {
     const lh = 40;
     const lw = (images.logo.width / images.logo.height) * lh;
@@ -205,216 +193,125 @@ function renderStaticBanner(
   }
 }
 
-// ── Download trailer video via Edge Function proxy ──
+// ── Ken Burns animation helpers ──
 
-async function downloadTrailerBlob(
-  videoId: string,
-  onStatus: (s: string) => void,
-): Promise<Blob> {
-  onStatus("Baixando trailer...");
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/youtube-video-proxy`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", apikey: SUPABASE_KEY },
-    body: JSON.stringify({ videoId }),
-    signal: AbortSignal.timeout(120000),
-  });
-
-  if (!res.ok) {
-    const errData = await res.json().catch(() => ({}));
-    throw new Error(errData.error || `Erro ao baixar trailer (${res.status})`);
-  }
-
-  const blob = await res.blob();
-  if (blob.size < 5000) {
-    throw new Error("Trailer baixado está vazio ou corrompido");
-  }
-  console.log("[VideoBanner] Trailer downloaded:", blob.size, "bytes, type:", blob.type);
-  return blob;
+function easeOut(t: number): number {
+  return 1 - Math.pow(1 - t, 3);
+}
+function clamp(v: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, v));
 }
 
-// ── Load video blob into a playable HTMLVideoElement ──
+// ── MP4 generation with backdrop Ken Burns ──
 
-function loadVideoFromBlob(blob: Blob): Promise<HTMLVideoElement> {
-  return new Promise((resolve, reject) => {
-    const video = document.createElement("video");
-    video.muted = true;
-    video.playsInline = true;
-    video.preload = "auto";
-    const url = URL.createObjectURL(blob);
-    video.src = url;
-    video.onloadeddata = () => {
-      console.log("[VideoBanner] Video loaded: duration=", video.duration, "size=", video.videoWidth, "x", video.videoHeight);
-      resolve(video);
-    };
-    video.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error("Erro ao carregar vídeo do trailer"));
-    };
-  });
-}
-
-// ── Seek video to a specific time and wait ──
-
-function seekTo(video: HTMLVideoElement, time: number): Promise<void> {
-  return new Promise((resolve) => {
-    if (Math.abs(video.currentTime - time) < 0.01) {
-      resolve();
-      return;
-    }
-    const onSeeked = () => {
-      video.removeEventListener("seeked", onSeeked);
-      resolve();
-    };
-    video.addEventListener("seeked", onSeeked);
-    video.currentTime = time;
-  });
-}
-
-// ── Generate MP4 with trailer video + banner ──
-
-async function generateMP4WithTrailer(
-  trailerBlob: Blob,
+async function generateMP4(
   bannerImages: BannerImages,
   selected: ContentDetails,
-  title: string,
-  type: string,
-  year: string,
-  duration: string | null,
+  title: string, type: string, year: string, duration: string | null,
+  backdropImg: HTMLImageElement | null,
   onStatus: (s: string) => void,
   onProgress: (p: number) => void,
 ): Promise<Blob> {
   const { Muxer, ArrayBufferTarget } = await import("mp4-muxer");
-
-  onStatus("Preparando vídeo...");
-  const video = await loadVideoFromBlob(trailerBlob);
 
   const WIDTH = 1080;
   const VIDEO_H = 608;
   const BANNER_H = 320;
   const HEIGHT = VIDEO_H + BANNER_H;
   const FPS = 24;
-  const MAX_DURATION_S = Math.min(video.duration || 15, 15); // max 15 seconds
-  const TOTAL_FRAMES = Math.round(FPS * MAX_DURATION_S);
+  const DURATION_S = 10;
+  const TOTAL_FRAMES = FPS * DURATION_S;
   const FRAME_DURATION_US = Math.round(1_000_000 / FPS);
 
-  // Pre-render static banner
   const bannerCanvas = document.createElement("canvas");
   bannerCanvas.width = WIDTH;
   bannerCanvas.height = BANNER_H;
   renderStaticBanner(
-    bannerCanvas.getContext("2d")!,
-    WIDTH, BANNER_H, bannerImages,
+    bannerCanvas.getContext("2d")!, WIDTH, BANNER_H, bannerImages,
     title, type, year, duration,
-    selected.overview || "",
-    selected.cast.map((c) => c.name),
+    selected.overview || "", selected.cast.map((c) => c.name),
   );
 
-  // Main canvas
   const canvas = document.createElement("canvas");
   canvas.width = WIDTH;
   canvas.height = HEIGHT;
   const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
 
-  // Find supported H.264 codec
   const codecs = ["avc1.42001f", "avc1.4d001f", "avc1.640029"];
   let selectedCodec = "";
   for (const c of codecs) {
     const s = await VideoEncoder.isConfigSupported({
-      codec: c,
-      width: WIDTH,
-      height: HEIGHT,
-      bitrate: 4_000_000,
-      framerate: FPS,
+      codec: c, width: WIDTH, height: HEIGHT, bitrate: 4_000_000, framerate: FPS,
     });
-    if (s.supported) {
-      selectedCodec = c;
-      break;
-    }
+    if (s.supported) { selectedCodec = c; break; }
   }
-  if (!selectedCodec) {
-    throw new Error("Navegador não suporta codificação H.264. Use o Google Chrome.");
-  }
+  if (!selectedCodec) throw new Error("Navegador não suporta codificação H.264. Use o Google Chrome.");
 
-  // Setup muxer + encoder
   const target = new ArrayBufferTarget();
   const muxer = new Muxer({
-    target,
-    video: { codec: "avc", width: WIDTH, height: HEIGHT },
-    fastStart: "in-memory",
+    target, video: { codec: "avc", width: WIDTH, height: HEIGHT }, fastStart: "in-memory",
   });
 
   const encoder = new VideoEncoder({
-    output: (chunk: EncodedVideoChunk, meta: EncodedVideoChunkMetadata) =>
-      muxer.addVideoChunk(chunk, meta),
+    output: (chunk: EncodedVideoChunk, meta: EncodedVideoChunkMetadata) => muxer.addVideoChunk(chunk, meta),
     error: (e: DOMException) => console.error("Encoder error:", e),
   });
-
   encoder.configure({
-    codec: selectedCodec,
-    width: WIDTH,
-    height: HEIGHT,
-    bitrate: 4_000_000,
-    framerate: FPS,
-    latencyMode: "quality",
+    codec: selectedCodec, width: WIDTH, height: HEIGHT,
+    bitrate: 4_000_000, framerate: FPS, latencyMode: "quality",
   });
 
-  onStatus("Renderizando vídeo com trailer...");
+  onStatus("Renderizando vídeo...");
   const BATCH = FPS;
 
   for (let i = 0; i < TOTAL_FRAMES; i++) {
-    const timeInSeconds = i / FPS;
-
-    // Seek trailer to the correct time
-    await seekTo(video, timeInSeconds);
-
-    // Clear canvas
-    ctx.fillStyle = "#000";
+    const t = i / TOTAL_FRAMES;
+    ctx.fillStyle = "#0a0a0a";
     ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-    // Draw trailer frame in the top area, scaled to fit
-    const vw = video.videoWidth || 640;
-    const vh = video.videoHeight || 360;
-    const videoAspect = vw / vh;
-    const targetAspect = WIDTH / VIDEO_H;
-
-    let drawW: number, drawH: number, drawX: number, drawY: number;
-    if (videoAspect > targetAspect) {
-      // Video is wider - fit height, crop sides
-      drawH = VIDEO_H;
-      drawW = VIDEO_H * videoAspect;
-      drawX = (WIDTH - drawW) / 2;
-      drawY = 0;
-    } else {
-      // Video is taller - fit width, crop top/bottom
-      drawW = WIDTH;
-      drawH = WIDTH / videoAspect;
-      drawX = 0;
-      drawY = (VIDEO_H - drawH) / 2;
+    if (backdropImg) {
+      const fadeIn = easeOut(clamp(t / 0.08, 0, 1));
+      ctx.globalAlpha = fadeIn;
+      const scale = 1.0 + 0.15 * t;
+      const sw = WIDTH * scale;
+      const sh = VIDEO_H * scale;
+      ctx.drawImage(backdropImg, (WIDTH - sw) / 2 - 25 * t, (VIDEO_H - sh) / 2 - 12 * t, sw, sh);
+      ctx.globalAlpha = 1;
+      const grad = ctx.createLinearGradient(0, 0, 0, VIDEO_H);
+      grad.addColorStop(0, "rgba(0,0,0,0.35)");
+      grad.addColorStop(1, "rgba(0,0,0,0.75)");
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, WIDTH, VIDEO_H);
     }
-    ctx.drawImage(video, drawX, drawY, drawW, drawH);
 
-    // Draw banner at bottom
+    const titleT = easeOut(clamp((t - 0.08) / 0.18, 0, 1));
+    if (titleT > 0) {
+      ctx.globalAlpha = titleT;
+      ctx.fillStyle = "#fff";
+      ctx.font = "bold 44px sans-serif";
+      ctx.textAlign = "center";
+      ctx.shadowColor = "rgba(0,0,0,0.8)";
+      ctx.shadowBlur = 12;
+      ctx.fillText(title.toUpperCase(), WIDTH / 2, VIDEO_H / 2 - 20 + 35 * (1 - titleT), WIDTH - 80);
+      ctx.shadowBlur = 0;
+      ctx.globalAlpha = 1;
+      ctx.textAlign = "left";
+    }
+
     ctx.drawImage(bannerCanvas, 0, VIDEO_H);
 
     const timestamp = i * FRAME_DURATION_US;
-    const frame = new VideoFrame(canvas, {
-      timestamp,
-      duration: FRAME_DURATION_US,
-    });
+    const frame = new VideoFrame(canvas, { timestamp, duration: FRAME_DURATION_US });
     encoder.encode(frame, { keyFrame: i % (FPS * 2) === 0 });
     frame.close();
 
-    onProgress(25 + Math.round((i / TOTAL_FRAMES) * 65));
+    onProgress(20 + Math.round((i / TOTAL_FRAMES) * 70));
 
-    // Flush every BATCH frames to free memory
     if ((i + 1) % BATCH === 0) {
       await encoder.flush();
       await new Promise((r) => setTimeout(r, 0));
     }
   }
-
-  // Cleanup video
-  URL.revokeObjectURL(video.src);
 
   onStatus("Finalizando MP4...");
   await encoder.flush();
@@ -422,10 +319,7 @@ async function generateMP4WithTrailer(
   muxer.finalize();
 
   const buffer = target.buffer;
-  if (!buffer || buffer.byteLength < 1000) {
-    throw new Error("MP4 gerado está vazio ou corrompido");
-  }
-
+  if (!buffer || buffer.byteLength < 1000) throw new Error("MP4 gerado está vazio ou corrompido");
   return new Blob([buffer], { type: "video/mp4" });
 }
 
@@ -438,48 +332,30 @@ export function VideoBannerPreview({ selected, logoUrl, onBack }: Props) {
   const duration = selected.runtime
     ? `${Math.floor(selected.runtime / 60)}h ${selected.runtime % 60}min`
     : null;
-  const trailer =
-    selected.videos.find((v) => v.type === "Trailer") || selected.videos[0];
+  const trailer = selected.videos.find((v) => v.type === "Trailer") || selected.videos[0];
 
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
   const [statusText, setStatusText] = useState("");
 
   const handleDownload = useCallback(async () => {
-    if (!trailer) {
-      toast({ title: "Nenhum trailer encontrado para este título", variant: "destructive" });
-      return;
-    }
-
     setGenerating(true);
     setProgress(0);
 
     try {
-      // Step 1: Download trailer
-      setStatusText("Baixando trailer...");
-      const trailerBlob = await downloadTrailerBlob(trailer.key, setStatusText);
-      setProgress(20);
-
-      // Step 2: Load banner images
       setStatusText("Carregando imagens...");
-      const posterUrl = selected.poster_path
-        ? `${TMDB_IMG}/w342${selected.poster_path}`
-        : null;
+      const posterUrl = selected.poster_path ? `${TMDB_IMG}/w342${selected.poster_path}` : null;
+      const backdropUrl = selected.backdrop_path ? `${TMDB_IMG}/w1280${selected.backdrop_path}` : null;
 
       const imgPromises: Promise<HTMLImageElement | null>[] = [];
-      imgPromises.push(
-        posterUrl ? loadImageViaProxy(posterUrl).catch(() => null) : Promise.resolve(null)
-      );
+      imgPromises.push(posterUrl ? loadImageViaProxy(posterUrl).catch(() => null) : Promise.resolve(null));
       for (const c of selected.cast.slice(0, 5)) {
         imgPromises.push(
-          c.profile_path
-            ? loadImageViaProxy(`${TMDB_IMG}/w185${c.profile_path}`).catch(() => null)
-            : Promise.resolve(null)
+          c.profile_path ? loadImageViaProxy(`${TMDB_IMG}/w185${c.profile_path}`).catch(() => null) : Promise.resolve(null)
         );
       }
-      if (logoUrl) {
-        imgPromises.push(loadImageViaProxy(logoUrl).catch(() => null));
-      }
+      if (logoUrl) imgPromises.push(loadImageViaProxy(logoUrl).catch(() => null));
+      imgPromises.push(backdropUrl ? loadImageViaProxy(backdropUrl).catch(() => null) : Promise.resolve(null));
 
       const allImgs = await Promise.all(imgPromises);
       const castCount = Math.min(selected.cast.length, 5);
@@ -488,31 +364,21 @@ export function VideoBannerPreview({ selected, logoUrl, onBack }: Props) {
         cast: allImgs.slice(1, 1 + castCount),
         logo: logoUrl ? allImgs[1 + castCount] : null,
       };
-      setProgress(25);
+      const backdropImg = allImgs[allImgs.length - 1];
+      setProgress(15);
 
       if (typeof VideoEncoder === "undefined") {
         throw new Error("Seu navegador não suporta WebCodecs. Use o Google Chrome.");
       }
 
-      // Step 3: Generate MP4 with trailer + banner
-      const finalBlob = await generateMP4WithTrailer(
-        trailerBlob,
-        bannerImages,
-        selected,
-        title,
-        type,
-        year,
-        duration,
-        setStatusText,
-        setProgress,
+      setStatusText("Gerando vídeo...");
+      const finalBlob = await generateMP4(
+        bannerImages, selected, title, type, year, duration, backdropImg, setStatusText, setProgress,
       );
 
-      if (!finalBlob || finalBlob.size < 1000) {
-        throw new Error("Falha ao gerar o vídeo banner.");
-      }
+      if (!finalBlob || finalBlob.size < 1000) throw new Error("Falha ao gerar o vídeo banner.");
 
       const slug = title.replace(/[^a-zA-Z0-9]/g, "-").toLowerCase();
-      console.log("[VideoBanner] MP4 generated:", finalBlob.size, "bytes");
       const url = URL.createObjectURL(finalBlob);
       const a = document.createElement("a");
       a.href = url;
@@ -523,20 +389,16 @@ export function VideoBannerPreview({ selected, logoUrl, onBack }: Props) {
       setTimeout(() => URL.revokeObjectURL(url), 5000);
 
       setProgress(100);
-      toast({ title: "Vídeo banner com trailer gerado com sucesso!" });
+      toast({ title: "Vídeo banner MP4 gerado com sucesso!" });
     } catch (err: any) {
       console.error("Erro ao gerar vídeo:", err);
-      toast({
-        title: "Erro ao gerar vídeo",
-        description: err?.message || "Erro desconhecido",
-        variant: "destructive",
-      });
+      toast({ title: "Erro ao gerar vídeo", description: err?.message || "Erro desconhecido", variant: "destructive" });
     } finally {
       setGenerating(false);
       setStatusText("");
       setTimeout(() => setProgress(0), 1000);
     }
-  }, [selected, logoUrl, title, year, type, duration, trailer]);
+  }, [selected, logoUrl, title, year, type, duration]);
 
   return (
     <div className="space-y-4">
@@ -550,9 +412,9 @@ export function VideoBannerPreview({ selected, logoUrl, onBack }: Props) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* YouTube Trailer Preview */}
-          {trailer ? (
-            <div className="rounded-lg overflow-hidden border">
+          {/* YouTube Trailer + Banner Preview */}
+          <div className="rounded-lg overflow-hidden border">
+            {trailer ? (
               <div className="aspect-video bg-black">
                 <iframe
                   src={`https://www.youtube.com/embed/${trailer.key}?autoplay=0&rel=0&controls=1&modestbranding=1&showinfo=0`}
@@ -563,102 +425,62 @@ export function VideoBannerPreview({ selected, logoUrl, onBack }: Props) {
                   style={{ border: "none" }}
                 />
               </div>
-              {/* Banner info below trailer */}
-              <div className="relative bg-zinc-900 p-4">
-                {selected.poster_path && (
-                  <img
-                    src={`${TMDB_IMG}/w342${selected.poster_path}`}
-                    alt=""
-                    className="absolute inset-0 w-full h-full object-cover opacity-15"
-                  />
-                )}
-                <div className="relative z-10 flex gap-4">
-                  {selected.poster_path && (
-                    <img
-                      src={`${TMDB_IMG}/w342${selected.poster_path}`}
-                      alt={title}
-                      className="w-24 rounded border border-white/20 shadow-lg shrink-0"
-                    />
-                  )}
-                  <div className="min-w-0">
-                    <h3 className="text-white font-bold text-sm uppercase">{title}</h3>
-                    <div className="flex gap-2 mt-1 flex-wrap">
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-white/15 text-white font-bold">
-                        {type}
-                      </span>
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-white/15 text-white font-bold">
-                        {year}
-                      </span>
-                      {duration && (
-                        <span className="text-[10px] px-2 py-0.5 rounded bg-white/15 text-white font-bold">
-                          {duration}
-                        </span>
-                      )}
-                    </div>
-                    {selected.overview && (
-                      <p className="text-[10px] text-white/80 mt-2 line-clamp-3">
-                        {selected.overview}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                {selected.cast.length > 0 && (
-                  <div className="relative z-10 flex gap-3 mt-3 pt-3 border-t border-white/10">
-                    {selected.cast.slice(0, 5).map((c) => (
-                      <div key={c.id} className="flex flex-col items-center w-10">
-                        {c.profile_path ? (
-                          <img
-                            src={`${TMDB_IMG}/w185${c.profile_path}`}
-                            alt={c.name}
-                            className="h-10 w-10 rounded-full object-cover border border-white/30"
-                          />
-                        ) : (
-                          <div className="h-10 w-10 rounded-full bg-white/20 flex items-center justify-center text-xs text-white font-bold">
-                            {c.name[0]}
-                          </div>
-                        )}
-                        <span className="text-[8px] mt-0.5 text-white/70 truncate w-full text-center">
-                          {c.name.split(" ")[0]}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {logoUrl && (
-                  <div className="relative z-10 flex justify-end mt-3">
-                    <img
-                      src={logoUrl}
-                      alt="Logo"
-                      className="h-8 w-auto object-contain opacity-80"
-                    />
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="rounded-lg overflow-hidden border">
+            ) : (
               <div className="aspect-video bg-muted flex items-center justify-center text-muted-foreground">
                 <p>Trailer não encontrado para este título</p>
               </div>
+            )}
+            {/* Banner info */}
+            <div className="relative bg-zinc-900 p-4">
+              {selected.poster_path && (
+                <img src={`${TMDB_IMG}/w342${selected.poster_path}`} alt="" className="absolute inset-0 w-full h-full object-cover opacity-15" />
+              )}
+              <div className="relative z-10 flex gap-4">
+                {selected.poster_path && (
+                  <img src={`${TMDB_IMG}/w342${selected.poster_path}`} alt={title} className="w-24 rounded border border-white/20 shadow-lg shrink-0" />
+                )}
+                <div className="min-w-0">
+                  <h3 className="text-white font-bold text-sm uppercase">{title}</h3>
+                  <div className="flex gap-2 mt-1 flex-wrap">
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-white/15 text-white font-bold">{type}</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-white/15 text-white font-bold">{year}</span>
+                    {duration && <span className="text-[10px] px-2 py-0.5 rounded bg-white/15 text-white font-bold">{duration}</span>}
+                  </div>
+                  {selected.overview && <p className="text-[10px] text-white/80 mt-2 line-clamp-3">{selected.overview}</p>}
+                </div>
+              </div>
+              {selected.cast.length > 0 && (
+                <div className="relative z-10 flex gap-3 mt-3 pt-3 border-t border-white/10">
+                  {selected.cast.slice(0, 5).map((c) => (
+                    <div key={c.id} className="flex flex-col items-center w-10">
+                      {c.profile_path ? (
+                        <img src={`${TMDB_IMG}/w185${c.profile_path}`} alt={c.name} className="h-10 w-10 rounded-full object-cover border border-white/30" />
+                      ) : (
+                        <div className="h-10 w-10 rounded-full bg-white/20 flex items-center justify-center text-xs text-white font-bold">{c.name[0]}</div>
+                      )}
+                      <span className="text-[8px] mt-0.5 text-white/70 truncate w-full text-center">{c.name.split(" ")[0]}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {logoUrl && (
+                <div className="relative z-10 flex justify-end mt-3">
+                  <img src={logoUrl} alt="Logo" className="h-8 w-auto object-contain opacity-80" />
+                </div>
+              )}
             </div>
-          )}
+          </div>
 
           {/* Info */}
           <div className="flex items-start gap-2 p-3 rounded-lg bg-muted text-muted-foreground text-xs">
             <Info className="h-4 w-4 shrink-0 mt-0.5" />
             <p>
-              O MP4 gerado combinará o trailer do YouTube com o banner de informações, 
-              exatamente como mostrado acima. Duração máxima: 15 segundos.
+              O MP4 gerado terá 10 segundos com animação cinematográfica no backdrop e o banner de informações na parte inferior.
             </p>
           </div>
 
           {/* Download */}
-          <Button
-            onClick={handleDownload}
-            disabled={generating || !trailer}
-            className="w-full"
-            size="lg"
-          >
+          <Button onClick={handleDownload} disabled={generating} className="w-full" size="lg">
             {generating ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
