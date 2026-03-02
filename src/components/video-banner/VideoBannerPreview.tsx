@@ -1,7 +1,7 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Download, Loader2 } from "lucide-react";
+import { ArrowLeft, Download, Loader2, Info } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
 import type { ContentDetails } from "@/pages/VideoBanner";
@@ -376,6 +376,150 @@ async function generateMP4WithBackdrop(
   return new Blob([buffer], { type: "video/mp4" });
 }
 
+// ── Animated Preview Canvas ──
+
+function AnimatedPreview({ selected, logoUrl }: { selected: ContentDetails; logoUrl: string | null }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const animRef = useRef<number>(0);
+  const imagesRef = useRef<{
+    backdrop: HTMLImageElement | null;
+    poster: HTMLImageElement | null;
+    cast: (HTMLImageElement | null)[];
+    logo: HTMLImageElement | null;
+  }>({ backdrop: null, poster: null, cast: [], logo: null });
+  const [loaded, setLoaded] = useState(false);
+
+  const title = selected.title || selected.name || "";
+  const year = (selected.release_date || selected.first_air_date || "").slice(0, 4);
+  const type = selected.media_type === "tv" ? "SÉRIE" : "FILME";
+  const duration = selected.runtime
+    ? `${Math.floor(selected.runtime / 60)}h ${selected.runtime % 60}min`
+    : null;
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const posterUrl = selected.poster_path ? `${TMDB_IMG}/w342${selected.poster_path}` : null;
+      const backdropUrl = selected.backdrop_path ? `${TMDB_IMG}/w1280${selected.backdrop_path}` : null;
+
+      // Load images directly (for preview, CORS doesn't matter since we don't export)
+      const loadImg = (url: string): Promise<HTMLImageElement | null> =>
+        new Promise((resolve) => {
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.onload = () => resolve(img);
+          img.onerror = () => resolve(null);
+          img.src = url;
+        });
+
+      const [backdrop, poster] = await Promise.all([
+        backdropUrl ? loadImg(backdropUrl) : Promise.resolve(null),
+        posterUrl ? loadImg(posterUrl) : Promise.resolve(null),
+      ]);
+
+      const castImgs = await Promise.all(
+        selected.cast.slice(0, 5).map((c) =>
+          c.profile_path ? loadImg(`${TMDB_IMG}/w185${c.profile_path}`) : Promise.resolve(null)
+        )
+      );
+
+      const logo = logoUrl ? await loadImg(logoUrl) : null;
+
+      if (!cancelled) {
+        imagesRef.current = { backdrop, poster, cast: castImgs, logo };
+        setLoaded(true);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [selected, logoUrl]);
+
+  useEffect(() => {
+    if (!loaded || !canvasRef.current) return;
+
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext("2d")!;
+    const W = 1080;
+    const VIDEO_H = 608;
+    const BANNER_H = 320;
+    const H = VIDEO_H + BANNER_H;
+    canvas.width = W;
+    canvas.height = H;
+
+    // Pre-render static banner
+    const bannerCanvas = document.createElement("canvas");
+    bannerCanvas.width = W;
+    bannerCanvas.height = BANNER_H;
+    renderStaticBanner(
+      bannerCanvas.getContext("2d")!,
+      W, BANNER_H,
+      { poster: imagesRef.current.poster, cast: imagesRef.current.cast, logo: imagesRef.current.logo },
+      title, type, year, duration,
+      selected.overview || "",
+      selected.cast.map((c) => c.name),
+    );
+
+    const LOOP_S = 10;
+    let startTime: number | null = null;
+
+    const animate = (timestamp: number) => {
+      if (!startTime) startTime = timestamp;
+      const elapsed = (timestamp - startTime) / 1000;
+      const t = (elapsed % LOOP_S) / LOOP_S;
+
+      ctx.fillStyle = "#0a0a0a";
+      ctx.fillRect(0, 0, W, H);
+
+      // Ken Burns on backdrop
+      const { backdrop } = imagesRef.current;
+      if (backdrop) {
+        const fadeIn = easeOut(clamp(t / 0.08, 0, 1));
+        ctx.globalAlpha = fadeIn;
+        const scale = 1.0 + 0.15 * t;
+        const sw = W * scale;
+        const sh = VIDEO_H * scale;
+        ctx.drawImage(backdrop, (W - sw) / 2 - 25 * t, (VIDEO_H - sh) / 2 - 12 * t, sw, sh);
+        ctx.globalAlpha = 1;
+        const grad = ctx.createLinearGradient(0, 0, 0, VIDEO_H);
+        grad.addColorStop(0, "rgba(0,0,0,0.35)");
+        grad.addColorStop(1, "rgba(0,0,0,0.75)");
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, W, VIDEO_H);
+      }
+
+      // Title overlay
+      const titleT = easeOut(clamp((t - 0.08) / 0.18, 0, 1));
+      if (titleT > 0) {
+        ctx.globalAlpha = titleT;
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 44px sans-serif";
+        ctx.textAlign = "center";
+        ctx.shadowColor = "rgba(0,0,0,0.8)";
+        ctx.shadowBlur = 12;
+        ctx.fillText(title.toUpperCase(), W / 2, VIDEO_H / 2 - 20 + 35 * (1 - titleT), W - 80);
+        ctx.shadowBlur = 0;
+        ctx.globalAlpha = 1;
+        ctx.textAlign = "left";
+      }
+
+      // Static banner at bottom
+      ctx.drawImage(bannerCanvas, 0, VIDEO_H);
+
+      animRef.current = requestAnimationFrame(animate);
+    };
+
+    animRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animRef.current);
+  }, [loaded, title, type, year, duration, selected]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      className="w-full rounded-lg"
+      style={{ aspectRatio: "1080 / 928" }}
+    />
+  );
+}
+
 // ── Component ──
 
 export function VideoBannerPreview({ selected, logoUrl, onBack }: Props) {
@@ -385,8 +529,6 @@ export function VideoBannerPreview({ selected, logoUrl, onBack }: Props) {
   const duration = selected.runtime
     ? `${Math.floor(selected.runtime / 60)}h ${selected.runtime % 60}min`
     : null;
-  const trailer =
-    selected.videos.find((v) => v.type === "Trailer") || selected.videos[0];
 
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -493,96 +635,18 @@ export function VideoBannerPreview({ selected, logoUrl, onBack }: Props) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="rounded-lg overflow-hidden border">
-            {/* TOP: YouTube Trailer embed */}
-            {trailer ? (
-              <div className="aspect-video bg-black relative overflow-hidden">
-                <iframe
-                  src={`https://www.youtube.com/embed/${trailer.key}?autoplay=0&rel=0&controls=1&modestbranding=1&showinfo=0`}
-                  className="w-full h-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                  title="Trailer"
-                  style={{ border: "none" }}
-                />
-              </div>
-            ) : (
-              <div className="aspect-video bg-muted flex items-center justify-center text-muted-foreground">
-                <p>Trailer não encontrado para este título</p>
-              </div>
-            )}
+          {/* Info banner */}
+          <div className="flex items-start gap-2 p-3 rounded-lg bg-muted text-muted-foreground text-xs">
+            <Info className="h-4 w-4 shrink-0 mt-0.5" />
+            <p>
+              A prévia abaixo mostra exatamente como o vídeo será gerado: animação na imagem de
+              fundo com informações do título. O arquivo MP4 terá 10 segundos de duração.
+            </p>
+          </div>
 
-            {/* BOTTOM: Banner info */}
-            <div className="relative bg-zinc-900 p-4">
-              {selected.poster_path && (
-                <img
-                  src={`${TMDB_IMG}/w342${selected.poster_path}`}
-                  alt=""
-                  className="absolute inset-0 w-full h-full object-cover opacity-15"
-                />
-              )}
-              <div className="relative z-10 flex gap-4">
-                {selected.poster_path && (
-                  <img
-                    src={`${TMDB_IMG}/w342${selected.poster_path}`}
-                    alt={title}
-                    className="w-24 rounded border border-white/20 shadow-lg shrink-0"
-                  />
-                )}
-                <div className="min-w-0">
-                  <h3 className="text-white font-bold text-sm uppercase">{title}</h3>
-                  <div className="flex gap-2 mt-1 flex-wrap">
-                    <span className="text-[10px] px-2 py-0.5 rounded bg-white/15 text-white font-bold">
-                      {type}
-                    </span>
-                    <span className="text-[10px] px-2 py-0.5 rounded bg-white/15 text-white font-bold">
-                      {year}
-                    </span>
-                    {duration && (
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-white/15 text-white font-bold">
-                        {duration}
-                      </span>
-                    )}
-                  </div>
-                  {selected.overview && (
-                    <p className="text-[10px] text-white/80 mt-2 line-clamp-3">
-                      {selected.overview}
-                    </p>
-                  )}
-                </div>
-              </div>
-              {selected.cast.length > 0 && (
-                <div className="relative z-10 flex gap-3 mt-3 pt-3 border-t border-white/10">
-                  {selected.cast.slice(0, 5).map((c) => (
-                    <div key={c.id} className="flex flex-col items-center w-10">
-                      {c.profile_path ? (
-                        <img
-                          src={`${TMDB_IMG}/w185${c.profile_path}`}
-                          alt={c.name}
-                          className="h-10 w-10 rounded-full object-cover border border-white/30"
-                        />
-                      ) : (
-                        <div className="h-10 w-10 rounded-full bg-white/20 flex items-center justify-center text-xs text-white font-bold">
-                          {c.name[0]}
-                        </div>
-                      )}
-                      <span className="text-[8px] mt-0.5 text-white/70 truncate w-full text-center">
-                        {c.name.split(" ")[0]}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {logoUrl && (
-                <div className="relative z-10 flex justify-end mt-3">
-                  <img
-                    src={logoUrl}
-                    alt="Logo"
-                    className="h-8 w-auto object-contain opacity-80"
-                  />
-                </div>
-              )}
-            </div>
+          {/* Animated canvas preview */}
+          <div className="rounded-lg overflow-hidden border">
+            <AnimatedPreview selected={selected} logoUrl={logoUrl} />
           </div>
 
           {/* Download */}
