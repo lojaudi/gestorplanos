@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Download, Loader2, Info } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
 import type { ContentDetails } from "@/pages/VideoBanner";
 
@@ -193,7 +194,7 @@ function renderStaticBanner(
   }
 }
 
-// ── Ken Burns animation helpers ──
+// ── Helpers ──
 
 function easeOut(t: number): number {
   return 1 - Math.pow(1 - t, 3);
@@ -202,40 +203,10 @@ function clamp(v: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, v));
 }
 
-// ── MP4 generation with backdrop Ken Burns ──
+// ── Shared encoder setup ──
 
-async function generateMP4(
-  bannerImages: BannerImages,
-  selected: ContentDetails,
-  title: string, type: string, year: string, duration: string | null,
-  backdropImg: HTMLImageElement | null,
-  onStatus: (s: string) => void,
-  onProgress: (p: number) => void,
-): Promise<Blob> {
+async function setupEncoder(WIDTH: number, HEIGHT: number, FPS: number) {
   const { Muxer, ArrayBufferTarget } = await import("mp4-muxer");
-
-  const WIDTH = 1080;
-  const VIDEO_H = 608;
-  const BANNER_H = 320;
-  const HEIGHT = VIDEO_H + BANNER_H;
-  const FPS = 24;
-  const DURATION_S = 10;
-  const TOTAL_FRAMES = FPS * DURATION_S;
-  const FRAME_DURATION_US = Math.round(1_000_000 / FPS);
-
-  const bannerCanvas = document.createElement("canvas");
-  bannerCanvas.width = WIDTH;
-  bannerCanvas.height = BANNER_H;
-  renderStaticBanner(
-    bannerCanvas.getContext("2d")!, WIDTH, BANNER_H, bannerImages,
-    title, type, year, duration,
-    selected.overview || "", selected.cast.map((c) => c.name),
-  );
-
-  const canvas = document.createElement("canvas");
-  canvas.width = WIDTH;
-  canvas.height = HEIGHT;
-  const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
 
   const codecs = ["avc1.42001f", "avc1.4d001f", "avc1.640029"];
   let selectedCodec = "";
@@ -261,8 +232,151 @@ async function generateMP4(
     bitrate: 4_000_000, framerate: FPS, latencyMode: "quality",
   });
 
+  return { encoder, muxer, target };
+}
+
+async function waitForEncoder(encoder: VideoEncoder) {
+  while (encoder.encodeQueueSize > 3) {
+    await new Promise(r => setTimeout(r, 10));
+  }
+}
+
+// ── MP4 generation with trailer video ──
+
+async function generateMP4WithTrailer(
+  trailerBlob: Blob,
+  maxDurationS: number,
+  bannerImages: BannerImages,
+  selected: ContentDetails,
+  title: string, type: string, year: string, duration: string | null,
+  onStatus: (s: string) => void,
+  onProgress: (p: number) => void,
+): Promise<Blob> {
+  const WIDTH = 1080;
+  const VIDEO_H = 608;
+  const BANNER_H = 320;
+  const HEIGHT = VIDEO_H + BANNER_H;
+  const FPS = 15;
+  const FRAME_DURATION_US = Math.round(1_000_000 / FPS);
+
+  // Pre-render banner
+  const bannerCanvas = document.createElement("canvas");
+  bannerCanvas.width = WIDTH;
+  bannerCanvas.height = BANNER_H;
+  renderStaticBanner(
+    bannerCanvas.getContext("2d")!, WIDTH, BANNER_H, bannerImages,
+    title, type, year, duration,
+    selected.overview || "", selected.cast.map(c => c.name),
+  );
+
+  // Load video element
+  onStatus("Carregando trailer...");
+  const videoEl = document.createElement("video");
+  videoEl.muted = true;
+  videoEl.playsInline = true;
+  videoEl.preload = "auto";
+  const blobUrl = URL.createObjectURL(trailerBlob);
+  videoEl.src = blobUrl;
+
+  await new Promise<void>((resolve, reject) => {
+    videoEl.onloadeddata = () => resolve();
+    videoEl.onerror = () => reject(new Error("Erro ao decodificar trailer"));
+    setTimeout(() => reject(new Error("Timeout ao carregar trailer")), 20000);
+  });
+
+  const clipDuration = Math.min(videoEl.duration, maxDurationS);
+  const totalFrames = Math.ceil(clipDuration * FPS);
+
+  onStatus(`Processando ${Math.round(clipDuration)}s de trailer (${totalFrames} frames)...`);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = WIDTH;
+  canvas.height = HEIGHT;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+
+  const { encoder, muxer, target } = await setupEncoder(WIDTH, HEIGHT, FPS);
+
+  for (let i = 0; i < totalFrames; i++) {
+    const targetTime = i / FPS;
+    videoEl.currentTime = targetTime;
+    await new Promise<void>((resolve) => {
+      const handler = () => { videoEl.removeEventListener("seeked", handler); resolve(); };
+      videoEl.addEventListener("seeked", handler);
+      // Safety timeout for stuck seeks
+      setTimeout(() => { videoEl.removeEventListener("seeked", handler); resolve(); }, 500);
+    });
+
+    // Draw trailer frame in top portion
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+    ctx.drawImage(videoEl, 0, 0, WIDTH, VIDEO_H);
+
+    // Draw banner at bottom
+    ctx.drawImage(bannerCanvas, 0, VIDEO_H);
+
+    const timestamp = i * FRAME_DURATION_US;
+    const frame = new VideoFrame(canvas, { timestamp, duration: FRAME_DURATION_US });
+
+    await waitForEncoder(encoder);
+    encoder.encode(frame, { keyFrame: i % (FPS * 2) === 0 });
+    frame.close();
+
+    onProgress(20 + Math.round((i / totalFrames) * 70));
+
+    // Yield every 15 frames
+    if ((i + 1) % 15 === 0) {
+      await encoder.flush();
+      await new Promise(r => setTimeout(r, 0));
+    }
+  }
+
+  onStatus("Finalizando MP4...");
+  await encoder.flush();
+  encoder.close();
+  muxer.finalize();
+  URL.revokeObjectURL(blobUrl);
+
+  const buffer = target.buffer;
+  if (!buffer || buffer.byteLength < 1000) throw new Error("MP4 gerado está vazio");
+  return new Blob([buffer], { type: "video/mp4" });
+}
+
+// ── MP4 generation with Ken Burns fallback ──
+
+async function generateMP4KenBurns(
+  bannerImages: BannerImages,
+  selected: ContentDetails,
+  title: string, type: string, year: string, duration: string | null,
+  backdropImg: HTMLImageElement | null,
+  durationS: number,
+  onStatus: (s: string) => void,
+  onProgress: (p: number) => void,
+): Promise<Blob> {
+  const WIDTH = 1080;
+  const VIDEO_H = 608;
+  const BANNER_H = 320;
+  const HEIGHT = VIDEO_H + BANNER_H;
+  const FPS = 24;
+  const TOTAL_FRAMES = FPS * durationS;
+  const FRAME_DURATION_US = Math.round(1_000_000 / FPS);
+
+  const bannerCanvas = document.createElement("canvas");
+  bannerCanvas.width = WIDTH;
+  bannerCanvas.height = BANNER_H;
+  renderStaticBanner(
+    bannerCanvas.getContext("2d")!, WIDTH, BANNER_H, bannerImages,
+    title, type, year, duration,
+    selected.overview || "", selected.cast.map(c => c.name),
+  );
+
+  const canvas = document.createElement("canvas");
+  canvas.width = WIDTH;
+  canvas.height = HEIGHT;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+
+  const { encoder, muxer, target } = await setupEncoder(WIDTH, HEIGHT, FPS);
+
   onStatus("Renderizando vídeo...");
-  const BATCH = FPS;
 
   for (let i = 0; i < TOTAL_FRAMES; i++) {
     const t = i / TOTAL_FRAMES;
@@ -302,14 +416,16 @@ async function generateMP4(
 
     const timestamp = i * FRAME_DURATION_US;
     const frame = new VideoFrame(canvas, { timestamp, duration: FRAME_DURATION_US });
+
+    await waitForEncoder(encoder);
     encoder.encode(frame, { keyFrame: i % (FPS * 2) === 0 });
     frame.close();
 
     onProgress(20 + Math.round((i / TOTAL_FRAMES) * 70));
 
-    if ((i + 1) % BATCH === 0) {
+    if ((i + 1) % FPS === 0) {
       await encoder.flush();
-      await new Promise((r) => setTimeout(r, 0));
+      await new Promise(r => setTimeout(r, 0));
     }
   }
 
@@ -319,7 +435,7 @@ async function generateMP4(
   muxer.finalize();
 
   const buffer = target.buffer;
-  if (!buffer || buffer.byteLength < 1000) throw new Error("MP4 gerado está vazio ou corrompido");
+  if (!buffer || buffer.byteLength < 1000) throw new Error("MP4 gerado está vazio");
   return new Blob([buffer], { type: "video/mp4" });
 }
 
@@ -337,12 +453,14 @@ export function VideoBannerPreview({ selected, logoUrl, onBack }: Props) {
   const [generating, setGenerating] = useState(false);
   const [progress, setProgress] = useState(0);
   const [statusText, setStatusText] = useState("");
+  const [trailerDuration, setTrailerDuration] = useState("30");
 
   const handleDownload = useCallback(async () => {
     setGenerating(true);
     setProgress(0);
 
     try {
+      // Load banner images
       setStatusText("Carregando imagens...");
       const posterUrl = selected.poster_path ? `${TMDB_IMG}/w342${selected.poster_path}` : null;
       const backdropUrl = selected.backdrop_path ? `${TMDB_IMG}/w1280${selected.backdrop_path}` : null;
@@ -365,16 +483,55 @@ export function VideoBannerPreview({ selected, logoUrl, onBack }: Props) {
         logo: logoUrl ? allImgs[1 + castCount] : null,
       };
       const backdropImg = allImgs[allImgs.length - 1];
-      setProgress(15);
+      setProgress(10);
 
       if (typeof VideoEncoder === "undefined") {
         throw new Error("Seu navegador não suporta WebCodecs. Use o Google Chrome.");
       }
 
-      setStatusText("Gerando vídeo...");
-      const finalBlob = await generateMP4(
-        bannerImages, selected, title, type, year, duration, backdropImg, setStatusText, setProgress,
-      );
+      const maxDuration = Number(trailerDuration);
+      let finalBlob: Blob | null = null;
+
+      // Try downloading trailer via Cobalt proxy
+      if (trailer) {
+        try {
+          setStatusText("Baixando trailer do YouTube...");
+          setProgress(12);
+          const res = await fetch(`${SUPABASE_URL}/functions/v1/youtube-video-proxy`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", apikey: SUPABASE_KEY },
+            body: JSON.stringify({ videoId: trailer.key }),
+            signal: AbortSignal.timeout(90000),
+          });
+
+          if (res.ok) {
+            const ct = res.headers.get("content-type") || "";
+            if (ct.includes("video")) {
+              const trailerBlob = await res.blob();
+              setProgress(20);
+              if (trailerBlob.size > 10000) {
+                console.log(`[video-banner] Trailer downloaded: ${(trailerBlob.size / 1024 / 1024).toFixed(1)}MB`);
+                finalBlob = await generateMP4WithTrailer(
+                  trailerBlob, maxDuration, bannerImages, selected,
+                  title, type, year, duration, setStatusText, setProgress,
+                );
+              }
+            }
+          }
+        } catch (err) {
+          console.warn("[video-banner] Trailer download failed, using Ken Burns:", err);
+        }
+      }
+
+      // Fallback: Ken Burns on backdrop
+      if (!finalBlob) {
+        setStatusText("Gerando vídeo com animação cinematográfica...");
+        setProgress(20);
+        finalBlob = await generateMP4KenBurns(
+          bannerImages, selected, title, type, year, duration,
+          backdropImg, Math.min(maxDuration, 15), setStatusText, setProgress,
+        );
+      }
 
       if (!finalBlob || finalBlob.size < 1000) throw new Error("Falha ao gerar o vídeo banner.");
 
@@ -398,7 +555,7 @@ export function VideoBannerPreview({ selected, logoUrl, onBack }: Props) {
       setStatusText("");
       setTimeout(() => setProgress(0), 1000);
     }
-  }, [selected, logoUrl, title, year, type, duration]);
+  }, [selected, logoUrl, title, year, type, duration, trailer, trailerDuration]);
 
   return (
     <div className="space-y-4">
@@ -471,29 +628,59 @@ export function VideoBannerPreview({ selected, logoUrl, onBack }: Props) {
             </div>
           </div>
 
-          {/* Info */}
-          <div className="flex items-start gap-2 p-3 rounded-lg bg-muted text-muted-foreground text-xs">
-            <Info className="h-4 w-4 shrink-0 mt-0.5" />
-            <p>
-              O MP4 gerado terá 10 segundos com animação cinematográfica no backdrop e o banner de informações na parte inferior.
+          {/* Duration selector + Info */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 p-3 rounded-lg bg-muted">
+            <div className="flex items-center gap-2">
+              <Info className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">Duração do trailer:</span>
+            </div>
+            <Select value={trailerDuration} onValueChange={setTrailerDuration}>
+              <SelectTrigger className="w-[160px] h-8 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="10">10 segundos</SelectItem>
+                <SelectItem value="15">15 segundos</SelectItem>
+                <SelectItem value="30">30 segundos</SelectItem>
+                <SelectItem value="45">45 segundos</SelectItem>
+                <SelectItem value="60">60 segundos</SelectItem>
+                <SelectItem value="90">90 segundos</SelectItem>
+                <SelectItem value="120">120 segundos</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-[10px] text-muted-foreground">
+              {trailer
+                ? "O trailer será baixado e combinado com o banner no MP4 final."
+                : "Sem trailer — será usado efeito cinematográfico no backdrop."}
             </p>
           </div>
 
-          {/* Download */}
-          <Button onClick={handleDownload} disabled={generating} className="w-full" size="lg">
+          {/* Download button + progress */}
+          <Button
+            onClick={handleDownload}
+            disabled={generating}
+            className="w-full"
+            size="lg"
+          >
             {generating ? (
               <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                {statusText || "Gerando..."} {progress > 0 && `${progress}%`}
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {statusText || "Gerando..."}
               </>
             ) : (
               <>
-                <Download className="h-4 w-4 mr-2" />
-                Baixar Video Banner (MP4)
+                <Download className="mr-2 h-4 w-4" />
+                Baixar Video Banner MP4
               </>
             )}
           </Button>
-          {generating && <Progress value={progress} className="h-2" />}
+
+          {generating && progress > 0 && (
+            <div className="space-y-1">
+              <Progress value={progress} className="h-2" />
+              <p className="text-xs text-muted-foreground text-center">{progress}%</p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
