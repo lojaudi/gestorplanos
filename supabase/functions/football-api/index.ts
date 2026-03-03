@@ -41,9 +41,7 @@ async function fetchFromApiFootball(apiKey: string, date: string, timezone: stri
     throw new Error(`API-Football erro: ${Object.values(json.errors).join("; ")}`);
   }
   const allFixtures = json.response || [];
-  const leagueIds = new Set(APIFOOTBALL_LEAGUES);
-  const filtered = allFixtures.filter((f: any) => leagueIds.has(f.league.id));
-  return filtered.map((fixture: any) => ({
+  return allFixtures.map((fixture: any) => ({
     id: fixture.fixture.id,
     date: fixture.fixture.date,
     timestamp: fixture.fixture.timestamp,
@@ -206,7 +204,7 @@ serve(async (req) => {
 
     const { data: settings } = await supabase
       .from("platform_settings")
-      .select("football_api_key, football_api_key_secondary, football_api_key_tertiary, football_api_provider, football_timezone, football_apisport_leagues, football_footballdata_leagues")
+      .select("football_api_key, football_api_key_secondary, football_api_key_tertiary, football_api_provider, football_timezone, football_apisport_leagues, football_footballdata_leagues, football_apifootball_leagues")
       .limit(1)
       .maybeSingle();
 
@@ -241,7 +239,11 @@ serve(async (req) => {
           matches = matches.filter((m: any) => leagueSet.has(m.league.id));
         }
       } else {
+        const selectedApifootballLeagues: number[] = Array.isArray((settings as any)?.football_apifootball_leagues) && ((settings as any).football_apifootball_leagues as number[]).length > 0
+          ? ((settings as any).football_apifootball_leagues as number[]) : APIFOOTBALL_LEAGUES;
         matches = await fetchFromApiFootball(apiKey, date, timezone);
+        const leagueSet = new Set(selectedApifootballLeagues);
+        matches = matches.filter((m: any) => leagueSet.has(m.league.id));
       }
 
       // Resolve channels
@@ -309,7 +311,11 @@ serve(async (req) => {
           matches = matches.filter((m: any) => leagueSet.has(m.league.id));
         }
       } else {
+        const selectedApifootballLeagues: number[] = Array.isArray((settings as any)?.football_apifootball_leagues) && ((settings as any).football_apifootball_leagues as number[]).length > 0
+          ? ((settings as any).football_apifootball_leagues as number[]) : APIFOOTBALL_LEAGUES;
         matches = await fetchFromApiFootball(apiKey, date, timezone);
+        const leagueSet = new Set(selectedApifootballLeagues);
+        matches = matches.filter((m: any) => leagueSet.has(m.league.id));
       }
 
       // Also save to DB cache for future requests
