@@ -1,0 +1,1 @@
+ALTER TABLE public.platform_settings ADD COLUMN IF NOT EXISTS football_apifootball_leagues jsonb DEFAULT '[]'::jsonb;

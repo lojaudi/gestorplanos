@@ -39,6 +39,7 @@ interface PlatformSettings {
   football_api_key_tertiary: string;
   football_apisport_leagues: number[];
   football_footballdata_leagues: string[];
+  football_apifootball_leagues: number[];
 }
 
 interface ApiSportLeague {
@@ -73,6 +74,8 @@ const AdminSettings = () => {
   const [loadingLeagues, setLoadingLeagues] = useState(false);
   const [footballdataLeagues, setFootballdataLeagues] = useState<ApiSportLeague[]>([]);
   const [loadingFootballdataLeagues, setLoadingFootballdataLeagues] = useState(false);
+  const [apifootballLeagues, setApifootballLeagues] = useState<ApiSportLeague[]>([]);
+  const [loadingApifootballLeagues, setLoadingApifootballLeagues] = useState(false);
   const callEvolutionApi = useCallback(async (action: string, extraParams = {}) => {
     const { data: { session } } = await supabase.auth.getSession();
     const res = await fetch(
@@ -108,9 +111,43 @@ const AdminSettings = () => {
         football_footballdata_leagues: Array.isArray(data.football_footballdata_leagues) 
           ? (data.football_footballdata_leagues as string[]) 
           : [],
+        football_apifootball_leagues: Array.isArray((data as any).football_apifootball_leagues) 
+          ? ((data as any).football_apifootball_leagues as number[]) 
+          : [],
       } as PlatformSettings);
     }
     setLoading(false);
+  };
+
+  const fetchApifootballLeagues = async () => {
+    if (!settings?.football_api_key) {
+      toast({ title: "Configure a API Key primeiro", variant: "destructive" });
+      return;
+    }
+    setLoadingApifootballLeagues(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/football-api`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session?.access_token}`,
+            apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+          },
+          body: JSON.stringify({ action: "get-leagues", provider: "api-football" }),
+        }
+      );
+      const json = await res.json();
+      if (json.leagues) {
+        setApifootballLeagues(json.leagues);
+        toast({ title: `${json.leagues.length} ligas encontradas` });
+      }
+    } catch (err: any) {
+      toast({ title: "Erro ao buscar ligas", description: err.message, variant: "destructive" });
+    }
+    setLoadingApifootballLeagues(false);
   };
 
   const fetchApisportLeagues = async () => {
@@ -274,6 +311,7 @@ const AdminSettings = () => {
         football_api_key_tertiary: settings.football_api_key_tertiary || null,
         football_apisport_leagues: settings.football_apisport_leagues || [],
         football_footballdata_leagues: settings.football_footballdata_leagues || [],
+        football_apifootball_leagues: settings.football_apifootball_leagues || [],
       } as any)
       .eq("id", settings.id);
 
@@ -598,18 +636,87 @@ const AdminSettings = () => {
           </div>
 
           {settings.football_api_provider === "api-football" && (
-            <div className="space-y-2">
-              <Label>API Key - API-Football (api-sports.io)</Label>
-              <div className="relative">
-                <Input
-                  type={showFootballKey ? "text" : "password"}
-                  value={settings.football_api_key ?? ""}
-                  onChange={(e) => setSettings({ ...settings, football_api_key: e.target.value })}
-                  placeholder="Chave da API-Football (api-sports.io)"
-                />
-                <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowFootballKey(!showFootballKey)}>
-                  {showFootballKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label>API Key - API-Football (api-sports.io)</Label>
+                <div className="relative">
+                  <Input
+                    type={showFootballKey ? "text" : "password"}
+                    value={settings.football_api_key ?? ""}
+                    onChange={(e) => setSettings({ ...settings, football_api_key: e.target.value })}
+                    placeholder="Chave da API-Football (api-sports.io)"
+                  />
+                  <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground" onClick={() => setShowFootballKey(!showFootballKey)}>
+                    {showFootballKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* League selector for api-football */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Ligas Selecionadas</Label>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={fetchApifootballLeagues} 
+                    disabled={loadingApifootballLeagues}
+                  >
+                    {loadingApifootballLeagues ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-2 h-3 w-3" />}
+                    Buscar Ligas
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Busque as ligas disponíveis na API e selecione quais deseja monitorar. Deixe vazio para usar a lista padrão (10 ligas).
+                </p>
+                {settings.football_apifootball_leagues.length > 0 && (
+                  <p className="text-xs text-primary font-medium">
+                    {settings.football_apifootball_leagues.length} liga(s) selecionada(s)
+                  </p>
+                )}
+                {apifootballLeagues.length > 0 && (
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="Filtrar ligas..."
+                      onChange={(e) => {
+                        const filter = e.target.value.toLowerCase();
+                        const container = document.getElementById('apifootball-leagues-list');
+                        if (container) {
+                          Array.from(container.children).forEach((child) => {
+                            const text = (child as HTMLElement).textContent?.toLowerCase() || '';
+                            (child as HTMLElement).style.display = text.includes(filter) ? '' : 'none';
+                          });
+                        }
+                      }}
+                    />
+                    <div id="apifootball-leagues-list" className="max-h-64 overflow-y-auto rounded-md border p-3 space-y-1">
+                      {apifootballLeagues.map((league) => {
+                        const isSelected = settings.football_apifootball_leagues.includes(league.id);
+                        return (
+                          <label key={league.id} className="flex items-center gap-3 p-2 rounded-md hover:bg-muted/50 cursor-pointer">
+                            <Checkbox
+                              checked={isSelected}
+                              onCheckedChange={(checked) => {
+                                const current = settings.football_apifootball_leagues;
+                                const next = checked
+                                  ? [...current, league.id]
+                                  : current.filter((id) => id !== league.id);
+                                setSettings({ ...settings, football_apifootball_leagues: next });
+                              }}
+                            />
+                            {league.logo && (
+                              <img src={league.logo} alt="" className="h-5 w-5 object-contain" />
+                            )}
+                            <span className="text-sm">{league.name}</span>
+                            {league.country && (
+                              <span className="text-xs text-muted-foreground">({league.country})</span>
+                            )}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
