@@ -90,7 +90,7 @@ const userNav: NavEntry[] = [
       { icon: Megaphone, label: "Campanha", path: "/campaign" },
       { icon: Gamepad2, label: "Jogos do Dia", path: "/games-day" },
       { icon: Image, label: "Banners Filmes/Séries", path: "/movies-series" },
-      { icon: Clapperboard, label: "Video Banner", path: "/video-banner" },
+      // { icon: Clapperboard, label: "Video Banner", path: "/video-banner" }, // Temporariamente desativado - Cobalt com problema no YouTube
     ],
   },
 ];
