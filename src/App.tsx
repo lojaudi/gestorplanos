@@ -63,7 +63,7 @@ const App = () => (
               <Route path="/movies-series" element={<ProtectedPage><MoviesSeries /></ProtectedPage>} />
               <Route path="/games-day" element={<ProtectedPage><GamesDay /></ProtectedPage>} />
               <Route path="/campaign" element={<ProtectedPage><Campaign /></ProtectedPage>} />
-              <Route path="/video-banner" element={<ProtectedPage><VideoBanner /></ProtectedPage>} />
+              {/* <Route path="/video-banner" element={<ProtectedPage><VideoBanner /></ProtectedPage>} /> // Temporariamente desativado - Cobalt com problema no YouTube */}
               <Route path="/subscribe" element={<ProtectedPage><Subscribe /></ProtectedPage>} />
               <Route path="/support-materials" element={<ProtectedPage><SupportMaterialsPage /></ProtectedPage>} />
               <Route path="/admin/support-materials" element={<ProtectedPage><AdminSupportMaterials /></ProtectedPage>} />
