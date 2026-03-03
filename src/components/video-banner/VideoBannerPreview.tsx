@@ -296,39 +296,77 @@ async function generateMP4WithTrailer(
 
   const { encoder, muxer, target } = await setupEncoder(WIDTH, HEIGHT, FPS);
 
-  for (let i = 0; i < totalFrames; i++) {
-    const targetTime = i / FPS;
-    videoEl.currentTime = targetTime;
-    await new Promise<void>((resolve) => {
-      const handler = () => { videoEl.removeEventListener("seeked", handler); resolve(); };
-      videoEl.addEventListener("seeked", handler);
-      // Safety timeout for stuck seeks
-      setTimeout(() => { videoEl.removeEventListener("seeked", handler); resolve(); }, 500);
-    });
+  // Use playback-based frame capture instead of seeking
+  // This avoids the browser hanging on individual seek operations
+  videoEl.currentTime = 0;
+  await new Promise<void>(r => { videoEl.onseeked = () => r(); setTimeout(r, 300); });
+  videoEl.playbackRate = 1;
+  await videoEl.play();
 
-    // Draw trailer frame in top portion
-    ctx.fillStyle = "#000";
-    ctx.fillRect(0, 0, WIDTH, HEIGHT);
-    ctx.drawImage(videoEl, 0, 0, WIDTH, VIDEO_H);
+  let frameIndex = 0;
+  const intervalMs = 1000 / FPS;
 
-    // Draw banner at bottom
-    ctx.drawImage(bannerCanvas, 0, VIDEO_H);
+  await new Promise<void>((resolveAll, rejectAll) => {
+    let lastCaptureTime = -1;
+    let stuckCount = 0;
 
-    const timestamp = i * FRAME_DURATION_US;
-    const frame = new VideoFrame(canvas, { timestamp, duration: FRAME_DURATION_US });
+    const captureFrame = async () => {
+      try {
+        if (frameIndex >= totalFrames || videoEl.currentTime >= clipDuration) {
+          videoEl.pause();
+          resolveAll();
+          return;
+        }
 
-    await waitForEncoder(encoder);
-    encoder.encode(frame, { keyFrame: i % (FPS * 2) === 0 });
-    frame.close();
+        // Skip if video hasn't advanced (avoid duplicate frames)
+        const vt = videoEl.currentTime;
+        if (Math.abs(vt - lastCaptureTime) < 0.001) {
+          stuckCount++;
+          if (stuckCount > FPS * 2) {
+            // Video is stuck, finish what we have
+            videoEl.pause();
+            resolveAll();
+            return;
+          }
+          setTimeout(captureFrame, intervalMs / 2);
+          return;
+        }
+        stuckCount = 0;
+        lastCaptureTime = vt;
 
-    onProgress(20 + Math.round((i / totalFrames) * 70));
+        // Draw trailer frame in top portion
+        ctx.fillStyle = "#000";
+        ctx.fillRect(0, 0, WIDTH, HEIGHT);
+        ctx.drawImage(videoEl, 0, 0, WIDTH, VIDEO_H);
 
-    // Yield every 15 frames
-    if ((i + 1) % 15 === 0) {
-      await encoder.flush();
-      await new Promise(r => setTimeout(r, 0));
-    }
-  }
+        // Draw banner at bottom
+        ctx.drawImage(bannerCanvas, 0, VIDEO_H);
+
+        const timestamp = frameIndex * FRAME_DURATION_US;
+        const frame = new VideoFrame(canvas, { timestamp, duration: FRAME_DURATION_US });
+
+        await waitForEncoder(encoder);
+        encoder.encode(frame, { keyFrame: frameIndex % (FPS * 2) === 0 });
+        frame.close();
+
+        frameIndex++;
+        onProgress(20 + Math.round((frameIndex / totalFrames) * 70));
+
+        // Flush periodically
+        if (frameIndex % 15 === 0) {
+          await encoder.flush();
+        }
+
+        setTimeout(captureFrame, intervalMs);
+      } catch (err) {
+        videoEl.pause();
+        rejectAll(err);
+      }
+    };
+
+    // Start capturing after a brief delay for playback to begin
+    setTimeout(captureFrame, 100);
+  });
 
   onStatus("Finalizando MP4...");
   await encoder.flush();
