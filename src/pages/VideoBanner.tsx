@@ -26,20 +26,12 @@ interface CastMember {
   profile_path: string | null;
 }
 
-interface VideoInfo {
-  key: string;
-  site: string;
-  type: string;
-  name: string;
-}
-
 export interface ContentDetails extends TmdbResult {
   cast: CastMember[];
   runtime?: number;
   number_of_seasons?: number;
   vote_average?: number;
   genres?: { id: number; name: string }[];
-  videos: VideoInfo[];
 }
 
 const VideoBanner = () => {
@@ -104,22 +96,12 @@ const VideoBanner = () => {
     setLoadingDetails(true);
     try {
       const type = item.media_type === "tv" ? "tv" : "movie";
-      const [detailsRes, creditsRes, videosRes] = await Promise.all([
+      const [detailsRes, creditsRes] = await Promise.all([
         fetch(`https://api.themoviedb.org/3/${type}/${item.id}?api_key=${encodeURIComponent(apiKey)}&language=pt-BR`),
         fetch(`https://api.themoviedb.org/3/${type}/${item.id}/credits?api_key=${encodeURIComponent(apiKey)}&language=pt-BR`),
-        fetch(`https://api.themoviedb.org/3/${type}/${item.id}/videos?api_key=${encodeURIComponent(apiKey)}&language=pt-BR`),
       ]);
       const details = await detailsRes.json();
       const credits = await creditsRes.json();
-      const videosData = await videosRes.json();
-
-      // If no PT-BR videos, try English
-      let videos = (videosData.results || []).filter((v: any) => v.site === "YouTube");
-      if (videos.length === 0) {
-        const enRes = await fetch(`https://api.themoviedb.org/3/${type}/${item.id}/videos?api_key=${encodeURIComponent(apiKey)}&language=en-US`);
-        const enData = await enRes.json();
-        videos = (enData.results || []).filter((v: any) => v.site === "YouTube");
-      }
 
       setSelected({
         ...item,
@@ -129,7 +111,6 @@ const VideoBanner = () => {
         number_of_seasons: details.number_of_seasons,
         vote_average: details.vote_average,
         genres: details.genres,
-        videos,
       });
     } catch {
       toast({ title: "Erro ao carregar detalhes", variant: "destructive" });
