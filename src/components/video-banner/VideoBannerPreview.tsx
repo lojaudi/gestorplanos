@@ -87,35 +87,6 @@ function drawCircularImage(ctx: CanvasRenderingContext2D, img: HTMLImageElement,
 function easeOut(t: number): number { return 1 - Math.pow(1 - t, 3); }
 function clamp(v: number, min: number, max: number): number { return Math.min(max, Math.max(min, v)); }
 
-// ── Encoder setup ──
-
-async function setupEncoder(WIDTH: number, HEIGHT: number, FPS: number) {
-  const { Muxer, ArrayBufferTarget } = await import("mp4-muxer");
-  const codecs = ["avc1.42001f", "avc1.4d001f", "avc1.640029"];
-  let selectedCodec = "";
-  for (const c of codecs) {
-    const s = await VideoEncoder.isConfigSupported({ codec: c, width: WIDTH, height: HEIGHT, bitrate: 4_000_000, framerate: FPS });
-    if (s.supported) { selectedCodec = c; break; }
-  }
-  if (!selectedCodec) throw new Error("Navegador não suporta codificação H.264. Use o Google Chrome.");
-
-  const target = new ArrayBufferTarget();
-  const muxer = new Muxer({ target, video: { codec: "avc", width: WIDTH, height: HEIGHT }, fastStart: "in-memory" });
-
-  const encoder = new VideoEncoder({
-    output: (chunk: EncodedVideoChunk, meta: EncodedVideoChunkMetadata) => muxer.addVideoChunk(chunk, meta),
-    error: (e: DOMException) => console.error("Encoder error:", e),
-  });
-  encoder.configure({ codec: selectedCodec, width: WIDTH, height: HEIGHT, bitrate: 4_000_000, framerate: FPS, latencyMode: "quality" });
-  return { encoder, muxer, target };
-}
-
-async function waitForEncoder(encoder: VideoEncoder) {
-  while (encoder.encodeQueueSize > 3) {
-    await new Promise(r => setTimeout(r, 10));
-  }
-}
-
 // ── Canvas preview rendering ──
 
 interface OverlayConfig {
@@ -419,8 +390,9 @@ export function VideoBannerPreview({ selected, logoUrl: initialLogoUrl, onBack }
     setDownloadUrl(null);
 
     try {
-      const W = 1080, H = 928;
-      const FPS = 24;
+      // Use lower resolution for reliability
+      const W = 720, H = 618;
+      const FPS = 12;
       const durationS = Number(videoDuration);
       const TOTAL_FRAMES = FPS * durationS;
       const FRAME_DURATION_US = Math.round(1_000_000 / FPS);
@@ -428,12 +400,30 @@ export function VideoBannerPreview({ selected, logoUrl: initialLogoUrl, onBack }
       setStatusText("Preparando encoder...");
       setProgress(5);
 
-      const { encoder, muxer, target } = await setupEncoder(W, H, FPS);
+      const { Muxer, ArrayBufferTarget } = await import("mp4-muxer");
+
+      const codecs = ["avc1.42001f", "avc1.4d001f", "avc1.640029"];
+      let selectedCodec = "";
+      for (const c of codecs) {
+        const s = await VideoEncoder.isConfigSupported({ codec: c, width: W, height: H, bitrate: 2_000_000, framerate: FPS });
+        if (s.supported) { selectedCodec = c; break; }
+      }
+      if (!selectedCodec) throw new Error("Navegador não suporta codificação H.264. Use o Google Chrome.");
+
+      const target = new ArrayBufferTarget();
+      const muxer = new Muxer({ target, video: { codec: "avc", width: W, height: H }, fastStart: "in-memory" });
+
+      const chunks: { chunk: EncodedVideoChunk; meta?: EncodedVideoChunkMetadata }[] = [];
+      const encoder = new VideoEncoder({
+        output: (chunk, meta) => { muxer.addVideoChunk(chunk, meta); },
+        error: (e) => console.error("Encoder error:", e),
+      });
+      encoder.configure({ codec: selectedCodec, width: W, height: H, bitrate: 2_000_000, framerate: FPS, latencyMode: "quality" });
 
       const canvas = document.createElement("canvas");
       canvas.width = W;
       canvas.height = H;
-      const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+      const ctx = canvas.getContext("2d")!;
 
       setStatusText("Renderizando frames...");
 
@@ -449,17 +439,23 @@ export function VideoBannerPreview({ selected, logoUrl: initialLogoUrl, onBack }
         const timestamp = i * FRAME_DURATION_US;
         const frame = new VideoFrame(canvas, { timestamp, duration: FRAME_DURATION_US });
 
-        await waitForEncoder(encoder);
+        // Wait if encoder queue is backing up
+        while (encoder.encodeQueueSize > 2) {
+          await new Promise(r => setTimeout(r, 20));
+        }
+
         encoder.encode(frame, { keyFrame: i % (FPS * 2) === 0 });
         frame.close();
 
         const pct = 5 + Math.round((i / TOTAL_FRAMES) * 90);
         setProgress(pct);
 
-        // Flush & yield every 24 frames (1 second)
-        if ((i + 1) % FPS === 0) {
+        // Yield to main thread EVERY frame to prevent freezing
+        await new Promise(r => setTimeout(r, 0));
+
+        // Flush every 6 frames (0.5 second)
+        if ((i + 1) % 6 === 0) {
           await encoder.flush();
-          await new Promise(r => setTimeout(r, 0));
         }
       }
 
