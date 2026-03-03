@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Download, Loader2, Upload, Move, Phone, Trash2, Play } from "lucide-react";
+import { ArrowLeft, Download, Loader2, Upload, Move, Phone, Trash2, Play, AlertTriangle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import type { ContentDetails } from "@/pages/VideoBanner";
 
@@ -56,6 +56,59 @@ async function loadImageViaProxy(url: string): Promise<HTMLImageElement> {
   return loadImageFromUrl(blobUrl);
 }
 
+/** Try to download trailer video via Cobalt proxy, returns blob URL or null */
+async function downloadTrailerViaProxy(videoId: string): Promise<string | null> {
+  try {
+    console.log(`[trailer] Tentando baixar trailer ${videoId} via Cobalt...`);
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/youtube-video-proxy`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", apikey: SUPABASE_KEY },
+      body: JSON.stringify({ videoId }),
+      signal: AbortSignal.timeout(60000),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => "");
+      console.warn(`[trailer] Cobalt retornou ${res.status}: ${errText.slice(0, 200)}`);
+      return null;
+    }
+
+    const contentType = res.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+      const json = await res.json();
+      console.warn("[trailer] Cobalt retornou JSON em vez de vídeo:", json);
+      return null;
+    }
+
+    const blob = await res.blob();
+    if (blob.size < 10000) {
+      console.warn(`[trailer] Blob muito pequeno: ${blob.size} bytes`);
+      return null;
+    }
+
+    console.log(`[trailer] Trailer baixado com sucesso: ${(blob.size / 1024 / 1024).toFixed(1)} MB`);
+    return URL.createObjectURL(blob);
+  } catch (err) {
+    console.warn("[trailer] Erro ao baixar trailer:", err);
+    return null;
+  }
+}
+
+/** Load a blob URL into a playable HTMLVideoElement */
+function loadVideoElement(blobUrl: string): Promise<HTMLVideoElement> {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement("video");
+    video.muted = true;
+    video.playsInline = true;
+    video.crossOrigin = "anonymous";
+    video.preload = "auto";
+    video.onloadeddata = () => resolve(video);
+    video.onerror = () => reject(new Error("Erro ao carregar vídeo"));
+    video.src = blobUrl;
+    video.load();
+  });
+}
+
 export function VideoBannerPreview({ selected, logoUrl: initialLogoUrl, onBack }: Props) {
   const title = selected.title || selected.name || "";
   const year = (selected.release_date || selected.first_air_date || "").slice(0, 4);
@@ -74,9 +127,11 @@ export function VideoBannerPreview({ selected, logoUrl: initialLogoUrl, onBack }
   const [whatsapp, setWhatsapp] = useState("");
   const [clipDuration, setClipDuration] = useState("15");
 
-  // Backdrop image for video generation
+  // Assets
   const [backdropImg, setBackdropImg] = useState<HTMLImageElement | null>(null);
   const [posterImg, setPosterImg] = useState<HTMLImageElement | null>(null);
+  const [trailerBlobUrl, setTrailerBlobUrl] = useState<string | null>(null);
+  const [trailerStatus, setTrailerStatus] = useState<"loading" | "ready" | "failed" | "none">("none");
   const [loadingAssets, setLoadingAssets] = useState(true);
 
   // Generation state
@@ -87,7 +142,7 @@ export function VideoBannerPreview({ selected, logoUrl: initialLogoUrl, onBack }
 
   const logoInputRef = useRef<HTMLInputElement>(null);
 
-  // Load initial logo + backdrop
+  // Load images + attempt trailer download
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -115,11 +170,30 @@ export function VideoBannerPreview({ selected, logoUrl: initialLogoUrl, onBack }
             .catch(() => {})
         );
       }
+
+      // Attempt trailer download via Cobalt
+      if (trailer?.key) {
+        setTrailerStatus("loading");
+        promises.push(
+          downloadTrailerViaProxy(trailer.key)
+            .then((url) => {
+              if (!cancelled) {
+                if (url) {
+                  setTrailerBlobUrl(url);
+                  setTrailerStatus("ready");
+                } else {
+                  setTrailerStatus("failed");
+                }
+              }
+            })
+        );
+      }
+
       await Promise.all(promises);
       if (!cancelled) setLoadingAssets(false);
     })();
     return () => { cancelled = true; };
-  }, [initialLogoUrl, backdropUrl, posterUrl]);
+  }, [initialLogoUrl, backdropUrl, posterUrl, trailer?.key]);
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -134,17 +208,16 @@ export function VideoBannerPreview({ selected, logoUrl: initialLogoUrl, onBack }
     if (logoInputRef.current) logoInputRef.current.value = "";
   };
 
-  // Generate video using Ken Burns on backdrop + overlays via MediaRecorder
+  // Generate video: uses trailer if available, Ken Burns fallback otherwise
   const handleGenerate = useCallback(async () => {
-    if (!backdropImg) {
-      toast({ title: "Imagem de fundo não disponível", variant: "destructive" });
+    if (!backdropImg && !trailerBlobUrl) {
+      toast({ title: "Nenhuma imagem ou trailer disponível", variant: "destructive" });
       return;
     }
 
     setGenerating(true);
     setProgress(0);
     setDownloadUrl(null);
-    setStatusText("Preparando vídeo...");
 
     try {
       const maxDur = Number(clipDuration);
@@ -159,6 +232,15 @@ export function VideoBannerPreview({ selected, logoUrl: initialLogoUrl, onBack }
       canvas.width = W;
       canvas.height = TOTAL_H;
       const ctx = canvas.getContext("2d")!;
+
+      const useTrailer = !!trailerBlobUrl;
+      let videoEl: HTMLVideoElement | null = null;
+
+      if (useTrailer) {
+        setStatusText("Carregando trailer...");
+        videoEl = await loadVideoElement(trailerBlobUrl!);
+        videoEl.currentTime = 0;
+      }
 
       const stream = canvas.captureStream(FPS);
       const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
@@ -175,37 +257,12 @@ export function VideoBannerPreview({ selected, logoUrl: initialLogoUrl, onBack }
         recorder.onstop = () => resolve(new Blob(chunks, { type: mimeType }));
       });
 
-      // Pre-compute cast text
       const castText = selected.cast?.slice(0, 5).map(c => c.name).join(" • ") || "";
       const genreText = selected.genres?.slice(0, 3).map(g => g.name).join(" / ") || "";
 
-      let frameCount = 0;
-      const totalFrames = maxDur * FPS;
       let startTime = 0;
 
-      setStatusText("Gravando vídeo...");
-      recorder.start(100);
-
-      const drawFrame = (timestamp: number) => {
-        if (!startTime) startTime = timestamp;
-        const elapsed = (timestamp - startTime) / 1000;
-        const t = Math.min(elapsed / maxDur, 1);
-
-        // Ken Burns: slow zoom + slight pan
-        const scale = 1.0 + 0.2 * t;
-        const bw = backdropImg.width;
-        const bh = backdropImg.height;
-        const aspect = W / H_VIDEO;
-        let sw = bw;
-        let sh = sw / aspect;
-        if (sh > bh) { sh = bh; sw = sh * aspect; }
-        sw /= scale;
-        sh /= scale;
-        const sx = (bw - sw) / 2 + 30 * t;
-        const sy = (bh - sh) / 2 + 15 * t;
-
-        ctx.drawImage(backdropImg, sx, sy, sw, sh, 0, 0, W, H_VIDEO);
-
+      const drawOverlays = () => {
         // Dark gradient overlay at bottom of video area
         const grad = ctx.createLinearGradient(0, H_VIDEO * 0.5, 0, H_VIDEO);
         grad.addColorStop(0, "rgba(0,0,0,0)");
@@ -223,13 +280,10 @@ export function VideoBannerPreview({ selected, logoUrl: initialLogoUrl, onBack }
         ctx.fillStyle = "#111";
         ctx.fillRect(0, H_VIDEO, W, INFO_BAR_H);
 
-        // Poster thumbnail in info bar
         if (posterImg) {
           const pH = INFO_BAR_H - 10;
           const pW = pH * (posterImg.width / posterImg.height);
           ctx.drawImage(posterImg, 10, H_VIDEO + 5, pW, pH);
-
-          // Info text next to poster
           const textX = pW + 20;
           ctx.fillStyle = "#fff";
           ctx.font = "bold 16px sans-serif";
@@ -279,41 +333,121 @@ export function VideoBannerPreview({ selected, logoUrl: initialLogoUrl, onBack }
           ctx.textAlign = "left";
           ctx.fillText(whatsapp, 54, barY + WA_BAR_H / 2 + 7);
         }
-
-        frameCount++;
-        const pct = Math.min(95, Math.round((frameCount / totalFrames) * 95));
-        setProgress(pct);
-
-        if (elapsed < maxDur) {
-          requestAnimationFrame(drawFrame);
-        } else {
-          recorder.stop();
-        }
       };
 
-      requestAnimationFrame(drawFrame);
+      setStatusText(useTrailer ? "Gravando trailer..." : "Gravando vídeo...");
+      recorder.start(100);
 
-      const stopTimer = setTimeout(() => {
-        if (recorder.state === "recording") recorder.stop();
-      }, maxDur * 1000 + 1000);
+      if (useTrailer && videoEl) {
+        // --- TRAILER MODE: draw video frames from downloaded trailer ---
+        await videoEl.play();
+        const actualDur = Math.min(maxDur, videoEl.duration || maxDur);
 
-      const finalBlob = await recordingDone;
-      clearTimeout(stopTimer);
+        const drawTrailerFrame = () => {
+          // Draw video frame scaled to fill the video area
+          const vw = videoEl!.videoWidth;
+          const vh = videoEl!.videoHeight;
+          const vAspect = vw / vh;
+          const targetAspect = W / H_VIDEO;
+          let sx = 0, sy = 0, sw = vw, sh = vh;
+          if (vAspect > targetAspect) {
+            sw = vh * targetAspect;
+            sx = (vw - sw) / 2;
+          } else {
+            sh = vw / targetAspect;
+            sy = (vh - sh) / 2;
+          }
+          ctx.drawImage(videoEl!, sx, sy, sw, sh, 0, 0, W, H_VIDEO);
+          drawOverlays();
 
-      if (finalBlob.size < 1000) throw new Error("Vídeo gerado está vazio");
+          const pct = Math.min(95, Math.round((videoEl!.currentTime / actualDur) * 95));
+          setProgress(pct);
 
-      const url = URL.createObjectURL(finalBlob);
-      setDownloadUrl(url);
-      setProgress(100);
-      setStatusText("");
-      toast({ title: "Vídeo gerado com sucesso!" });
+          if (!videoEl!.paused && !videoEl!.ended && videoEl!.currentTime < actualDur) {
+            requestAnimationFrame(drawTrailerFrame);
+          } else {
+            videoEl!.pause();
+            recorder.stop();
+          }
+        };
+
+        // Stop video at the desired duration
+        const stopVideoTimer = setTimeout(() => {
+          if (videoEl && !videoEl.paused) videoEl.pause();
+          if (recorder.state === "recording") recorder.stop();
+        }, actualDur * 1000 + 500);
+
+        requestAnimationFrame(drawTrailerFrame);
+
+        const finalBlob = await recordingDone;
+        clearTimeout(stopVideoTimer);
+
+        if (finalBlob.size < 1000) throw new Error("Vídeo gerado está vazio");
+        const url = URL.createObjectURL(finalBlob);
+        setDownloadUrl(url);
+        setProgress(100);
+        setStatusText("");
+        toast({ title: "Vídeo com trailer gerado com sucesso!" });
+
+      } else {
+        // --- KEN BURNS FALLBACK: animate backdrop image ---
+        const totalFrames = maxDur * FPS;
+        let frameCount = 0;
+
+        const drawKenBurnsFrame = (timestamp: number) => {
+          if (!startTime) startTime = timestamp;
+          const elapsed = (timestamp - startTime) / 1000;
+          const t = Math.min(elapsed / maxDur, 1);
+
+          const scale = 1.0 + 0.2 * t;
+          const bw = backdropImg!.width;
+          const bh = backdropImg!.height;
+          const aspect = W / H_VIDEO;
+          let sw = bw;
+          let sh = sw / aspect;
+          if (sh > bh) { sh = bh; sw = sh * aspect; }
+          sw /= scale;
+          sh /= scale;
+          const sx = (bw - sw) / 2 + 30 * t;
+          const sy = (bh - sh) / 2 + 15 * t;
+
+          ctx.drawImage(backdropImg!, sx, sy, sw, sh, 0, 0, W, H_VIDEO);
+          drawOverlays();
+
+          frameCount++;
+          const pct = Math.min(95, Math.round((frameCount / totalFrames) * 95));
+          setProgress(pct);
+
+          if (elapsed < maxDur) {
+            requestAnimationFrame(drawKenBurnsFrame);
+          } else {
+            recorder.stop();
+          }
+        };
+
+        requestAnimationFrame(drawKenBurnsFrame);
+
+        const stopTimer = setTimeout(() => {
+          if (recorder.state === "recording") recorder.stop();
+        }, maxDur * 1000 + 1000);
+
+        const finalBlob = await recordingDone;
+        clearTimeout(stopTimer);
+
+        if (finalBlob.size < 1000) throw new Error("Vídeo gerado está vazio");
+        const url = URL.createObjectURL(finalBlob);
+        setDownloadUrl(url);
+        setProgress(100);
+        setStatusText("");
+        toast({ title: "Vídeo gerado com sucesso (sem trailer - usando animação)" });
+      }
     } catch (err: any) {
       console.error("Erro ao gerar vídeo:", err);
       toast({ title: "Erro ao gerar vídeo", description: err?.message, variant: "destructive" });
     } finally {
       setGenerating(false);
     }
-  }, [backdropImg, posterImg, clipDuration, logoImg, logoX, logoY, logoScale, whatsapp, title, type, year, durationText, selected]);
+  }, [backdropImg, posterImg, trailerBlobUrl, clipDuration, logoImg, logoX, logoY, logoScale, whatsapp, title, type, year, durationText, selected]);
 
   const handleDownload = () => {
     if (!downloadUrl) return;
@@ -326,7 +460,18 @@ export function VideoBannerPreview({ selected, logoUrl: initialLogoUrl, onBack }
     document.body.removeChild(a);
   };
 
-  const canGenerate = !loadingAssets && !!backdropImg;
+  const canGenerate = !loadingAssets && (!!backdropImg || !!trailerBlobUrl);
+
+  const trailerStatusLabel = () => {
+    switch (trailerStatus) {
+      case "loading": return { icon: <Loader2 className="h-4 w-4 animate-spin text-primary" />, text: "Baixando trailer via Cobalt...", color: "text-muted-foreground" };
+      case "ready": return { icon: <Play className="h-4 w-4 text-green-500" />, text: "Trailer baixado — será usado no vídeo!", color: "text-green-600 dark:text-green-400" };
+      case "failed": return { icon: <AlertTriangle className="h-4 w-4 text-yellow-500" />, text: "Trailer indisponível — será usado Ken Burns no backdrop", color: "text-yellow-600 dark:text-yellow-400" };
+      default: return null;
+    }
+  };
+
+  const tStatus = trailerStatusLabel();
 
   return (
     <div className="space-y-4">
@@ -364,23 +509,29 @@ export function VideoBannerPreview({ selected, logoUrl: initialLogoUrl, onBack }
             )}
           </div>
 
-          {/* Asset loading status */}
-          <div className="flex items-center gap-2 text-sm">
-            {loadingAssets ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                <span className="text-muted-foreground">Carregando imagens...</span>
-              </>
-            ) : backdropImg ? (
-              <>
-                <Play className="h-4 w-4 text-green-500" />
-                <span className="text-green-600 dark:text-green-400">
-                  Pronto para gerar vídeo
-                </span>
-              </>
-            ) : (
-              <span className="text-destructive text-xs">Imagem de fundo não disponível</span>
+          {/* Status indicators */}
+          <div className="space-y-1">
+            {tStatus && (
+              <div className="flex items-center gap-2 text-sm">
+                {tStatus.icon}
+                <span className={tStatus.color}>{tStatus.text}</span>
+              </div>
             )}
+            <div className="flex items-center gap-2 text-sm">
+              {loadingAssets ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  <span className="text-muted-foreground">Carregando imagens...</span>
+                </>
+              ) : backdropImg ? (
+                <>
+                  <Play className="h-4 w-4 text-green-500" />
+                  <span className="text-green-600 dark:text-green-400">Imagens prontas</span>
+                </>
+              ) : (
+                <span className="text-destructive text-xs">Imagem de fundo não disponível</span>
+              )}
+            </div>
           </div>
 
           {/* Editor Controls */}
@@ -498,7 +649,7 @@ export function VideoBannerPreview({ selected, logoUrl: initialLogoUrl, onBack }
                 ) : (
                   <>
                     <Play className="mr-2 h-4 w-4" />
-                    Criar Vídeo
+                    Criar Vídeo {trailerStatus === "ready" ? "(com trailer)" : "(Ken Burns)"}
                   </>
                 )}
               </Button>
