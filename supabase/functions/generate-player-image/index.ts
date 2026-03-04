@@ -160,7 +160,8 @@ serve(async (req) => {
     const base64Data = imageUrl.replace(/^data:image\/\w+;base64,/, "");
     const imageBytes = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0));
 
-    const fileName = `player-ai/${Date.now()}-${bestTeam.name.replace(/\s+/g, "-").toLowerCase()}.png`;
+    const safeName = bestTeam.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9\s-]/g, "").replace(/\s+/g, "-").toLowerCase();
+    const fileName = `player-ai/${Date.now()}-${safeName}.png`;
     const { error: uploadError } = await sb.storage
       .from("platform-assets")
       .upload(fileName, imageBytes, { contentType: "image/png", upsert: true });
