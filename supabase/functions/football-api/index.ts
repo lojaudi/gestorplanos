@@ -309,7 +309,7 @@ serve(async (req) => {
 
     // ── ACTION: cache-matches (called by cron at midnight) ──
     if (action === "cache-matches") {
-      if (!apiKey) {
+      if (!apiKey && provider !== "apisportmax") {
         return new Response(JSON.stringify({ error: "API Key não configurada" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
@@ -317,27 +317,33 @@ serve(async (req) => {
       console.log(`[cache-matches] Fetching matches for ${date} via ${provider}`);
 
       let matches: any[];
-      if (provider === "football-data") {
+      let channels: Record<string, string[]> = {};
+
+      if (provider === "apisportmax") {
+        const result = await fetchFromApiSportMax();
+        matches = result.matches;
+        channels = result.channelMap;
+      } else if (provider === "football-data") {
         const selectedCompetitions: string[] = Array.isArray(settings?.football_footballdata_leagues) && (settings.football_footballdata_leagues as string[]).length > 0
           ? (settings.football_footballdata_leagues as string[]) : FOOTBALLDATA_COMPETITIONS.map(String);
-        matches = await fetchFromFootballData(apiKey, date, selectedCompetitions);
+        matches = await fetchFromFootballData(apiKey!, date, selectedCompetitions);
+        channels = resolveChannels(matches);
       } else if (provider === "apisport") {
         const selectedLeagues: number[] = Array.isArray(settings?.football_apisport_leagues) ? settings.football_apisport_leagues : [];
-        matches = await fetchFromApiSport(apiKey, date, timezone);
+        matches = await fetchFromApiSport(apiKey!, date, timezone);
         if (selectedLeagues.length > 0) {
           const leagueSet = new Set(selectedLeagues);
           matches = matches.filter((m: any) => leagueSet.has(m.league.id));
         }
+        channels = resolveChannels(matches);
       } else {
         const selectedApifootballLeagues: number[] = Array.isArray((settings as any)?.football_apifootball_leagues) && ((settings as any).football_apifootball_leagues as number[]).length > 0
           ? ((settings as any).football_apifootball_leagues as number[]) : APIFOOTBALL_LEAGUES;
-        matches = await fetchFromApiFootball(apiKey, date, timezone);
+        matches = await fetchFromApiFootball(apiKey!, date, timezone);
         const leagueSet = new Set(selectedApifootballLeagues);
         matches = matches.filter((m: any) => leagueSet.has(m.league.id));
+        channels = resolveChannels(matches);
       }
-
-      // Resolve channels
-      const channels = resolveChannels(matches);
 
       // Upsert into cache table
       const { error } = await supabase.from("football_daily_cache").upsert({
