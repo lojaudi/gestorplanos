@@ -35,8 +35,8 @@ export default function Campaign() {
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
-      toast({ title: "Arquivo muito grande", description: "A imagem deve ter no máximo 2MB.", variant: "destructive" });
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: "Arquivo muito grande", description: "A imagem deve ter no máximo 10MB.", variant: "destructive" });
       return;
     }
     if (!file.type.startsWith("image/")) {
