@@ -195,7 +195,7 @@ export default function Campaign() {
           </div>
 
           <div className="space-y-2">
-            <Label>Imagem (opcional, até 2MB)</Label>
+            <Label>Imagem (opcional, até 10MB)</Label>
             {imagePreview ? (
               <div className="relative inline-block">
                 <img src={imagePreview} alt="Preview" className="max-h-48 rounded-lg border" />
