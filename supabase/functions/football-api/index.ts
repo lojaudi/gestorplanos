@@ -442,6 +442,20 @@ serve(async (req) => {
         cache_date: date, provider, matches, channels,
       }, { onConflict: "cache_date,provider" }).then(() => {});
 
+      // Auto-save leagues for apisportmax
+      if (provider === "apisportmax" && matches.length > 0) {
+        const uniqueLeagues = [...new Map(matches.map((m: any) => [
+          m.league?.id || m.league?.name,
+          { id: m.league?.id || 0, name: m.league?.name || "", country: m.league?.country || "Brazil", logo: m.league?.logo || "" }
+        ])).values()];
+        const { data: psRow } = await supabase.from("platform_settings").select("id").limit(1).maybeSingle();
+        if (psRow) {
+          await supabase.from("platform_settings").update({
+            football_apifootball_leagues: uniqueLeagues.map((l: any) => l.id),
+          }).eq("id", psRow.id);
+        }
+      }
+
       const result = { matches, channels, date, timezone, provider };
       setCache(cacheKey, result);
 
