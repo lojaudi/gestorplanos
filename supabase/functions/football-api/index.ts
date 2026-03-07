@@ -151,6 +151,96 @@ async function fetchFromApiSport(apiKey: string, date: string, timezone: string)
   });
 }
 
+// ── apisportmax (painelmaster - free, no key needed) ──
+async function fetchFromApiSportMax(): Promise<{ matches: any[]; channelMap: Record<string, string[]> }> {
+  const url = "https://apisportmax.painelmaster.lol/jogos.json";
+  const res = await fetch(url);
+  if (!res.ok) { const text = await res.text(); throw new Error(`Erro na ApiSportMax: ${res.status} – ${text}`); }
+  const json = await res.json();
+  const items = Array.isArray(json) ? json : [];
+
+  // Map channel names from API to our internal channel IDs
+  const channelNameToId: Record<string, string> = {
+    "globo": "globo", "tv globo": "globo",
+    "sportv": "sportv", "sportv 2": "sportv", "sportv 3": "sportv",
+    "premiere": "premiere",
+    "espn": "espn", "espn 2": "espn", "espn 3": "espn", "espn 4": "espn",
+    "star+": "star_plus", "star plus": "star_plus",
+    "amazon prime video": "amazon", "prime video": "amazon",
+    "cazétv": "cazetv", "cazetv": "cazetv", "cazé tv": "cazetv",
+    "band": "band", "bandeirantes": "band",
+    "record": "record", "record tv": "record",
+    "paramount+": "paramount", "paramount plus": "paramount",
+    "tnt sports": "tnt_sports", "tnt": "tnt_sports",
+    "disney+": "disney_plus", "disney+ premium": "disney_plus", "disney plus": "disney_plus",
+  };
+
+  function mapChannelName(nome: string): string | null {
+    const lower = nome.toLowerCase().trim();
+    if (channelNameToId[lower]) return channelNameToId[lower];
+    // Partial match
+    for (const [key, id] of Object.entries(channelNameToId)) {
+      if (lower.includes(key) || key.includes(lower)) return id;
+    }
+    return null;
+  }
+
+  const today = new Date().toISOString().slice(0, 10);
+  const channelMap: Record<string, string[]> = {};
+
+  const matches = items.map((item: any, idx: number) => {
+    // Build a proper ISO date from horario
+    const horario = item.horario || "00:00";
+    const dateStr = `${today}T${horario}:00`;
+
+    // Map channels
+    const channels: string[] = [];
+    if (Array.isArray(item.canais)) {
+      for (const ch of item.canais) {
+        const mapped = mapChannelName(ch.nome || "");
+        if (mapped && !channels.includes(mapped)) channels.push(mapped);
+      }
+    }
+
+    const homeName = item.time1 || "Home";
+    const awayName = item.time2 || "Away";
+    const matchKey = `${homeName} vs ${awayName}`;
+    if (channels.length > 0) channelMap[matchKey] = channels;
+
+    // Map status
+    let status = "NS";
+    const rawStatus = (item.status || "").toLowerCase().trim();
+    if (rawStatus.includes("fim") || rawStatus.includes("encerrado")) status = "FT";
+    else if (rawStatus.includes("intervalo")) status = "HT";
+    else if (rawStatus.includes("ao vivo") || rawStatus.includes("1º tempo") || rawStatus.includes("2º tempo")) status = "LIVE";
+    else if (rawStatus.includes("adiado")) status = "PST";
+    else if (rawStatus.includes("cancelado")) status = "CANC";
+
+    return {
+      id: idx + 90000,
+      date: dateStr,
+      timestamp: Math.floor(new Date(dateStr).getTime() / 1000),
+      status,
+      league: {
+        id: 0,
+        name: item.competicao || "Desconhecido",
+        country: "",
+        logo: item.img_competicao_url || "",
+      },
+      home: { id: 0, name: homeName, logo: item.img_time1_url || "" },
+      away: { id: 0, name: awayName, logo: item.img_time2_url || "" },
+      goals: {
+        home: item.placar_time1 !== null && item.placar_time1 !== undefined && item.placar_time1 !== "" ? Number(item.placar_time1) : null,
+        away: item.placar_time2 !== null && item.placar_time2 !== undefined && item.placar_time2 !== "" ? Number(item.placar_time2) : null,
+      },
+      channels,
+    };
+  });
+
+  return { matches, channelMap };
+}
+
+
 // Channel mapping by league
 const leagueChannelMap: Record<string, string[]> = {
   "71": ["globo", "sportv", "premiere"], "brasileirao serie a": ["globo", "sportv", "premiere"], "campeonato brasileiro série a": ["globo", "sportv", "premiere"],
@@ -219,7 +309,7 @@ serve(async (req) => {
 
     // ── ACTION: cache-matches (called by cron at midnight) ──
     if (action === "cache-matches") {
-      if (!apiKey) {
+      if (!apiKey && provider !== "apisportmax") {
         return new Response(JSON.stringify({ error: "API Key não configurada" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
@@ -227,27 +317,33 @@ serve(async (req) => {
       console.log(`[cache-matches] Fetching matches for ${date} via ${provider}`);
 
       let matches: any[];
-      if (provider === "football-data") {
+      let channels: Record<string, string[]> = {};
+
+      if (provider === "apisportmax") {
+        const result = await fetchFromApiSportMax();
+        matches = result.matches;
+        channels = result.channelMap;
+      } else if (provider === "football-data") {
         const selectedCompetitions: string[] = Array.isArray(settings?.football_footballdata_leagues) && (settings.football_footballdata_leagues as string[]).length > 0
           ? (settings.football_footballdata_leagues as string[]) : FOOTBALLDATA_COMPETITIONS.map(String);
-        matches = await fetchFromFootballData(apiKey, date, selectedCompetitions);
+        matches = await fetchFromFootballData(apiKey!, date, selectedCompetitions);
+        channels = resolveChannels(matches);
       } else if (provider === "apisport") {
         const selectedLeagues: number[] = Array.isArray(settings?.football_apisport_leagues) ? settings.football_apisport_leagues : [];
-        matches = await fetchFromApiSport(apiKey, date, timezone);
+        matches = await fetchFromApiSport(apiKey!, date, timezone);
         if (selectedLeagues.length > 0) {
           const leagueSet = new Set(selectedLeagues);
           matches = matches.filter((m: any) => leagueSet.has(m.league.id));
         }
+        channels = resolveChannels(matches);
       } else {
         const selectedApifootballLeagues: number[] = Array.isArray((settings as any)?.football_apifootball_leagues) && ((settings as any).football_apifootball_leagues as number[]).length > 0
           ? ((settings as any).football_apifootball_leagues as number[]) : APIFOOTBALL_LEAGUES;
-        matches = await fetchFromApiFootball(apiKey, date, timezone);
+        matches = await fetchFromApiFootball(apiKey!, date, timezone);
         const leagueSet = new Set(selectedApifootballLeagues);
         matches = matches.filter((m: any) => leagueSet.has(m.league.id));
+        channels = resolveChannels(matches);
       }
-
-      // Resolve channels
-      const channels = resolveChannels(matches);
 
       // Upsert into cache table
       const { error } = await supabase.from("football_daily_cache").upsert({
@@ -288,7 +384,7 @@ serve(async (req) => {
       }
 
       // No cache - fetch from API (fallback)
-      if (!apiKey) {
+      if (!apiKey && provider !== "apisportmax") {
         return new Response(JSON.stringify({ error: `API Key de futebol não configurada para o provedor: ${provider}` }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
@@ -299,27 +395,35 @@ serve(async (req) => {
       }
 
       let matches: any[];
-      if (provider === "football-data") {
+      let channels: Record<string, string[]> = {};
+
+      if (provider === "apisportmax") {
+        const result = await fetchFromApiSportMax();
+        matches = result.matches;
+        channels = result.channelMap;
+      } else if (provider === "football-data") {
         const selectedCompetitions: string[] = Array.isArray(settings?.football_footballdata_leagues) && (settings.football_footballdata_leagues as string[]).length > 0
           ? (settings.football_footballdata_leagues as string[]) : FOOTBALLDATA_COMPETITIONS.map(String);
-        matches = await fetchFromFootballData(apiKey, date, selectedCompetitions);
+        matches = await fetchFromFootballData(apiKey!, date, selectedCompetitions);
+        channels = resolveChannels(matches);
       } else if (provider === "apisport") {
         const selectedLeagues: number[] = Array.isArray(settings?.football_apisport_leagues) ? settings.football_apisport_leagues : [];
-        matches = await fetchFromApiSport(apiKey, date, timezone);
+        matches = await fetchFromApiSport(apiKey!, date, timezone);
         if (selectedLeagues.length > 0) {
           const leagueSet = new Set(selectedLeagues);
           matches = matches.filter((m: any) => leagueSet.has(m.league.id));
         }
+        channels = resolveChannels(matches);
       } else {
         const selectedApifootballLeagues: number[] = Array.isArray((settings as any)?.football_apifootball_leagues) && ((settings as any).football_apifootball_leagues as number[]).length > 0
           ? ((settings as any).football_apifootball_leagues as number[]) : APIFOOTBALL_LEAGUES;
-        matches = await fetchFromApiFootball(apiKey, date, timezone);
+        matches = await fetchFromApiFootball(apiKey!, date, timezone);
         const leagueSet = new Set(selectedApifootballLeagues);
         matches = matches.filter((m: any) => leagueSet.has(m.league.id));
+        channels = resolveChannels(matches);
       }
 
       // Also save to DB cache for future requests
-      const channels = resolveChannels(matches);
       await supabase.from("football_daily_cache").upsert({
         cache_date: date, provider, matches, channels,
       }, { onConflict: "cache_date,provider" }).then(() => {});

@@ -618,6 +618,7 @@ const AdminSettings = () => {
                   <SelectItem value="api-football">API-Football (api-sports.io)</SelectItem>
                   <SelectItem value="football-data">Football-Data.org</SelectItem>
                   <SelectItem value="apisport">ApiSport.online (SportData)</SelectItem>
+                  <SelectItem value="apisportmax">ApiSportMax (Gratuito - sem chave)</SelectItem>
                 </SelectContent>
               </Select>
             </div>
