@@ -46,8 +46,8 @@ export function AvatarUpload({
       return;
     }
 
-    if (file.size > 2 * 1024 * 1024) {
-      toast({ title: "A imagem deve ter no máximo 2MB", variant: "destructive" });
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: "A imagem deve ter no máximo 10MB", variant: "destructive" });
       return;
     }
 
