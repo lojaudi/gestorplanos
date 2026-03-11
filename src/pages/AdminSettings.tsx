@@ -903,7 +903,47 @@ const AdminSettings = () => {
             </div>
           )}
 
-          <div className="grid gap-4 sm:grid-cols-2">
+          {settings.football_api_provider === "apisportmax" && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Campeonatos Detectados Hoje</Label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={fetchApisportmaxLeagues}
+                    disabled={loadingApisportmaxLeagues}
+                  >
+                    {loadingApisportmaxLeagues ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-2 h-3 w-3" />}
+                    Atualizar Lista
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  O ApiSportMax detecta automaticamente todos os campeonatos com jogos no dia. Nenhuma configuração manual é necessária.
+                </p>
+                {apisportmaxLeagues.length > 0 ? (
+                  <div className="rounded-md border p-3 space-y-1 max-h-72 overflow-y-auto">
+                    <p className="text-xs font-medium text-primary mb-2">
+                      {apisportmaxLeagues.length} campeonato(s) • {apisportmaxLeagues.reduce((s, l) => s + l.count, 0)} jogo(s) hoje
+                    </p>
+                    {apisportmaxLeagues.map((league) => (
+                      <div key={league.name} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50">
+                        <span className="text-sm">{league.name}</span>
+                        <Badge variant="secondary" className="text-xs">
+                          {league.count} jogo{league.count > 1 ? "s" : ""}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic">
+                    Clique em "Atualizar Lista" para ver os campeonatos disponíveis hoje.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
             <div className="space-y-2">
               <Label>Formato de Data/Hora</Label>
               <Select value={settings.football_date_format} onValueChange={(v) => setSettings({ ...settings, football_date_format: v })}>
