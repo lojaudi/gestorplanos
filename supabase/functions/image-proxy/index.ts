@@ -31,6 +31,8 @@ serve(async (req) => {
       "https://media-2.api-sports.io/",
       "https://media-3.api-sports.io/",
       "https://crests.football-data.org/",
+      "https://apisportmax.painelmaster.lol/",
+      "http://apisportmax.painelmaster.lol/",
     ];
     if (!allowed.some((prefix) => url.startsWith(prefix))) {
       return new Response(JSON.stringify({ error: "URL not allowed" }), {
