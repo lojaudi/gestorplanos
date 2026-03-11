@@ -284,6 +284,7 @@ const AdminSettings = () => {
   };
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (!file || !settings) return;
     const url = await uploadFile(file, "logo", setUploadingLogo);
     if (url) setSettings({ ...settings, logo_url: url });
