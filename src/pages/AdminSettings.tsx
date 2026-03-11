@@ -944,6 +944,7 @@ const AdminSettings = () => {
             </div>
           )}
 
+          <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Formato de Data/Hora</Label>
               <Select value={settings.football_date_format} onValueChange={(v) => setSettings({ ...settings, football_date_format: v })}>
