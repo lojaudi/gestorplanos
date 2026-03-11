@@ -76,6 +76,8 @@ const AdminSettings = () => {
   const [loadingFootballdataLeagues, setLoadingFootballdataLeagues] = useState(false);
   const [apifootballLeagues, setApifootballLeagues] = useState<ApiSportLeague[]>([]);
   const [loadingApifootballLeagues, setLoadingApifootballLeagues] = useState(false);
+  const [apisportmaxLeagues, setApisportmaxLeagues] = useState<{ name: string; count: number }[]>([]);
+  const [loadingApisportmaxLeagues, setLoadingApisportmaxLeagues] = useState(false);
   const callEvolutionApi = useCallback(async (action: string, extraParams = {}) => {
     const { data: { session } } = await supabase.auth.getSession();
     const res = await fetch(
@@ -254,6 +256,30 @@ const AdminSettings = () => {
       return null;
     } finally {
       setUploading(false);
+    }
+  };
+
+  const fetchApisportmaxLeagues = async () => {
+    setLoadingApisportmaxLeagues(true);
+    try {
+      const res = await fetch("https://apisportmax.painelmaster.lol/jogos.json");
+      if (!res.ok) throw new Error("Erro ao buscar dados");
+      const json = await res.json();
+      const items = Array.isArray(json) ? json : [];
+      const countMap: Record<string, number> = {};
+      items.forEach((item: any) => {
+        const comp = item.competicao || "Desconhecido";
+        countMap[comp] = (countMap[comp] || 0) + 1;
+      });
+      const leagues = Object.entries(countMap)
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+      setApisportmaxLeagues(leagues);
+      toast({ title: `${leagues.length} campeonato(s) detectado(s) hoje` });
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } finally {
+      setLoadingApisportmaxLeagues(false);
     }
   };
 
@@ -872,6 +898,47 @@ const AdminSettings = () => {
                       );
                     })}
                   </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {settings.football_api_provider === "apisportmax" && (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Campeonatos Detectados Hoje</Label>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={fetchApisportmaxLeagues}
+                    disabled={loadingApisportmaxLeagues}
+                  >
+                    {loadingApisportmaxLeagues ? <Loader2 className="mr-2 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-2 h-3 w-3" />}
+                    Atualizar Lista
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  O ApiSportMax detecta automaticamente todos os campeonatos com jogos no dia. Nenhuma configuração manual é necessária.
+                </p>
+                {apisportmaxLeagues.length > 0 ? (
+                  <div className="rounded-md border p-3 space-y-1 max-h-72 overflow-y-auto">
+                    <p className="text-xs font-medium text-primary mb-2">
+                      {apisportmaxLeagues.length} campeonato(s) • {apisportmaxLeagues.reduce((s, l) => s + l.count, 0)} jogo(s) hoje
+                    </p>
+                    {apisportmaxLeagues.map((league) => (
+                      <div key={league.name} className="flex items-center justify-between p-2 rounded-md hover:bg-muted/50">
+                        <span className="text-sm">{league.name}</span>
+                        <Badge variant="secondary" className="text-xs">
+                          {league.count} jogo{league.count > 1 ? "s" : ""}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground italic">
+                    Clique em "Atualizar Lista" para ver os campeonatos disponíveis hoje.
+                  </p>
                 )}
               </div>
             </div>
