@@ -259,7 +259,31 @@ const AdminSettings = () => {
     }
   };
 
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const fetchApisportmaxLeagues = async () => {
+    setLoadingApisportmaxLeagues(true);
+    try {
+      const res = await fetch("https://apisportmax.painelmaster.lol/jogos.json");
+      if (!res.ok) throw new Error("Erro ao buscar dados");
+      const json = await res.json();
+      const items = Array.isArray(json) ? json : [];
+      const countMap: Record<string, number> = {};
+      items.forEach((item: any) => {
+        const comp = item.competicao || "Desconhecido";
+        countMap[comp] = (countMap[comp] || 0) + 1;
+      });
+      const leagues = Object.entries(countMap)
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+      setApisportmaxLeagues(leagues);
+      toast({ title: `${leagues.length} campeonato(s) detectado(s) hoje` });
+    } catch (err: any) {
+      toast({ title: "Erro", description: err.message, variant: "destructive" });
+    } finally {
+      setLoadingApisportmaxLeagues(false);
+    }
+  };
+
+
     const file = e.target.files?.[0];
     if (!file || !settings) return;
     const url = await uploadFile(file, "logo", setUploadingLogo);
