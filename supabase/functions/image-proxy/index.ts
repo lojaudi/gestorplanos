@@ -21,20 +21,15 @@ serve(async (req) => {
       });
     }
 
-    // Allow TMDB and Supabase storage URLs
-    const allowed = [
-      "https://image.tmdb.org/",
-      "https://efowcydxnypklhtlvccy.supabase.co/storage/v1/",
-      "https://media.api-sports.io/",
-      "https://media-4.api-sports.io/",
-      "https://media-1.api-sports.io/",
-      "https://media-2.api-sports.io/",
-      "https://media-3.api-sports.io/",
-      "https://crests.football-data.org/",
-      "https://apisportmax.painelmaster.lol/",
-      "http://apisportmax.painelmaster.lol/",
-    ];
-    if (!allowed.some((prefix) => url.startsWith(prefix))) {
+    // Block non-http URLs and private/local addresses
+    if (!url.startsWith("http://") && !url.startsWith("https://")) {
+      return new Response(JSON.stringify({ error: "URL not allowed" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    const blocked = ["localhost", "127.0.0.1", "0.0.0.0", "10.", "192.168.", "172.16."];
+    if (blocked.some((b) => url.includes(b))) {
       return new Response(JSON.stringify({ error: "URL not allowed" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
