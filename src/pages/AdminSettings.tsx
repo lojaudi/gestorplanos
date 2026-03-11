@@ -76,6 +76,8 @@ const AdminSettings = () => {
   const [loadingFootballdataLeagues, setLoadingFootballdataLeagues] = useState(false);
   const [apifootballLeagues, setApifootballLeagues] = useState<ApiSportLeague[]>([]);
   const [loadingApifootballLeagues, setLoadingApifootballLeagues] = useState(false);
+  const [apisportmaxLeagues, setApisportmaxLeagues] = useState<{ name: string; count: number }[]>([]);
+  const [loadingApisportmaxLeagues, setLoadingApisportmaxLeagues] = useState(false);
   const callEvolutionApi = useCallback(async (action: string, extraParams = {}) => {
     const { data: { session } } = await supabase.auth.getSession();
     const res = await fetch(
