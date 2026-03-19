@@ -21,6 +21,25 @@ const FOOTBALLDATA_COMPETITIONS = [
 const cache: Record<string, { data: any; ts: number }> = {};
 const CACHE_TTL = 15 * 60 * 1000;
 
+function getDateInTimezone(timezone: string, baseDate = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(baseDate);
+
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+
+  if (!year || !month || !day) {
+    return baseDate.toISOString().slice(0, 10);
+  }
+
+  return `${year}-${month}-${day}`;
+}
+
 function getCached(key: string) {
   const entry = cache[key];
   if (entry && Date.now() - entry.ts < CACHE_TTL) return entry.data;
@@ -152,7 +171,7 @@ async function fetchFromApiSport(apiKey: string, date: string, timezone: string)
 }
 
 // ── apisportmax (painelmaster - free, no key needed) ──
-async function fetchFromApiSportMax(): Promise<{ matches: any[]; channelMap: Record<string, string[]> }> {
+async function fetchFromApiSportMax(date: string): Promise<{ matches: any[]; channelMap: Record<string, string[]> }> {
   const url = "https://apisportmax.painelmaster.lol/jogos.json";
   const res = await fetch(url);
   if (!res.ok) { const text = await res.text(); throw new Error(`Erro na ApiSportMax: ${res.status} – ${text}`); }
@@ -185,7 +204,7 @@ async function fetchFromApiSportMax(): Promise<{ matches: any[]; channelMap: Rec
     return null;
   }
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = date;
   const channelMap: Record<string, string[]> = {};
 
   const matches = items.map((item: any, idx: number) => {
@@ -313,14 +332,14 @@ serve(async (req) => {
         return new Response(JSON.stringify({ error: "API Key não configurada" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
 
-      const date = new Date().toISOString().slice(0, 10);
+      const date = getDateInTimezone(timezone);
       console.log(`[cache-matches] Fetching matches for ${date} via ${provider}`);
 
       let matches: any[];
       let channels: Record<string, string[]> = {};
 
       if (provider === "apisportmax") {
-        const result = await fetchFromApiSportMax();
+        const result = await fetchFromApiSportMax(date);
         matches = result.matches;
         channels = result.channelMap;
       } else if (provider === "football-data") {
@@ -380,7 +399,9 @@ serve(async (req) => {
 
     // ── ACTION: get-matches (reads from DB cache first, falls back to API) ──
     if (action === "get-matches") {
-      const date = params.date || new Date().toISOString().slice(0, 10);
+      const date = typeof params.date === "string" && params.date
+        ? params.date
+        : getDateInTimezone(timezone);
 
       // Try DB cache first
       const { data: cached } = await supabase
@@ -412,7 +433,7 @@ serve(async (req) => {
       let channels: Record<string, string[]> = {};
 
       if (provider === "apisportmax") {
-        const result = await fetchFromApiSportMax();
+        const result = await fetchFromApiSportMax(date);
         matches = result.matches;
         channels = result.channelMap;
       } else if (provider === "football-data") {
