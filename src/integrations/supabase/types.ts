@@ -465,6 +465,7 @@ export type Database = {
           football_secondary_color: string | null
           football_timezone: string | null
           id: string
+          landing_dark_mode: boolean
           login_bg_url: string | null
           logo_url: string | null
           primary_color: string
@@ -494,6 +495,7 @@ export type Database = {
           football_secondary_color?: string | null
           football_timezone?: string | null
           id?: string
+          landing_dark_mode?: boolean
           login_bg_url?: string | null
           logo_url?: string | null
           primary_color?: string
@@ -523,6 +525,7 @@ export type Database = {
           football_secondary_color?: string | null
           football_timezone?: string | null
           id?: string
+          landing_dark_mode?: boolean
           login_bg_url?: string | null
           logo_url?: string | null
           primary_color?: string
