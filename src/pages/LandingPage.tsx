@@ -102,7 +102,18 @@ const stats = [
 export default function LandingPage() {
   const navigate = useNavigate();
   const platform = usePlatformSettings();
+  const [plans, setPlans] = useState<AdminPlan[]>([]);
 
+  useEffect(() => {
+    supabase
+      .from("admin_plans")
+      .select("*")
+      .eq("is_active", true)
+      .order("price", { ascending: true })
+      .then(({ data }) => {
+        if (data) setPlans(data as AdminPlan[]);
+      });
+  }, []);
   return (
     <div className={`min-h-screen bg-background text-foreground overflow-x-hidden ${platform.landing_dark_mode ? "dark" : ""}`}>
       {/* Navbar */}
