@@ -163,7 +163,6 @@ const Clients = () => {
       username: formUsername.trim() || null,
       service_id: formServiceId || null,
       plan_id: formPlanId || null,
-      due_date: formDueDate,
     };
     console.log("[Clients] handleSave payload:", JSON.stringify(payload));
     console.log("[Clients] editing:", editing?.id, "formPlanId:", formPlanId, "formServiceId:", formServiceId);
