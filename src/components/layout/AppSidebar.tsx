@@ -12,6 +12,8 @@ import {
   UserCog,
   ChevronDown,
   Wallet,
+  Sun,
+  Moon,
   FileText,
   Megaphone,
   Crown,
