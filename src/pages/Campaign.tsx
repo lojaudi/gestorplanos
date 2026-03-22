@@ -178,6 +178,8 @@ export default function Campaign() {
         <p className="text-muted-foreground">Envie mensagens e imagens para seus clientes via WhatsApp.</p>
       </div>
 
+      <CampaignImageCreator onImageReady={handleAiImageReady} />
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
