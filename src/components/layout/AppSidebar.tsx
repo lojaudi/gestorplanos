@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useTheme } from "next-themes";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, useLocation } from "react-router-dom";
 import {
@@ -11,6 +12,8 @@ import {
   UserCog,
   ChevronDown,
   Wallet,
+  Sun,
+  Moon,
   FileText,
   Megaphone,
   Crown,
@@ -197,6 +200,7 @@ function NavSection({
 
 export function AppSidebar() {
   const { user, isAdmin, signOut } = useAuth();
+  const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const platform = usePlatformSettings();
@@ -297,15 +301,26 @@ export function AppSidebar() {
             </p>
           </div>
         </div>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="w-full justify-start text-sidebar-foreground/50 hover:bg-destructive/10 hover:text-destructive text-xs"
-          onClick={signOut}
-        >
-          <LogOut className="mr-2 h-3.5 w-3.5" />
-          Sair
-        </Button>
+        <div className="flex gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="flex-1 justify-start text-sidebar-foreground/50 hover:bg-sidebar-accent hover:text-sidebar-foreground text-xs"
+            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          >
+            {theme === "dark" ? <Sun className="mr-2 h-3.5 w-3.5" /> : <Moon className="mr-2 h-3.5 w-3.5" />}
+            {theme === "dark" ? "Claro" : "Escuro"}
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="flex-1 justify-start text-sidebar-foreground/50 hover:bg-destructive/10 hover:text-destructive text-xs"
+            onClick={signOut}
+          >
+            <LogOut className="mr-2 h-3.5 w-3.5" />
+            Sair
+          </Button>
+        </div>
       </div>
     </aside>
   );
