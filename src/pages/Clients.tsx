@@ -126,13 +126,7 @@ const Clients = () => {
     return filteredClients.slice(start, start + size);
   }, [filteredClients, pageSize, currentPage]);
 
-  const calcDueDate = (planId: string) => {
-    const plan = plans.find((p) => p.id === planId);
-    if (!plan) return new Date().toISOString().split("T")[0];
-    const d = new Date();
-    d.setMonth(d.getMonth() + plan.duration_months);
-    return d.toISOString().split("T")[0];
-  };
+  // Due date calculation removed - invoices manage due dates now
 
   const openCreate = () => {
     setEditing(null);
