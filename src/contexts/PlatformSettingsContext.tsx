@@ -24,6 +24,7 @@ const defaultSettings: PlatformSettings = {
   accent_color: "#f59e0b",
   whatsapp_verification_enabled: true,
   email_verification_enabled: false,
+  landing_dark_mode: false,
 };
 
 const PlatformSettingsContext = createContext<PlatformSettings>(defaultSettings);
