@@ -77,7 +77,7 @@ const Clients = () => {
   const [formUsername, setFormUsername] = useState("");
   const [formServiceId, setFormServiceId] = useState<string>("");
   const [formPlanId, setFormPlanId] = useState<string>("");
-  const [formDueDate, setFormDueDate] = useState("");
+  // formDueDate removed - invoices manage due dates now
 
   const fetchData = async () => {
     if (!user) return;
