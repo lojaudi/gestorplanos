@@ -1,7 +1,7 @@
 import { useAuth } from "@/contexts/AuthContext";
-import { Navigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Dashboard from "./Dashboard";
+import LandingPage from "./LandingPage";
 
 const Index = () => {
   const { user, isLoading } = useAuth();
@@ -15,7 +15,7 @@ const Index = () => {
   }
 
   if (!user) {
-    return <Navigate to="/auth" replace />;
+    return <LandingPage />;
   }
 
   return (
