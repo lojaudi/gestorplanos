@@ -135,7 +135,6 @@ const Clients = () => {
     setFormUsername("");
     setFormServiceId("");
     setFormPlanId("");
-    setFormDueDate(new Date().toISOString().split("T")[0]);
     setDialogOpen(true);
   };
 
