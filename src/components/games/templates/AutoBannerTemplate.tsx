@@ -32,11 +32,11 @@ export function AutoBannerTemplate({ matches, leagueName, leagueLogo, primaryCol
   const { day, month, weekDay } = formatDay();
   const mc = matches.length;
 
-  const matchRowHeight = mc <= 2 ? 220 : mc <= 4 ? 160 : mc <= 6 ? 130 : 110;
   const teamLogoSize = mc <= 2 ? 90 : mc <= 4 ? 70 : mc <= 6 ? 55 : 45;
   const teamNameSize = mc <= 2 ? 16 : mc <= 4 ? 14 : mc <= 6 ? 12 : 11;
   const timeSize = mc <= 2 ? 22 : mc <= 4 ? 18 : mc <= 6 ? 16 : 14;
   const channelLogoH = mc <= 2 ? 22 : mc <= 4 ? 18 : mc <= 6 ? 15 : 13;
+  const leagueLogoSize = mc <= 2 ? 32 : mc <= 4 ? 26 : mc <= 6 ? 22 : 18;
 
   return (
     <div
@@ -65,12 +65,14 @@ export function AutoBannerTemplate({ matches, leagueName, leagueLogo, primaryCol
       <div style={{ position: "relative", zIndex: 1, display: "flex", flexDirection: "column", height: "100%", padding: "40px" }}>
         {/* Header */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 20, marginBottom: 15 }}>
-          <img
-            src={leagueLogo}
-            alt={leagueName}
-            style={{ width: 70, height: 70, objectFit: "contain" }}
-            crossOrigin="anonymous"
-          />
+          {leagueLogo && (
+            <img
+              src={leagueLogo}
+              alt={leagueName}
+              style={{ width: 70, height: 70, objectFit: "contain" }}
+              crossOrigin="anonymous"
+            />
+          )}
           <div style={{ textAlign: "center" }}>
             <h1 style={{
               fontSize: 28,
@@ -98,12 +100,6 @@ export function AutoBannerTemplate({ matches, leagueName, leagueLogo, primaryCol
               <span>{day} DE {month}</span>
             </div>
           </div>
-          <img
-            src={leagueLogo}
-            alt=""
-            style={{ width: 70, height: 70, objectFit: "contain", opacity: 0.5 }}
-            crossOrigin="anonymous"
-          />
         </div>
 
         <div style={{
@@ -128,11 +124,34 @@ export function AutoBannerTemplate({ matches, leagueName, leagueLogo, primaryCol
                 padding: `${mc <= 4 ? 16 : 10}px 20px`,
                 boxShadow: "0 2px 12px rgba(0,0,0,0.2)",
                 border: "1px solid rgba(255,255,255,0.08)",
-                minHeight: matchRowHeight * 0.6,
+                position: "relative",
               }}
             >
+              {/* League badge - shown per match when grouping by time */}
+              <div style={{
+                position: "absolute",
+                top: 4,
+                left: 8,
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                opacity: 0.7,
+              }}>
+                {m.league.logo && (
+                  <img
+                    src={m.league.logo}
+                    alt={m.league.name}
+                    style={{ width: leagueLogoSize, height: leagueLogoSize, objectFit: "contain" }}
+                    crossOrigin="anonymous"
+                  />
+                )}
+                <span style={{ fontSize: leagueLogoSize * 0.45, fontWeight: 600, opacity: 0.8 }}>
+                  {m.league.name}
+                </span>
+              </div>
+
               {/* Home team */}
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "30%", gap: 6 }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "30%", gap: 6, marginTop: leagueLogoSize * 0.6 }}>
                 <img
                   src={m.home.logo}
                   alt={m.home.name}
@@ -154,7 +173,7 @@ export function AutoBannerTemplate({ matches, leagueName, leagueLogo, primaryCol
               </div>
 
               {/* Center - Time & Channels */}
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "40%", gap: 6 }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "40%", gap: 6, marginTop: leagueLogoSize * 0.6 }}>
                 <span style={{
                   fontSize: timeSize,
                   fontWeight: 900,
@@ -193,7 +212,7 @@ export function AutoBannerTemplate({ matches, leagueName, leagueLogo, primaryCol
               </div>
 
               {/* Away team */}
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "30%", gap: 6 }}>
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "30%", gap: 6, marginTop: leagueLogoSize * 0.6 }}>
                 <img
                   src={m.away.logo}
                   alt={m.away.name}

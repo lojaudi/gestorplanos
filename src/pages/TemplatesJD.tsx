@@ -11,9 +11,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Download, Loader2, RefreshCw, Copy, Wand2, Palette } from "lucide-react";
 
-interface LeagueGroup {
-  leagueName: string;
-  leagueLogo: string;
+interface TimeGroup {
+  label: string;
   matches: Match[];
 }
 
@@ -63,7 +62,7 @@ export default function TemplatesJD() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [matches, setMatches] = useState<Match[]>([]);
-  const [leagueGroups, setLeagueGroups] = useState<LeagueGroup[]>([]);
+  const [timeGroups, setTimeGroups] = useState<TimeGroup[]>([]);
   const [colors, setColors] = useState(DEFAULT_COLORS);
   const [downloadingIdx, setDownloadingIdx] = useState<number | null>(null);
   const [downloadingAll, setDownloadingAll] = useState(false);
@@ -75,7 +74,6 @@ export default function TemplatesJD() {
     if (user) fetchMatches();
   }, [user]);
 
-  // Update scales on resize
   useEffect(() => {
     const updateScales = () => {
       const newScales = containerRefs.current.map((ref) => {
@@ -87,7 +85,7 @@ export default function TemplatesJD() {
     updateScales();
     window.addEventListener("resize", updateScales);
     return () => window.removeEventListener("resize", updateScales);
-  }, [leagueGroups]);
+  }, [timeGroups]);
 
   const fetchMatches = async () => {
     setLoading(true);
@@ -117,16 +115,19 @@ export default function TemplatesJD() {
 
       setMatches(matchList);
 
-      // Group by league
-      const groupMap = new Map<string, LeagueGroup>();
-      matchList.forEach((m) => {
-        const key = m.league.name;
-        if (!groupMap.has(key)) {
-          groupMap.set(key, { leagueName: m.league.name, leagueLogo: m.league.logo, matches: [] });
-        }
-        groupMap.get(key)!.matches.push(m);
-      });
-      setLeagueGroups(Array.from(groupMap.values()).sort((a, b) => b.matches.length - a.matches.length));
+      // Sort by time (earliest first) and group into chunks of 6
+      const sorted = [...matchList].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      const groups: TimeGroup[] = [];
+      for (let i = 0; i < sorted.length; i += 6) {
+        const chunk = sorted.slice(i, i + 6);
+        const firstTime = new Date(chunk[0].date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+        const lastTime = new Date(chunk[chunk.length - 1].date).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+        groups.push({
+          label: firstTime === lastTime ? firstTime : `${firstTime} - ${lastTime}`,
+          matches: chunk,
+        });
+      }
+      setTimeGroups(groups);
     } catch (err: any) {
       toast({ title: "Erro ao buscar jogos", description: err.message, variant: "destructive" });
     } finally {
@@ -134,7 +135,7 @@ export default function TemplatesJD() {
     }
   };
 
-  // Load user colors from football_user_config
+  // Load user colors
   useEffect(() => {
     if (!user) return;
     (async () => {
@@ -183,7 +184,7 @@ export default function TemplatesJD() {
       if (!blob) { toast({ title: "Erro ao gerar imagem", variant: "destructive" }); return; }
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      const safeName = leagueGroups[idx].leagueName.replace(/[^a-zA-Z0-9]/g, "_");
+      const safeName = `jogos_${timeGroups[idx].label.replace(/[^a-zA-Z0-9]/g, "_")}`;
       a.href = url; a.download = `banner-${safeName}.png`; a.click();
       URL.revokeObjectURL(url);
       toast({ title: "Banner baixado!" });
@@ -219,18 +220,18 @@ export default function TemplatesJD() {
   const handleDownloadAll = async () => {
     setDownloadingAll(true);
     try {
-      for (let i = 0; i < leagueGroups.length; i++) {
+      for (let i = 0; i < timeGroups.length; i++) {
         const blob = await generateBlob(i);
         if (blob) {
           const url = URL.createObjectURL(blob);
           const a = document.createElement("a");
-          const safeName = leagueGroups[i].leagueName.replace(/[^a-zA-Z0-9]/g, "_");
+          const safeName = `jogos_${timeGroups[i].label.replace(/[^a-zA-Z0-9]/g, "_")}`;
           a.href = url; a.download = `banner-${safeName}.png`; a.click();
           URL.revokeObjectURL(url);
           await new Promise((r) => setTimeout(r, 500));
         }
       }
-      toast({ title: `${leagueGroups.length} banners baixados!` });
+      toast({ title: `${timeGroups.length} banners baixados!` });
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
     } finally {
@@ -248,7 +249,7 @@ export default function TemplatesJD() {
               Templates J.D
             </h1>
             <p className="text-sm text-muted-foreground">
-              Banners automáticos dos jogos do dia — agrupados por campeonato
+              Banners automáticos dos jogos do dia — agrupados por horário
             </p>
           </div>
           <div className="flex gap-2">
@@ -256,7 +257,7 @@ export default function TemplatesJD() {
               <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />
               Atualizar
             </Button>
-            {leagueGroups.length > 0 && (
+            {timeGroups.length > 0 && (
               <Button size="sm" onClick={handleDownloadAll} disabled={downloadingAll}>
                 {downloadingAll ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
                 Baixar Todos
@@ -278,56 +279,28 @@ export default function TemplatesJD() {
               <div>
                 <Label className="text-xs">Cor Principal</Label>
                 <div className="flex gap-2 mt-1">
-                  <Input
-                    type="color"
-                    value={colors.primary}
-                    onChange={(e) => setColors((c) => ({ ...c, primary: e.target.value }))}
-                    className="w-10 h-9 p-1 cursor-pointer"
-                  />
-                  <Input
-                    value={colors.primary}
-                    onChange={(e) => setColors((c) => ({ ...c, primary: e.target.value }))}
-                    className="flex-1 text-xs"
-                  />
+                  <Input type="color" value={colors.primary} onChange={(e) => setColors((c) => ({ ...c, primary: e.target.value }))} className="w-10 h-9 p-1 cursor-pointer" />
+                  <Input value={colors.primary} onChange={(e) => setColors((c) => ({ ...c, primary: e.target.value }))} className="flex-1 text-xs" />
                 </div>
               </div>
               <div>
                 <Label className="text-xs">Cor Secundária</Label>
                 <div className="flex gap-2 mt-1">
-                  <Input
-                    type="color"
-                    value={colors.secondary}
-                    onChange={(e) => setColors((c) => ({ ...c, secondary: e.target.value }))}
-                    className="w-10 h-9 p-1 cursor-pointer"
-                  />
-                  <Input
-                    value={colors.secondary}
-                    onChange={(e) => setColors((c) => ({ ...c, secondary: e.target.value }))}
-                    className="flex-1 text-xs"
-                  />
+                  <Input type="color" value={colors.secondary} onChange={(e) => setColors((c) => ({ ...c, secondary: e.target.value }))} className="w-10 h-9 p-1 cursor-pointer" />
+                  <Input value={colors.secondary} onChange={(e) => setColors((c) => ({ ...c, secondary: e.target.value }))} className="flex-1 text-xs" />
                 </div>
               </div>
               <div>
                 <Label className="text-xs">Cor de Destaque</Label>
                 <div className="flex gap-2 mt-1">
-                  <Input
-                    type="color"
-                    value={colors.accent}
-                    onChange={(e) => setColors((c) => ({ ...c, accent: e.target.value }))}
-                    className="w-10 h-9 p-1 cursor-pointer"
-                  />
-                  <Input
-                    value={colors.accent}
-                    onChange={(e) => setColors((c) => ({ ...c, accent: e.target.value }))}
-                    className="flex-1 text-xs"
-                  />
+                  <Input type="color" value={colors.accent} onChange={(e) => setColors((c) => ({ ...c, accent: e.target.value }))} className="w-10 h-9 p-1 cursor-pointer" />
+                  <Input value={colors.accent} onChange={(e) => setColors((c) => ({ ...c, accent: e.target.value }))} className="flex-1 text-xs" />
                 </div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Loading */}
         {loading && (
           <Card>
             <CardContent className="flex items-center justify-center py-16">
@@ -337,8 +310,7 @@ export default function TemplatesJD() {
           </Card>
         )}
 
-        {/* No matches */}
-        {!loading && leagueGroups.length === 0 && (
+        {!loading && timeGroups.length === 0 && (
           <Card>
             <CardContent className="text-center py-16">
               <p className="text-muted-foreground">Nenhum jogo encontrado para hoje.</p>
@@ -346,8 +318,7 @@ export default function TemplatesJD() {
           </Card>
         )}
 
-        {/* Summary */}
-        {!loading && leagueGroups.length > 0 && (
+        {!loading && timeGroups.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <Card>
               <CardContent className="pt-4 pb-3 text-center">
@@ -357,13 +328,13 @@ export default function TemplatesJD() {
             </Card>
             <Card>
               <CardContent className="pt-4 pb-3 text-center">
-                <p className="text-2xl font-bold text-primary">{leagueGroups.length}</p>
+                <p className="text-2xl font-bold text-primary">{new Set(matches.map(m => m.league.name)).size}</p>
                 <p className="text-xs text-muted-foreground">Campeonatos</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-4 pb-3 text-center">
-                <p className="text-2xl font-bold text-primary">{leagueGroups.length}</p>
+                <p className="text-2xl font-bold text-primary">{timeGroups.length}</p>
                 <p className="text-xs text-muted-foreground">Banners Gerados</p>
               </CardContent>
             </Card>
@@ -376,31 +347,20 @@ export default function TemplatesJD() {
           </div>
         )}
 
-        {/* Banners */}
-        {leagueGroups.map((group, idx) => (
-          <Card key={group.leagueName}>
+        {timeGroups.map((group, idx) => (
+          <Card key={`time-${idx}`}>
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
                 <CardTitle className="text-base flex items-center gap-2">
-                  <img src={group.leagueLogo} alt="" className="h-6 w-6 object-contain" />
-                  {group.leagueName}
+                  🕐 {group.label}
                   <span className="text-xs text-muted-foreground font-normal">({group.matches.length} jogos)</span>
                 </CardTitle>
                 <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleCopy(idx)}
-                    disabled={downloadingIdx === idx || downloadingAll}
-                  >
+                  <Button variant="outline" size="sm" onClick={() => handleCopy(idx)} disabled={downloadingIdx === idx || downloadingAll}>
                     {downloadingIdx === idx ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Copy className="mr-1 h-3 w-3" />}
                     Copiar
                   </Button>
-                  <Button
-                    size="sm"
-                    onClick={() => handleDownload(idx)}
-                    disabled={downloadingIdx === idx || downloadingAll}
-                  >
+                  <Button size="sm" onClick={() => handleDownload(idx)} disabled={downloadingIdx === idx || downloadingAll}>
                     {downloadingIdx === idx ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Download className="mr-1 h-3 w-3" />}
                     Baixar
                   </Button>
@@ -415,17 +375,12 @@ export default function TemplatesJD() {
               >
                 <div
                   ref={(el) => { bannerRefs.current[idx] = el; }}
-                  style={{
-                    width: 1080,
-                    height: 1080,
-                    transform: `scale(${scales[idx] || 0.3})`,
-                    transformOrigin: "top left",
-                  }}
+                  style={{ width: 1080, height: 1080, transform: `scale(${scales[idx] || 0.3})`, transformOrigin: "top left" }}
                 >
                   <AutoBannerTemplate
                     matches={group.matches}
-                    leagueName={group.leagueName}
-                    leagueLogo={group.leagueLogo}
+                    leagueName="JOGOS DO DIA"
+                    leagueLogo=""
                     primaryColor={colors.primary}
                     secondaryColor={colors.secondary}
                     accentColor={colors.accent}
