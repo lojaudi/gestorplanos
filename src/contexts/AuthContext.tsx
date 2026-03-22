@@ -1,6 +1,8 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import type { User, Session } from "@supabase/supabase-js";
+import { useIdleLogout } from "@/hooks/useIdleLogout";
+import { IdleWarningDialog } from "@/components/IdleWarningDialog";
 
 interface AuthContextType {
   user: User | null;
@@ -36,6 +38,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsAdmin(!!data);
   };
 
+  const signOut = useCallback(async () => {
+    await supabase.auth.signOut();
+  }, []);
+
+  const { showWarning, secondsLeft, stayActive } = useIdleLogout(signOut, !!user);
+
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
@@ -62,13 +70,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const signOut = async () => {
-    await supabase.auth.signOut();
-  };
-
   return (
     <AuthContext.Provider value={{ user, session, isAdmin, isLoading, signOut }}>
       {children}
+      <IdleWarningDialog
+        open={showWarning}
+        secondsLeft={secondsLeft}
+        onStayActive={stayActive}
+      />
     </AuthContext.Provider>
   );
 }
