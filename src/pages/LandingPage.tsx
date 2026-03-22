@@ -1,6 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import { usePlatformSettings } from "@/contexts/PlatformSettingsContext";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useState } from "react";
 import {
   ArrowRight,
   BarChart3,
@@ -14,7 +16,27 @@ import {
   ChevronRight,
   Megaphone,
   Clock,
+  Crown,
 } from "lucide-react";
+
+interface AdminPlan {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  max_clients: number;
+  duration_months: number;
+  module_campaigns: boolean;
+  is_active: boolean;
+}
+
+const durationLabels: Record<number, string> = {
+  0: "7 dias (Trial)",
+  1: "Mensal",
+  3: "Trimestral",
+  6: "Semestral",
+  12: "Anual",
+};
 
 const features = [
   {
