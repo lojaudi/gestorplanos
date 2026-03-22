@@ -172,7 +172,8 @@ const AdminSettings = () => {
         accent_color: settings.accent_color,
         whatsapp_verification_enabled: settings.whatsapp_verification_enabled,
         email_verification_enabled: settings.email_verification_enabled,
-      })
+        landing_dark_mode: settings.landing_dark_mode,
+      } as any)
       .eq("id", settings.id);
 
     if (error) {
