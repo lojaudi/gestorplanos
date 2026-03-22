@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { Megaphone, ImagePlus, Send, Users, UserCheck, UserX, Loader2, X } from "lucide-react";
+import { CampaignImageCreator } from "@/components/campaign/CampaignImageCreator";
 
 interface Client {
   id: string;
@@ -53,6 +54,11 @@ export default function Campaign() {
     setImageFile(null);
     setImagePreview(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleAiImageReady = (file: File, previewUrl: string) => {
+    setImageFile(file);
+    setImagePreview(previewUrl);
   };
 
   const fetchClients = useCallback(async (filter: "all" | "active" | "expired"): Promise<Client[]> => {
@@ -171,6 +177,8 @@ export default function Campaign() {
         <h1 className="text-2xl font-bold text-foreground">Campanha</h1>
         <p className="text-muted-foreground">Envie mensagens e imagens para seus clientes via WhatsApp.</p>
       </div>
+
+      <CampaignImageCreator onImageReady={handleAiImageReady} />
 
       <Card>
         <CardHeader>
