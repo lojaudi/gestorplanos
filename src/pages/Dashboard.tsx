@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import {
   Users,
   CreditCard,
@@ -16,6 +15,10 @@ import {
   ArrowRight,
   TrendingUp,
   Activity,
+  DollarSign,
+  Wallet,
+  CalendarCheck,
+  BadgeDollarSign,
 } from "lucide-react";
 import {
   BarChart,
@@ -33,6 +36,12 @@ interface Stats {
   dueToday: number;
   overdue: number;
   active: number;
+}
+
+interface FinancialStats {
+  totalReceivedAllTime: number;
+  totalReceivedMonth: number;
+  totalToReceiveMonth: number;
 }
 
 const StatCard = ({
@@ -60,18 +69,51 @@ const StatCard = ({
   </Card>
 );
 
+const MoneyCard = ({
+  icon: Icon,
+  label,
+  value,
+  accent,
+}: {
+  icon: React.ElementType;
+  label: string;
+  value: number;
+  accent: string;
+}) => (
+  <Card className="border-border/50 shadow-sm hover:shadow-md transition-shadow duration-300">
+    <CardContent className="p-5">
+      <div className="flex items-center justify-between mb-3">
+        <div className={`flex h-10 w-10 items-center justify-center rounded-xl ${accent}`}>
+          <Icon className="h-5 w-5" />
+        </div>
+        <DollarSign className="h-4 w-4 text-muted-foreground/40" />
+      </div>
+      <p className="text-2xl font-bold tracking-tight">
+        {value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+      </p>
+      <p className="text-xs text-muted-foreground mt-1">{label}</p>
+    </CardContent>
+  </Card>
+);
+
 const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState<Stats>({ total: 0, dueToday: 0, overdue: 0, active: 0 });
+  const [financial, setFinancial] = useState<FinancialStats>({
+    totalReceivedAllTime: 0,
+    totalReceivedMonth: 0,
+    totalToReceiveMonth: 0,
+  });
 
   useEffect(() => {
     if (!user) return;
+
     const fetchStats = async () => {
       const today = new Date().toISOString().split("T")[0];
       const { data: clients } = await supabase
         .from("clients")
-        .select("due_date")
+        .select("due_date, plan_id")
         .eq("user_id", user.id);
 
       if (clients) {
@@ -82,7 +124,84 @@ const Dashboard = () => {
         setStats({ total, dueToday, overdue, active });
       }
     };
+
+    const fetchFinancial = async () => {
+      const now = new Date();
+      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+      const today = now.toISOString().split("T")[0];
+
+      // Get clients with plan prices
+      const { data: clientsWithPlans } = await supabase
+        .from("clients")
+        .select("due_date, plans(price)")
+        .eq("user_id", user.id);
+
+      let totalReceivedAllTime = 0;
+      let totalReceivedMonth = 0;
+      let totalToReceiveMonth = 0;
+
+      if (clientsWithPlans) {
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+
+        for (const client of clientsWithPlans) {
+          const price = (client.plans as any)?.price ?? 0;
+          if (price <= 0) continue;
+
+          const dueDate = new Date(client.due_date + "T00:00:00");
+
+          // Client is active (due_date >= today) means they paid = received
+          if (client.due_date >= today) {
+            totalReceivedAllTime += price;
+          }
+
+          // Received this month: active clients whose due is in current month or later
+          // (they paid this cycle which falls in this month)
+          if (
+            client.due_date >= today &&
+            dueDate.getMonth() === currentMonth &&
+            dueDate.getFullYear() === currentYear
+          ) {
+            totalReceivedMonth += price;
+          }
+
+          // To receive this month: overdue or due today clients with due in current month
+          if (
+            client.due_date <= today &&
+            dueDate.getMonth() === currentMonth &&
+            dueDate.getFullYear() === currentYear
+          ) {
+            totalToReceiveMonth += price;
+          }
+        }
+      }
+
+      // Also check payment_links for actual confirmed payments
+      const { data: paidLinks } = await supabase
+        .from("payment_links")
+        .select("amount, created_at, status")
+        .eq("user_id", user.id)
+        .eq("status", "paid");
+
+      if (paidLinks) {
+        for (const link of paidLinks) {
+          totalReceivedAllTime += Number(link.amount);
+          const createdAt = new Date(link.created_at);
+          if (
+            createdAt.getMonth() === now.getMonth() &&
+            createdAt.getFullYear() === now.getFullYear()
+          ) {
+            totalReceivedMonth += Number(link.amount);
+          }
+        }
+      }
+
+      setFinancial({ totalReceivedAllTime, totalReceivedMonth, totalToReceiveMonth });
+    };
+
     fetchStats();
+    fetchFinancial();
   }, [user]);
 
   const chartData = [
@@ -119,6 +238,28 @@ const Dashboard = () => {
         <StatCard icon={CheckCircle} label="Clientes Ativos" value={stats.active} accent="bg-emerald-500/10 text-emerald-500" />
         <StatCard icon={Clock} label="Vencem Hoje" value={stats.dueToday} accent="bg-amber-500/10 text-amber-500" />
         <StatCard icon={AlertTriangle} label="Vencidos" value={stats.overdue} accent="bg-destructive/10 text-destructive" />
+      </div>
+
+      {/* Financial Cards */}
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+        <MoneyCard
+          icon={Wallet}
+          label="Total Recebido (Geral)"
+          value={financial.totalReceivedAllTime}
+          accent="bg-emerald-500/10 text-emerald-500"
+        />
+        <MoneyCard
+          icon={CalendarCheck}
+          label="Recebido este Mês"
+          value={financial.totalReceivedMonth}
+          accent="bg-primary/10 text-primary"
+        />
+        <MoneyCard
+          icon={BadgeDollarSign}
+          label="A Receber este Mês"
+          value={financial.totalToReceiveMonth}
+          accent="bg-amber-500/10 text-amber-500"
+        />
       </div>
 
       {/* Chart + Quick Actions */}
