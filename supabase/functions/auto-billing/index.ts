@@ -16,7 +16,6 @@ function getServiceClient() {
 
 function getToday(): string {
   const now = new Date();
-  // BRT = UTC-3
   const brt = new Date(now.getTime() - 3 * 60 * 60 * 1000);
   return brt.toISOString().split("T")[0];
 }
@@ -55,13 +54,11 @@ serve(async (req) => {
     const tomorrow = getTomorrow();
     const yesterday = getYesterday();
 
-    // Get current BRT hour
     const nowBrt = new Date(Date.now() - 3 * 60 * 60 * 1000);
     const currentHour = nowBrt.getHours();
 
     console.log(`[auto-billing] Running for today=${today}, tomorrow=${tomorrow}, yesterday=${yesterday}, currentHour=${currentHour} BRT`);
 
-    // Get all users with automation enabled
     const { data: configs, error: configErr } = await supabase
       .from("billing_automation_config")
       .select("*")
@@ -89,7 +86,7 @@ serve(async (req) => {
       const userId = config.user_id;
       console.log(`[auto-billing] Processing user: ${userId}`);
 
-      // Check if user's plan is expired beyond 10-day grace period
+      // Check plan expiration grace period
       const { data: userProfile } = await supabase
         .from("profiles")
         .select("plan_expires_at")
@@ -105,7 +102,7 @@ serve(async (req) => {
         }
       }
 
-      // Get user's WhatsApp config
+      // Get WhatsApp config
       const { data: waConfig } = await supabase
         .from("whatsapp_config")
         .select("*")
@@ -118,7 +115,6 @@ serve(async (req) => {
         continue;
       }
 
-      // Get global WhatsApp config for API URL/key
       const { data: globalWa } = await supabase
         .from("whatsapp_global_config")
         .select("*")
@@ -130,15 +126,16 @@ serve(async (req) => {
         continue;
       }
 
-      // Get user's clients
-      const { data: clients } = await supabase
-        .from("clients")
-        .select("id, name, phone, due_date, username, plan_id, service_id")
-        .eq("user_id", userId);
+      // Get user's pending invoices with client data
+      const { data: invoices } = await supabase
+        .from("invoices")
+        .select("id, client_id, plan_id, amount, due_date, status, clients(id, name, phone, username, plan_id, service_id)")
+        .eq("user_id", userId)
+        .neq("status", "paid");
 
-      if (!clients || clients.length === 0) continue;
+      if (!invoices || invoices.length === 0) continue;
 
-      // Get user's templates
+      // Get templates
       const { data: templates } = await supabase
         .from("message_templates")
         .select("*")
@@ -149,14 +146,13 @@ serve(async (req) => {
         continue;
       }
 
-      // Get plan and service IDs referenced by this user's clients
-      const clientPlanIds = [...new Set(clients.filter((c: any) => c.plan_id).map((c: any) => c.plan_id))];
-      const clientServiceIds = [...new Set(clients.filter((c: any) => c.service_id).map((c: any) => c.service_id))];
+      // Get plans and services referenced
+      const planIds = [...new Set(invoices.filter((i: any) => i.plan_id).map((i: any) => i.plan_id))];
+      const clientServiceIds = [...new Set(invoices.filter((i: any) => (i.clients as any)?.service_id).map((i: any) => (i.clients as any).service_id))];
 
-      // Fetch plans and services by their IDs (not filtered by user_id, since clients may reference plans from other users)
       let userPlans: any[] = [];
-      if (clientPlanIds.length > 0) {
-        const { data } = await supabase.from("plans").select("id, name, price, duration_months").in("id", clientPlanIds);
+      if (planIds.length > 0) {
+        const { data } = await supabase.from("plans").select("id, name, price, duration_months").in("id", planIds);
         userPlans = data || [];
       }
       let userServices: any[] = [];
@@ -165,7 +161,7 @@ serve(async (req) => {
         userServices = data || [];
       }
 
-      // Get user's payment config
+      // Payment config
       const { data: payConfig } = await supabase
         .from("payment_gateway_config")
         .select("*")
@@ -176,26 +172,22 @@ serve(async (req) => {
       const gatewayEnabled = payConfig?.is_enabled || false;
       const fixedPixKey = payConfig?.pix_key || "";
 
-      // Determine which notifications to send
-      const notifications: { client: typeof clients[0]; type: string; templateType: string }[] = [];
+      // Determine notifications based on invoice due dates
+      const notifications: { invoice: any; type: string; templateType: string }[] = [];
 
-      // Get per-type send hours (fallback to send_hour for backwards compat)
       const hourBeforeDue = config.send_hour_before_due ?? config.send_hour ?? 10;
       const hourOnDue = config.send_hour_on_due ?? config.send_hour ?? 10;
       const hourAfterDue = config.send_hour_after_due ?? config.send_hour ?? 15;
 
-      for (const client of clients) {
-        // 1 day before due (tomorrow is due date) - check hour matches
-        if (config.notify_before_due && client.due_date === tomorrow && currentHour === hourBeforeDue) {
-          notifications.push({ client, type: "before_due", templateType: "vencendo_amanha" });
+      for (const invoice of invoices) {
+        if (config.notify_before_due && invoice.due_date === tomorrow && currentHour === hourBeforeDue) {
+          notifications.push({ invoice, type: "before_due", templateType: "vencendo_amanha" });
         }
-        // On due date
-        if (config.notify_on_due && client.due_date === today && currentHour === hourOnDue) {
-          notifications.push({ client, type: "on_due", templateType: "vencendo_hoje" });
+        if (config.notify_on_due && invoice.due_date === today && currentHour === hourOnDue) {
+          notifications.push({ invoice, type: "on_due", templateType: "vencendo_hoje" });
         }
-        // 1 day after due (yesterday was due date)
-        if (config.notify_after_due && client.due_date === yesterday && currentHour === hourAfterDue) {
-          notifications.push({ client, type: "after_due", templateType: "vencido" });
+        if (config.notify_after_due && invoice.due_date === yesterday && currentHour === hourAfterDue) {
+          notifications.push({ invoice, type: "after_due", templateType: "vencido" });
         }
       }
 
@@ -204,16 +196,16 @@ serve(async (req) => {
         continue;
       }
 
-      // Filter out already-sent notifications
+      // Filter out already-sent
       const filteredNotifications = [];
       for (const n of notifications) {
         const { data: existing } = await supabase
           .from("billing_notifications_log")
           .select("id")
           .eq("user_id", userId)
-          .eq("client_id", n.client.id)
+          .eq("client_id", n.invoice.client_id)
           .eq("notification_type", n.type)
-          .eq("due_date", n.client.due_date)
+          .eq("due_date", n.invoice.due_date)
           .maybeSingle();
 
         if (!existing) filteredNotifications.push(n);
@@ -226,16 +218,17 @@ serve(async (req) => {
 
       console.log(`[auto-billing] Sending ${filteredNotifications.length} notifications for user ${userId}`);
 
-      // Find matching template for each notification type
-      const resolveTemplate = (template: { content: string }, client: typeof clients[0], pixCode?: string, paymentLinkId?: string) => {
-        const serviceName = (userServices || []).find((s: any) => s.id === client.service_id)?.name || "";
-        const plan = (userPlans || []).find((p: any) => p.id === client.plan_id);
+      const resolveTemplate = (template: { content: string }, invoice: any, pixCode?: string, paymentLinkId?: string) => {
+        const client = invoice.clients;
+        const clientName = client?.name || "";
+        const serviceName = (userServices || []).find((s: any) => s.id === client?.service_id)?.name || "";
+        const plan = (userPlans || []).find((p: any) => p.id === invoice.plan_id);
         const planName = plan?.name || "";
-        const planPrice = plan?.price != null ? Number(plan.price).toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "";
+        const amount = Number(invoice.amount) > 0 ? invoice.amount : plan?.price;
+        const planPrice = amount != null ? Number(amount).toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "";
         const planDuration = plan?.duration_months || 1;
-        const dueDate = new Date(client.due_date + "T12:00:00");
+        const dueDate = new Date(invoice.due_date + "T12:00:00");
         const formattedDue = dueDate.toLocaleDateString("pt-BR");
-        // Smart renewal: if overdue, renew from today; if not, renew from due date
         const nowForRenewal = new Date();
         nowForRenewal.setHours(12, 0, 0, 0);
         const renewalBase = dueDate < nowForRenewal ? new Date(nowForRenewal) : new Date(dueDate);
@@ -244,7 +237,7 @@ serve(async (req) => {
         const paymentLink = paymentLinkId ? `https://gestorplanos.lovable.app/pay?id=${paymentLinkId}` : (pixCode || "");
 
         return template.content
-          .replace(/{nome}/g, client.name)
+          .replace(/{nome}/g, clientName)
           .replace(/{servico}/g, serviceName)
           .replace(/{plano}/g, planName)
           .replace(/{valor_plano}/g, planPrice)
@@ -255,22 +248,21 @@ serve(async (req) => {
           .replace(/{meio_de_pagamento}/g, pixCode || "");
       };
 
-      // Send messages
       for (const n of filteredNotifications) {
-        // Find best matching template
         const template = templates.find((t: any) => t.type === n.templateType) || templates[0];
         if (!template) continue;
+
+        const client = n.invoice.clients;
+        if (!client?.phone) continue;
 
         let pixCode = "";
         let paymentLinkId = "";
 
-        // Generate Pix if needed
         const hasMeioPagamento = template.content.includes("{meio_de_pagamento}");
         const hasLinkPagamento = template.content.includes("{link_pagamento}");
 
         if ((hasMeioPagamento || hasLinkPagamento) && gatewayEnabled && payConfig?.access_token) {
-          const plan = (userPlans || []).find((p: any) => p.id === n.client.plan_id);
-          const amount = plan?.price;
+          const amount = Number(n.invoice.amount) > 0 ? n.invoice.amount : ((userPlans || []).find((p: any) => p.id === n.invoice.plan_id)?.price || 0);
           if (amount && amount > 0) {
             try {
               const mpResponse = await fetch("https://api.mercadopago.com/v1/payments", {
@@ -282,12 +274,12 @@ serve(async (req) => {
                 },
                 body: JSON.stringify({
                   transaction_amount: Number(amount),
-                  description: `Cobrança - ${n.client.name}`,
+                  description: `Cobrança - ${client.name}`,
                   payment_method_id: "pix",
                   payer: {
-                    first_name: n.client.name.split(" ")[0],
-                    last_name: n.client.name.split(" ").slice(1).join(" ") || n.client.name.split(" ")[0],
-                    email: `${n.client.phone}@placeholder.com`,
+                    first_name: client.name.split(" ")[0],
+                    last_name: client.name.split(" ").slice(1).join(" ") || client.name.split(" ")[0],
+                    email: `${client.phone}@placeholder.com`,
                   },
                 }),
               });
@@ -296,14 +288,13 @@ serve(async (req) => {
                 const pixInfo = mpData.point_of_interaction?.transaction_data;
                 pixCode = pixInfo?.qr_code || "";
 
-                // Save payment link
                 const { data: paymentLink } = await supabase
                   .from("payment_links")
                   .insert({
                     user_id: userId,
-                    client_id: n.client.id,
+                    client_id: n.invoice.client_id,
                     amount: Number(amount),
-                    description: `Cobrança automática - ${n.client.name}`,
+                    description: `Cobrança automática - ${client.name}`,
                     status: "pending",
                     mp_payment_id: String(mpData.id),
                     qr_code_base64: pixInfo?.qr_code_base64 || null,
@@ -316,69 +307,58 @@ serve(async (req) => {
                 paymentLinkId = paymentLink?.id || "";
               }
             } catch (err) {
-              console.error(`[auto-billing] Pix error for ${n.client.name}:`, err);
-              // Fallback to fixed pix key on MP error
+              console.error(`[auto-billing] Pix error for ${client.name}:`, err);
               if (fixedPixKey) {
                 pixCode = fixedPixKey;
-                console.log(`[auto-billing] Using fixed pix key as fallback for ${n.client.name}`);
               }
             }
           }
         }
-        
-        // Final fallback: if no pixCode was set and we have a fixed key, use it
+
         if ((hasMeioPagamento || hasLinkPagamento) && !pixCode && fixedPixKey) {
           pixCode = fixedPixKey;
         }
 
-        const message = resolveTemplate(template, n.client, pixCode, paymentLinkId);
+        const message = resolveTemplate(template, n.invoice, pixCode, paymentLinkId);
 
-        // Send via WhatsApp
         try {
           await evolutionFetch(
             globalWa.api_url,
             globalWa.api_key,
             `/message/sendText/${waConfig.instance_name}`,
             "POST",
-            {
-              number: n.client.phone,
-              text: message,
-            }
+            { number: client.phone, text: message }
           );
 
-          // Log the notification
           await supabase.from("billing_notifications_log").insert({
             user_id: userId,
-            client_id: n.client.id,
+            client_id: n.invoice.client_id,
             notification_type: n.type,
-            due_date: n.client.due_date,
+            due_date: n.invoice.due_date,
             status: "sent",
             message_content: message,
           });
 
-          // Also log in message_logs
           await supabase.from("message_logs").insert({
             user_id: userId,
-            client_id: n.client.id,
+            client_id: n.invoice.client_id,
             message_content: message,
             status: "sent",
             template_type: `auto_${n.type}`,
           });
 
           totalSent++;
-          console.log(`[auto-billing] Sent ${n.type} to ${n.client.name}`);
-
-          // Anti-spam delay
+          console.log(`[auto-billing] Sent ${n.type} to ${client.name}`);
           await new Promise((r) => setTimeout(r, 1500));
         } catch (sendErr) {
-          console.error(`[auto-billing] Send error for ${n.client.name}:`, sendErr);
+          console.error(`[auto-billing] Send error for ${client.name}:`, sendErr);
           totalErrors++;
 
           await supabase.from("billing_notifications_log").insert({
             user_id: userId,
-            client_id: n.client.id,
+            client_id: n.invoice.client_id,
             notification_type: n.type,
-            due_date: n.client.due_date,
+            due_date: n.invoice.due_date,
             status: "error",
             message_content: message,
           });
