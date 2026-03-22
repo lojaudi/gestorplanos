@@ -380,6 +380,26 @@ const AdminSettings = () => {
         </CardContent>
       </Card>
 
+      {/* Landing Page Theme */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Landing Page</CardTitle>
+          <CardDescription>Configure a aparência da página inicial para visitantes.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between rounded-lg border p-4">
+            <div>
+              <p className="font-medium">Tema Escuro (Dark Mode)</p>
+              <p className="text-sm text-muted-foreground">Exibir a landing page com tema escuro para visitantes</p>
+            </div>
+            <Switch
+              checked={settings.landing_dark_mode}
+              onCheckedChange={(v) => setSettings({ ...settings, landing_dark_mode: v })}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Evolution API Global Config */}
       <Card className="border-primary/20">
         <CardHeader>
