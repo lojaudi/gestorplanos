@@ -82,6 +82,7 @@ const AdminSettings = () => {
         accent_color: data.accent_color,
         whatsapp_verification_enabled: data.whatsapp_verification_enabled,
         email_verification_enabled: data.email_verification_enabled,
+        landing_dark_mode: (data as any).landing_dark_mode ?? false,
       });
     }
     setLoading(false);
