@@ -35,16 +35,18 @@ type ClientWithRelations = Client & {
 };
 
 const getStatus = (dueDate: string) => {
+  if (!dueDate) return "sem_fatura";
   const today = new Date().toISOString().split("T")[0];
   if (dueDate === today) return "vencendo";
   if (dueDate < today) return "vencido";
   return "ativo";
 };
 
-const statusConfig = {
-  ativo: { label: "Ativo", variant: "default" as const },
-  vencendo: { label: "Vencendo Hoje", variant: "secondary" as const },
-  vencido: { label: "Vencido", variant: "destructive" as const },
+const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  ativo: { label: "Ativo", variant: "default" },
+  vencendo: { label: "Vencendo Hoje", variant: "secondary" },
+  vencido: { label: "Vencido", variant: "destructive" },
+  sem_fatura: { label: "Sem Fatura", variant: "outline" },
 };
 
 const PAGE_SIZE_OPTIONS = ["10", "25", "50", "100", "all"] as const;
@@ -75,7 +77,7 @@ const Clients = () => {
   const [formUsername, setFormUsername] = useState("");
   const [formServiceId, setFormServiceId] = useState<string>("");
   const [formPlanId, setFormPlanId] = useState<string>("");
-  const [formDueDate, setFormDueDate] = useState("");
+  // formDueDate removed - invoices manage due dates now
 
   const fetchData = async () => {
     if (!user) return;
@@ -124,13 +126,7 @@ const Clients = () => {
     return filteredClients.slice(start, start + size);
   }, [filteredClients, pageSize, currentPage]);
 
-  const calcDueDate = (planId: string) => {
-    const plan = plans.find((p) => p.id === planId);
-    if (!plan) return new Date().toISOString().split("T")[0];
-    const d = new Date();
-    d.setMonth(d.getMonth() + plan.duration_months);
-    return d.toISOString().split("T")[0];
-  };
+  // Due date calculation removed - invoices manage due dates now
 
   const openCreate = () => {
     setEditing(null);
@@ -139,7 +135,6 @@ const Clients = () => {
     setFormUsername("");
     setFormServiceId("");
     setFormPlanId("");
-    setFormDueDate(new Date().toISOString().split("T")[0]);
     setDialogOpen(true);
   };
 
@@ -150,15 +145,11 @@ const Clients = () => {
     setFormUsername(c.username || "");
     setFormServiceId(c.service_id || "");
     setFormPlanId(c.plan_id || "");
-    setFormDueDate(c.due_date);
     setDialogOpen(true);
   };
 
   const handlePlanChange = (planId: string) => {
     setFormPlanId(planId);
-    if (!editing) {
-      setFormDueDate(calcDueDate(planId));
-    }
   };
 
   const handleSave = async () => {
@@ -172,7 +163,6 @@ const Clients = () => {
       username: formUsername.trim() || null,
       service_id: formServiceId || null,
       plan_id: formPlanId || null,
-      due_date: formDueDate,
     };
     console.log("[Clients] handleSave payload:", JSON.stringify(payload));
     console.log("[Clients] editing:", editing?.id, "formPlanId:", formPlanId, "formServiceId:", formServiceId);
@@ -499,10 +489,6 @@ const Clients = () => {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="clientDueDate">Data de Vencimento</Label>
-              <Input id="clientDueDate" type="date" value={formDueDate} onChange={(e) => setFormDueDate(e.target.value)} />
             </div>
           </div>
           <DialogFooter>

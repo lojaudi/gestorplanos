@@ -32,10 +32,12 @@ import {
 } from "recharts";
 
 interface Stats {
-  total: number;
+  totalClients: number;
+  totalInvoices: number;
   dueToday: number;
   overdue: number;
-  active: number;
+  paid: number;
+  pending: number;
 }
 
 interface FinancialStats {
@@ -99,7 +101,7 @@ const MoneyCard = ({
 const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [stats, setStats] = useState<Stats>({ total: 0, dueToday: 0, overdue: 0, active: 0 });
+  const [stats, setStats] = useState<Stats>({ totalClients: 0, totalInvoices: 0, dueToday: 0, overdue: 0, paid: 0, pending: 0 });
   const [financial, setFinancial] = useState<FinancialStats>({
     totalReceivedAllTime: 0,
     totalReceivedMonth: 0,
@@ -111,73 +113,50 @@ const Dashboard = () => {
 
     const fetchStats = async () => {
       const today = new Date().toISOString().split("T")[0];
-      const { data: clients } = await supabase
-        .from("clients")
-        .select("due_date, plan_id")
-        .eq("user_id", user.id);
-
-      if (clients) {
-        const total = clients.length;
-        const dueToday = clients.filter((c) => c.due_date === today).length;
-        const overdue = clients.filter((c) => c.due_date < today).length;
-        const active = clients.filter((c) => c.due_date >= today).length;
-        setStats({ total, dueToday, overdue, active });
-      }
-    };
-
-    const fetchFinancial = async () => {
       const now = new Date();
-      const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
-      const today = now.toISOString().split("T")[0];
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
 
-      // Get clients with plan prices
-      const { data: clientsWithPlans } = await supabase
-        .from("clients")
-        .select("due_date, plans(price)")
-        .eq("user_id", user.id);
+      const [{ data: clients }, { data: invoicesData }] = await Promise.all([
+        supabase.from("clients").select("id").eq("user_id", user.id),
+        supabase.from("invoices").select("id, due_date, status, amount, payment_date").eq("user_id", user.id),
+      ]);
 
+      const invoices = invoicesData || [];
+      const pending = invoices.filter(i => i.status !== "paid");
+
+      setStats({
+        totalClients: clients?.length || 0,
+        totalInvoices: invoices.length,
+        dueToday: pending.filter(i => i.due_date === today).length,
+        overdue: pending.filter(i => i.due_date < today).length,
+        paid: invoices.filter(i => i.status === "paid").length,
+        pending: pending.length,
+      });
+
+      // Financial stats from invoices
       let totalReceivedAllTime = 0;
       let totalReceivedMonth = 0;
       let totalToReceiveMonth = 0;
 
-      if (clientsWithPlans) {
-        const currentMonth = now.getMonth();
-        const currentYear = now.getFullYear();
-
-        for (const client of clientsWithPlans) {
-          const price = (client.plans as any)?.price ?? 0;
-          if (price <= 0) continue;
-
-          const dueDate = new Date(client.due_date + "T00:00:00");
-
-          // Client is active (due_date >= today) means they paid = received
-          if (client.due_date >= today) {
-            totalReceivedAllTime += price;
+      for (const inv of invoices) {
+        if (inv.status === "paid") {
+          totalReceivedAllTime += Number(inv.amount);
+          if (inv.payment_date) {
+            const pd = new Date(inv.payment_date);
+            if (pd.getMonth() === currentMonth && pd.getFullYear() === currentYear) {
+              totalReceivedMonth += Number(inv.amount);
+            }
           }
-
-          // Received this month: active clients whose due is in current month or later
-          // (they paid this cycle which falls in this month)
-          if (
-            client.due_date >= today &&
-            dueDate.getMonth() === currentMonth &&
-            dueDate.getFullYear() === currentYear
-          ) {
-            totalReceivedMonth += price;
-          }
-
-          // To receive this month: overdue or due today clients with due in current month
-          if (
-            client.due_date <= today &&
-            dueDate.getMonth() === currentMonth &&
-            dueDate.getFullYear() === currentYear
-          ) {
-            totalToReceiveMonth += price;
+        } else {
+          const dueDate = new Date(inv.due_date + "T00:00:00");
+          if (dueDate.getMonth() === currentMonth && dueDate.getFullYear() === currentYear) {
+            totalToReceiveMonth += Number(inv.amount);
           }
         }
       }
 
-      // Also check payment_links for actual confirmed payments
+      // Also check payment_links
       const { data: paidLinks } = await supabase
         .from("payment_links")
         .select("amount, created_at, status")
@@ -188,10 +167,7 @@ const Dashboard = () => {
         for (const link of paidLinks) {
           totalReceivedAllTime += Number(link.amount);
           const createdAt = new Date(link.created_at);
-          if (
-            createdAt.getMonth() === now.getMonth() &&
-            createdAt.getFullYear() === now.getFullYear()
-          ) {
+          if (createdAt.getMonth() === currentMonth && createdAt.getFullYear() === currentYear) {
             totalReceivedMonth += Number(link.amount);
           }
         }
@@ -201,18 +177,17 @@ const Dashboard = () => {
     };
 
     fetchStats();
-    fetchFinancial();
   }, [user]);
 
   const chartData = [
-    { name: "Ativos", value: stats.active, color: "hsl(160, 84%, 39%)" },
-    { name: "Vencendo", value: stats.dueToday, color: "hsl(43, 96%, 56%)" },
-    { name: "Vencidos", value: stats.overdue, color: "hsl(0, 84%, 60%)" },
+    { name: "Pendentes", value: stats.pending, color: "hsl(43, 96%, 56%)" },
+    { name: "Vencidas", value: stats.overdue, color: "hsl(0, 84%, 60%)" },
+    { name: "Pagas", value: stats.paid, color: "hsl(160, 84%, 39%)" },
   ];
 
   const quickActions = [
     { icon: Users, label: "Clientes", description: "Gerenciar base", path: "/clients" },
-    { icon: CreditCard, label: "Faturamento", description: "Cobranças e pagamentos", path: "/billing" },
+    { icon: CreditCard, label: "Faturamento", description: "Faturas e cobranças", path: "/billing" },
     { icon: Megaphone, label: "Campanhas", description: "Enviar mensagens", path: "/campaign" },
     { icon: FileText, label: "Templates", description: "Modelos de mensagem", path: "/templates" },
     { icon: MessageSquare, label: "WhatsApp", description: "Configurar API", path: "/whatsapp" },
@@ -234,10 +209,10 @@ const Dashboard = () => {
 
       {/* Stats Cards */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={Users} label="Total de Clientes" value={stats.total} accent="bg-primary/10 text-primary" />
-        <StatCard icon={CheckCircle} label="Clientes Ativos" value={stats.active} accent="bg-emerald-500/10 text-emerald-500" />
+        <StatCard icon={Users} label="Total de Clientes" value={stats.totalClients} accent="bg-primary/10 text-primary" />
+        <StatCard icon={FileText} label="Total de Faturas" value={stats.totalInvoices} accent="bg-emerald-500/10 text-emerald-500" />
         <StatCard icon={Clock} label="Vencem Hoje" value={stats.dueToday} accent="bg-amber-500/10 text-amber-500" />
-        <StatCard icon={AlertTriangle} label="Vencidos" value={stats.overdue} accent="bg-destructive/10 text-destructive" />
+        <StatCard icon={AlertTriangle} label="Vencidas" value={stats.overdue} accent="bg-destructive/10 text-destructive" />
       </div>
 
       {/* Financial Cards */}
@@ -268,7 +243,7 @@ const Dashboard = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <BarChart className="h-4 w-4 text-primary" />
-              Clientes por Status
+              Faturas por Status
             </CardTitle>
           </CardHeader>
           <CardContent>
