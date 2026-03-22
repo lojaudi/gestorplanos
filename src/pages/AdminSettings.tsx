@@ -22,6 +22,7 @@ interface PlatformSettings {
   accent_color: string;
   whatsapp_verification_enabled: boolean;
   email_verification_enabled: boolean;
+  landing_dark_mode: boolean;
 }
 
 const AdminSettings = () => {
@@ -81,6 +82,7 @@ const AdminSettings = () => {
         accent_color: data.accent_color,
         whatsapp_verification_enabled: data.whatsapp_verification_enabled,
         email_verification_enabled: data.email_verification_enabled,
+        landing_dark_mode: (data as any).landing_dark_mode ?? false,
       });
     }
     setLoading(false);
@@ -170,7 +172,8 @@ const AdminSettings = () => {
         accent_color: settings.accent_color,
         whatsapp_verification_enabled: settings.whatsapp_verification_enabled,
         email_verification_enabled: settings.email_verification_enabled,
-      })
+        landing_dark_mode: settings.landing_dark_mode,
+      } as any)
       .eq("id", settings.id);
 
     if (error) {
@@ -374,6 +377,26 @@ const AdminSettings = () => {
           {!settings.whatsapp_verification_enabled && !settings.email_verification_enabled && (
             <p className="text-sm text-amber-500 font-medium">⚠️ Nenhum método de verificação ativo. Contas serão criadas sem confirmação.</p>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Landing Page Theme */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Landing Page</CardTitle>
+          <CardDescription>Configure a aparência da página inicial para visitantes.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between rounded-lg border p-4">
+            <div>
+              <p className="font-medium">Tema Escuro (Dark Mode)</p>
+              <p className="text-sm text-muted-foreground">Exibir a landing page com tema escuro para visitantes</p>
+            </div>
+            <Switch
+              checked={settings.landing_dark_mode}
+              onCheckedChange={(v) => setSettings({ ...settings, landing_dark_mode: v })}
+            />
+          </div>
         </CardContent>
       </Card>
 
