@@ -150,9 +150,6 @@ const Clients = () => {
 
   const handlePlanChange = (planId: string) => {
     setFormPlanId(planId);
-    if (!editing) {
-      setFormDueDate(calcDueDate(planId));
-    }
   };
 
   const handleSave = async () => {
