@@ -232,6 +232,7 @@ export default function LandingPage() {
             </div>
           </div>
         </div>
+      </section>
 
       {/* Stats */}
       <section className="border-y border-border/50 bg-muted/30">
