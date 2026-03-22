@@ -35,16 +35,18 @@ type ClientWithRelations = Client & {
 };
 
 const getStatus = (dueDate: string) => {
+  if (!dueDate) return "sem_fatura";
   const today = new Date().toISOString().split("T")[0];
   if (dueDate === today) return "vencendo";
   if (dueDate < today) return "vencido";
   return "ativo";
 };
 
-const statusConfig = {
-  ativo: { label: "Ativo", variant: "default" as const },
-  vencendo: { label: "Vencendo Hoje", variant: "secondary" as const },
-  vencido: { label: "Vencido", variant: "destructive" as const },
+const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
+  ativo: { label: "Ativo", variant: "default" },
+  vencendo: { label: "Vencendo Hoje", variant: "secondary" },
+  vencido: { label: "Vencido", variant: "destructive" },
+  sem_fatura: { label: "Sem Fatura", variant: "outline" },
 };
 
 const PAGE_SIZE_OPTIONS = ["10", "25", "50", "100", "all"] as const;
