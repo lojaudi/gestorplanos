@@ -200,6 +200,7 @@ function NavSection({
 
 export function AppSidebar() {
   const { user, isAdmin, signOut } = useAuth();
+  const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const platform = usePlatformSettings();
