@@ -20,7 +20,7 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
       {/* Sidebar */}
       <div
-        className={`fixed inset-y-0 left-0 z-50 transform transition-transform duration-200 ease-out lg:relative lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 ease-out lg:relative lg:translate-x-0 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
@@ -29,16 +29,16 @@ export function AppLayout({ children }: { children: ReactNode }) {
 
       {/* Main content */}
       <div className="flex flex-1 flex-col overflow-hidden min-w-0">
-        <header className="flex h-14 items-center gap-3 border-b border-border bg-card px-4 lg:hidden">
+        <header className="flex h-14 items-center gap-3 border-b border-border/50 bg-card/50 backdrop-blur-xl px-4 lg:hidden">
           <Button
             variant="ghost"
             size="icon"
-            className="shrink-0"
+            className="shrink-0 h-9 w-9"
             onClick={() => setSidebarOpen(!sidebarOpen)}
           >
             {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
-          <span className="font-semibold text-foreground truncate">
+          <span className="font-semibold text-sm text-foreground truncate">
             {platform.system_name}
           </span>
         </header>

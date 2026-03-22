@@ -5,22 +5,23 @@ import {
   LayoutDashboard,
   Users,
   CreditCard,
-  MessageSquare,
   Settings,
   LogOut,
   Shield,
   UserCog,
-  Video,
   ChevronDown,
   Wallet,
   FileText,
   Megaphone,
   Crown,
-  UserPlus,
   ClipboardList,
   Globe,
+  Video,
   BookOpen,
+  MessageSquare,
+  UserPlus,
   BarChart3,
+  ChevronLeft,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -108,13 +109,13 @@ function SidebarItem({
     <button
       onClick={onClick}
       className={cn(
-        "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150",
+        "group flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium transition-all duration-200",
         active
-          ? "bg-sidebar-primary/10 text-sidebar-primary"
-          : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+          ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-md shadow-primary/20"
+          : "text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground"
       )}
     >
-      <item.icon className="h-[18px] w-[18px] shrink-0" />
+      <item.icon className={cn("h-[16px] w-[16px] shrink-0 transition-colors", active ? "text-sidebar-primary-foreground" : "text-sidebar-foreground/40 group-hover:text-sidebar-foreground/70")} />
       <span className="truncate">{item.label}</span>
     </button>
   );
@@ -138,17 +139,17 @@ function SidebarGroupComponent({
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all duration-150">
-        <group.icon className="h-[18px] w-[18px] shrink-0" />
+      <CollapsibleTrigger className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-[13px] font-medium text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all duration-200">
+        <group.icon className="h-[16px] w-[16px] shrink-0 text-sidebar-foreground/40" />
         <span className="truncate">{group.label}</span>
         <ChevronDown
           className={cn(
-            "ml-auto h-4 w-4 shrink-0 transition-transform duration-200",
+            "ml-auto h-3.5 w-3.5 shrink-0 text-sidebar-foreground/30 transition-transform duration-200",
             open && "rotate-180"
           )}
         />
       </CollapsibleTrigger>
-      <CollapsibleContent className="pl-4 space-y-0.5 mt-0.5">
+      <CollapsibleContent className="pl-3 space-y-0.5 mt-0.5">
         {group.items.map((item) => (
           <SidebarItem
             key={item.label}
@@ -172,7 +173,7 @@ function NavSection({
   onNavigate: (path: string) => void;
 }) {
   return (
-    <div className="space-y-1">
+    <div className="space-y-0.5">
       {entries.map((entry) =>
         isGroup(entry) ? (
           <SidebarGroupComponent
@@ -225,9 +226,9 @@ export function AppSidebar() {
     .toUpperCase();
 
   return (
-    <aside className="flex h-screen w-64 flex-col bg-sidebar text-sidebar-foreground overflow-hidden">
+    <aside className="flex h-screen w-[260px] flex-col bg-sidebar text-sidebar-foreground overflow-hidden border-r border-sidebar-border/50">
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-sidebar-border px-5 py-4">
+      <div className="flex items-center gap-3 px-5 py-5">
         {platform.logo_url ? (
           <img
             src={platform.logo_url}
@@ -236,31 +237,35 @@ export function AppSidebar() {
           />
         ) : (
           <>
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-primary">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-blue-400 shadow-lg shadow-primary/25">
               <BarChart3 className="h-5 w-5 text-sidebar-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-sm font-bold text-sidebar-primary-foreground">
+              <h1 className="text-sm font-bold tracking-tight text-sidebar-foreground">
                 {platform.system_name}
               </h1>
-              <p className="text-[11px] text-sidebar-foreground/50">CRM & Gestão</p>
+              <p className="text-[10px] font-medium text-sidebar-foreground/35 uppercase tracking-wider">CRM & Gestão</p>
             </div>
           </>
         )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto p-3 space-y-4 scrollbar-thin">
-        <NavSection
-          entries={userNav}
-          currentPath={location.pathname}
-          onNavigate={navigate}
-        />
+      <nav className="flex-1 overflow-y-auto px-3 pb-3 space-y-5 scrollbar-thin">
+        <div>
+          <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/25">
+            Menu
+          </p>
+          <NavSection
+            entries={userNav}
+            currentPath={location.pathname}
+            onNavigate={navigate}
+          />
+        </div>
 
         {isAdmin && (
-          <>
-            <div className="border-t border-sidebar-border my-2" />
-            <p className="px-3 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
+          <div>
+            <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/25">
               Admin
             </p>
             <NavSection
@@ -268,16 +273,18 @@ export function AppSidebar() {
               currentPath={location.pathname}
               onNavigate={navigate}
             />
-          </>
+          </div>
         )}
       </nav>
 
       {/* Footer */}
-      <div className="border-t border-sidebar-border p-3">
-        <div className="mb-2 flex items-center gap-2 px-3">
-          <Avatar className="h-8 w-8">
+      <div className="border-t border-sidebar-border/50 p-3">
+        <div className="mb-2 flex items-center gap-2.5 rounded-lg px-3 py-2 bg-sidebar-accent/50">
+          <Avatar className="h-8 w-8 ring-2 ring-sidebar-primary/20">
             <AvatarImage src={avatarUrl || undefined} alt={fullName} />
-            <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+            <AvatarFallback className="text-[10px] font-semibold bg-sidebar-primary/20 text-sidebar-primary">
+              {initials}
+            </AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
             {fullName && (
@@ -285,17 +292,18 @@ export function AppSidebar() {
                 {fullName}
               </p>
             )}
-            <p className="text-[11px] text-sidebar-foreground/50 truncate">
+            <p className="text-[10px] text-sidebar-foreground/40 truncate">
               {user?.email}
             </p>
           </div>
         </div>
         <Button
           variant="ghost"
-          className="w-full justify-start text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+          size="sm"
+          className="w-full justify-start text-sidebar-foreground/50 hover:bg-destructive/10 hover:text-destructive text-xs"
           onClick={signOut}
         >
-          <LogOut className="mr-2 h-4 w-4" />
+          <LogOut className="mr-2 h-3.5 w-3.5" />
           Sair
         </Button>
       </div>
