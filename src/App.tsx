@@ -29,6 +29,7 @@ import MoviesSeries from "./pages/MoviesSeries";
 import GamesDay from "./pages/GamesDay";
 import Campaign from "./pages/Campaign";
 import VideoBanner from "./pages/VideoBanner";
+import TemplatesJD from "./pages/TemplatesJD";
 import Subscribe from "./pages/Subscribe";
 import AdminSupportMaterials from "./pages/AdminSupportMaterials";
 import SupportMaterialsPage from "./pages/SupportMaterials";
