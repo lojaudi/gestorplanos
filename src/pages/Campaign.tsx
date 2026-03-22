@@ -56,6 +56,11 @@ export default function Campaign() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const handleAiImageReady = (file: File, previewUrl: string) => {
+    setImageFile(file);
+    setImagePreview(previewUrl);
+  };
+
   const fetchClients = useCallback(async (filter: "all" | "active" | "expired"): Promise<Client[]> => {
     if (!user) return [];
     const { data, error } = await supabase
