@@ -162,8 +162,6 @@ const AdminPlans = () => {
   const modulesList = (p: AdminPlan) => {
     const modules: string[] = [];
     if (p.module_campaigns) modules.push("Campanha");
-    if (p.module_games) modules.push("Jogos do Dia");
-    if (p.module_banners) modules.push("Banners");
     return modules;
   };
 
