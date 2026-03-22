@@ -25,7 +25,11 @@ import PaymentPage from "./pages/PaymentPage";
 import Profile from "./pages/Profile";
 import Tutorials from "./pages/Tutorials";
 import AdminPlans from "./pages/AdminPlans";
+import MoviesSeries from "./pages/MoviesSeries";
+import GamesDay from "./pages/GamesDay";
 import Campaign from "./pages/Campaign";
+import VideoBanner from "./pages/VideoBanner";
+import TemplatesJD from "./pages/TemplatesJD";
 import Subscribe from "./pages/Subscribe";
 import AdminSupportMaterials from "./pages/AdminSupportMaterials";
 import SupportMaterialsPage from "./pages/SupportMaterials";
@@ -57,7 +61,11 @@ const App = () => (
               <Route path="/admin/plans" element={<ProtectedPage><AdminPlans /></ProtectedPage>} />
               <Route path="/admin/tutorials" element={<ProtectedPage><AdminTutorials /></ProtectedPage>} />
               <Route path="/tutorials" element={<ProtectedPage><Tutorials /></ProtectedPage>} />
+              <Route path="/movies-series" element={<ProtectedPage><MoviesSeries /></ProtectedPage>} />
+              <Route path="/games-day" element={<ProtectedPage><GamesDay /></ProtectedPage>} />
               <Route path="/campaign" element={<ProtectedPage><Campaign /></ProtectedPage>} />
+              <Route path="/templates-jd" element={<ProtectedPage><TemplatesJD /></ProtectedPage>} />
+              {/* <Route path="/video-banner" element={<ProtectedPage><VideoBanner /></ProtectedPage>} /> // Temporariamente desativado - Cobalt com problema no YouTube */}
               <Route path="/subscribe" element={<ProtectedPage><Subscribe /></ProtectedPage>} />
               <Route path="/support-materials" element={<ProtectedPage><SupportMaterialsPage /></ProtectedPage>} />
               <Route path="/admin/support-materials" element={<ProtectedPage><AdminSupportMaterials /></ProtectedPage>} />

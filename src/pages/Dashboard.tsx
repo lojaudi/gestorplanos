@@ -6,14 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   Users,
+  Briefcase,
   CreditCard,
+  FileText,
+  MessageSquare,
   AlertTriangle,
   Clock,
   CheckCircle,
-  Megaphone,
-  ArrowRight,
-  TrendingUp,
-  MessageSquare,
 } from "lucide-react";
 import {
   BarChart,
@@ -59,134 +58,112 @@ const Dashboard = () => {
   }, [user]);
 
   const chartData = [
-    { name: "Ativos", value: stats.active, color: "hsl(var(--success))" },
-    { name: "Vencendo Hoje", value: stats.dueToday, color: "hsl(var(--warning))" },
-    { name: "Vencidos", value: stats.overdue, color: "hsl(var(--destructive))" },
+    { name: "Ativos", value: stats.active, color: "hsl(142, 71%, 45%)" },
+    { name: "Vencendo Hoje", value: stats.dueToday, color: "hsl(38, 92%, 50%)" },
+    { name: "Vencidos", value: stats.overdue, color: "hsl(0, 84%, 60%)" },
   ];
 
-  const statCards = [
-    {
-      icon: Users,
-      label: "Total Clientes",
-      value: stats.total,
-      iconClass: "text-primary",
-      bgClass: "bg-primary/10",
-    },
-    {
-      icon: CheckCircle,
-      label: "Ativos",
-      value: stats.active,
-      iconClass: "text-emerald-500",
-      bgClass: "bg-emerald-500/10",
-    },
-    {
-      icon: Clock,
-      label: "Vencendo Hoje",
-      value: stats.dueToday,
-      iconClass: "text-amber-500",
-      bgClass: "bg-amber-500/10",
-    },
-    {
-      icon: AlertTriangle,
-      label: "Vencidos",
-      value: stats.overdue,
-      iconClass: "text-destructive",
-      bgClass: "bg-destructive/10",
-    },
-  ];
-
-  const quickActions = [
-    { icon: Users, label: "Clientes", description: "Gerenciar cadastros", path: "/clients" },
-    { icon: CreditCard, label: "Cobrança", description: "Faturamento e envios", path: "/billing" },
-    { icon: Megaphone, label: "Campanhas", description: "Disparo em massa", path: "/campaign" },
-    { icon: MessageSquare, label: "WhatsApp", description: "Configurar API", path: "/whatsapp" },
+  const quickLinks = [
+    { icon: Users, label: "Clientes", path: "/clients", color: "bg-primary" },
+    { icon: Briefcase, label: "Serviços", path: "/services", color: "bg-primary" },
+    { icon: CreditCard, label: "Planos", path: "/plans", color: "bg-primary" },
+    { icon: FileText, label: "Templates", path: "/templates", color: "bg-primary" },
+    { icon: MessageSquare, label: "WhatsApp", path: "/whatsapp", color: "bg-primary" },
   ];
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      {/* Header */}
+    <div className="space-y-6">
       <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-foreground flex items-center gap-2">
-          <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-          Dashboard
-        </h1>
-        <p className="text-sm text-muted-foreground">Visão geral do seu CRM</p>
+        <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+        <p className="text-muted-foreground">Visão geral do sistema</p>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-        {statCards.map((card) => (
-          <Card key={card.label} className="border-border/50">
-            <CardContent className="flex items-center gap-3 p-4 sm:p-5">
-              <div className={`flex h-10 w-10 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl ${card.bgClass}`}>
-                <card.icon className={`h-5 w-5 sm:h-6 sm:w-6 ${card.iconClass}`} />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs sm:text-sm text-muted-foreground truncate">{card.label}</p>
-                <p className="text-xl sm:text-2xl font-bold">{card.value}</p>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardContent className="flex items-center gap-4 p-5">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+              <Users className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Total Clientes</p>
+              <p className="text-2xl font-bold">{stats.total}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center gap-4 p-5">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-green-500/10">
+              <CheckCircle className="h-6 w-6 text-green-500" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Ativos</p>
+              <p className="text-2xl font-bold">{stats.active}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center gap-4 p-5">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-yellow-500/10">
+              <Clock className="h-6 w-6 text-yellow-500" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Vencendo Hoje</p>
+              <p className="text-2xl font-bold">{stats.dueToday}</p>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="flex items-center gap-4 p-5">
+            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-destructive/10">
+              <AlertTriangle className="h-6 w-6 text-destructive" />
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Vencidos</p>
+              <p className="text-2xl font-bold">{stats.overdue}</p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
-      {/* Chart + Quick Actions */}
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2 border-border/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Clientes por Status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={260}>
-              <BarChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" />
-                <XAxis dataKey="name" className="text-xs" tick={{ fontSize: 12 }} />
-                <YAxis className="text-xs" tick={{ fontSize: 12 }} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border))",
-                    borderRadius: "0.5rem",
-                    color: "hsl(var(--foreground))",
-                  }}
-                />
-                <Bar dataKey="value" radius={[8, 8, 0, 0]}>
-                  {chartData.map((entry, index) => (
-                    <Cell key={index} fill={entry.color} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
+      {/* Chart */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Clientes por Status</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+              <XAxis dataKey="name" className="text-xs" />
+              <YAxis className="text-xs" />
+              <Tooltip />
+              <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                {chartData.map((entry, index) => (
+                  <Cell key={index} fill={entry.color} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
 
-        {/* Quick Actions */}
-        <Card className="border-border/50">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Acesso Rápido</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {quickActions.map((action) => (
-              <Button
-                key={action.path}
-                variant="ghost"
-                className="w-full justify-between h-auto py-3 px-3 hover:bg-accent"
-                onClick={() => navigate(action.path)}
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
-                    <action.icon className="h-4 w-4 text-primary" />
-                  </div>
-                  <div className="text-left">
-                    <p className="text-sm font-medium">{action.label}</p>
-                    <p className="text-xs text-muted-foreground">{action.description}</p>
-                  </div>
-                </div>
-                <ArrowRight className="h-4 w-4 text-muted-foreground" />
-              </Button>
-            ))}
-          </CardContent>
-        </Card>
+      {/* Quick Links */}
+      <div>
+        <h2 className="mb-3 text-lg font-semibold">Acesso Rápido</h2>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          {quickLinks.map((link) => (
+            <Button
+              key={link.path}
+              variant="outline"
+              className="flex h-auto flex-col gap-2 p-4"
+              onClick={() => navigate(link.path)}
+            >
+              <link.icon className="h-6 w-6 text-primary" />
+              <span>{link.label}</span>
+            </Button>
+          ))}
+        </div>
       </div>
     </div>
   );
