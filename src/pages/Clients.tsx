@@ -490,7 +490,6 @@ const Clients = () => {
                 </Select>
               </div>
             </div>
-            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
