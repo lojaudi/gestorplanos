@@ -145,7 +145,6 @@ const Clients = () => {
     setFormUsername(c.username || "");
     setFormServiceId(c.service_id || "");
     setFormPlanId(c.plan_id || "");
-    setFormDueDate(c.due_date);
     setDialogOpen(true);
   };
 
