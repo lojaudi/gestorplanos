@@ -11,29 +11,22 @@ import {
   Shield,
   UserCog,
   Video,
-  Palette,
   ChevronDown,
   Wallet,
   FileText,
-  Smartphone,
   Megaphone,
-  Gamepad2,
-  Image,
-  Puzzle,
-  Clapperboard,
   Crown,
-  PenLine,
   UserPlus,
   ClipboardList,
   Globe,
   BookOpen,
+  BarChart3,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { usePlatformSettings } from "@/contexts/PlatformSettingsContext";
-import { Badge } from "@/components/ui/badge";
 import {
   Collapsible,
   CollapsibleContent,
@@ -44,7 +37,6 @@ interface NavItem {
   icon: React.ElementType;
   label: string;
   path?: string;
-  soon?: boolean;
 }
 
 interface NavGroup {
@@ -61,14 +53,9 @@ function isGroup(entry: NavEntry): entry is NavGroup {
 
 const userNav: NavEntry[] = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
-  {
-    label: "Clientes",
-    icon: Users,
-    items: [
-      { icon: ClipboardList, label: "Gerenciar Clientes", path: "/clients" },
-      { icon: CreditCard, label: "Cobrança", path: "/billing" },
-    ],
-  },
+  { icon: Users, label: "Clientes", path: "/clients" },
+  { icon: CreditCard, label: "Faturamento", path: "/billing" },
+  { icon: Megaphone, label: "Campanhas", path: "/campaign" },
   {
     label: "Configurações",
     icon: Settings,
@@ -78,22 +65,12 @@ const userNav: NavEntry[] = [
       { icon: FileText, label: "Templates", path: "/templates" },
       { icon: MessageSquare, label: "WhatsApp", path: "/whatsapp" },
       { icon: Wallet, label: "Gateway Pagamentos", path: "/payment-gateway" },
+      { icon: ClipboardList, label: "Serviços", path: "/services" },
     ],
   },
   { icon: Video, label: "Tutoriais", path: "/tutorials" },
   { icon: BookOpen, label: "Material de Apoio", path: "/support-materials" },
   { icon: Crown, label: "Meu Plano", path: "/subscribe" },
-  {
-    label: "Módulos",
-    icon: Puzzle,
-    items: [
-      { icon: Megaphone, label: "Campanha", path: "/campaign" },
-      { icon: Gamepad2, label: "Jogos do Dia", path: "/games-day" },
-      { icon: Image, label: "Banners Filmes/Séries", path: "/movies-series" },
-      { icon: PenLine, label: "Templates J.D", path: "/templates-jd" },
-      // { icon: Clapperboard, label: "Video Banner", path: "/video-banner" }, // Temporariamente desativado - Cobalt com problema no YouTube
-    ],
-  },
 ];
 
 const adminNav: NavEntry[] = [
@@ -113,7 +90,6 @@ const adminNav: NavEntry[] = [
     items: [
       { icon: Users, label: "Gerenciar Usuários", path: "/admin/users" },
       { icon: UserPlus, label: "Criar Planos Usuários", path: "/admin/plans" },
-      { icon: ClipboardList, label: "Gerenciar Planos Usuários", path: "/admin/plans" },
       { icon: BookOpen, label: "Material de Apoio", path: "/admin/support-materials" },
     ],
   },
@@ -130,29 +106,21 @@ function SidebarItem({
 }) {
   return (
     <button
-      onClick={item.soon ? undefined : onClick}
-      disabled={item.soon}
+      onClick={onClick}
       className={cn(
-        "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
-        item.soon
-          ? "cursor-not-allowed text-sidebar-foreground/30"
-          : active
-          ? "bg-sidebar-accent text-sidebar-primary"
+        "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all duration-150",
+        active
+          ? "bg-sidebar-primary/10 text-sidebar-primary"
           : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
       )}
     >
-      <item.icon className="h-4 w-4 shrink-0" />
+      <item.icon className="h-[18px] w-[18px] shrink-0" />
       <span className="truncate">{item.label}</span>
-      {item.soon && (
-        <Badge variant="outline" className="ml-auto text-[10px] px-1.5 py-0 border-sidebar-foreground/20 text-sidebar-foreground/40">
-          Em Breve
-        </Badge>
-      )}
     </button>
   );
 }
 
-function SidebarGroup({
+function SidebarGroupComponent({
   group,
   currentPath,
   onNavigate,
@@ -170,8 +138,8 @@ function SidebarGroup({
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors">
-        <group.icon className="h-4 w-4 shrink-0" />
+      <CollapsibleTrigger className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all duration-150">
+        <group.icon className="h-[18px] w-[18px] shrink-0" />
         <span className="truncate">{group.label}</span>
         <ChevronDown
           className={cn(
@@ -204,10 +172,10 @@ function NavSection({
   onNavigate: (path: string) => void;
 }) {
   return (
-    <div className="space-y-0.5">
+    <div className="space-y-1">
       {entries.map((entry) =>
         isGroup(entry) ? (
-          <SidebarGroup
+          <SidebarGroupComponent
             key={entry.label}
             group={entry}
             currentPath={currentPath}
@@ -259,23 +227,23 @@ export function AppSidebar() {
   return (
     <aside className="flex h-screen w-64 flex-col bg-sidebar text-sidebar-foreground overflow-hidden">
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-sidebar-border p-5">
+      <div className="flex items-center gap-3 border-b border-sidebar-border px-5 py-4">
         {platform.logo_url ? (
           <img
             src={platform.logo_url}
             alt={platform.system_name}
-            className="h-9 w-auto max-w-[140px] object-contain"
+            className="h-8 w-auto max-w-[140px] object-contain"
           />
         ) : (
           <>
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-primary">
-              <MessageSquare className="h-5 w-5 text-sidebar-primary-foreground" />
+              <BarChart3 className="h-5 w-5 text-sidebar-primary-foreground" />
             </div>
             <div>
               <h1 className="text-sm font-bold text-sidebar-primary-foreground">
                 {platform.system_name}
               </h1>
-              <p className="text-xs text-sidebar-foreground/60">Gestão de Cobranças</p>
+              <p className="text-[11px] text-sidebar-foreground/50">CRM & Gestão</p>
             </div>
           </>
         )}
@@ -311,13 +279,13 @@ export function AppSidebar() {
             <AvatarImage src={avatarUrl || undefined} alt={fullName} />
             <AvatarFallback className="text-xs">{initials}</AvatarFallback>
           </Avatar>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             {fullName && (
               <p className="text-xs font-medium text-sidebar-foreground truncate">
                 {fullName}
               </p>
             )}
-            <p className="text-xs text-sidebar-foreground/50 truncate">
+            <p className="text-[11px] text-sidebar-foreground/50 truncate">
               {user?.email}
             </p>
           </div>
