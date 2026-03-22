@@ -11,22 +11,16 @@ import {
   Shield,
   UserCog,
   Video,
-  Palette,
   ChevronDown,
   Wallet,
   FileText,
-  Smartphone,
   Megaphone,
-  Gamepad2,
-  Image,
-  Puzzle,
-  Clapperboard,
   Crown,
-  PenLine,
   UserPlus,
   ClipboardList,
   Globe,
   BookOpen,
+  Briefcase,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -61,20 +55,16 @@ function isGroup(entry: NavEntry): entry is NavGroup {
 
 const userNav: NavEntry[] = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
-  {
-    label: "Clientes",
-    icon: Users,
-    items: [
-      { icon: ClipboardList, label: "Gerenciar Clientes", path: "/clients" },
-      { icon: CreditCard, label: "Cobrança", path: "/billing" },
-    ],
-  },
+  { icon: Users, label: "Clientes", path: "/clients" },
+  { icon: CreditCard, label: "Cobrança", path: "/billing" },
+  { icon: Megaphone, label: "Campanhas", path: "/campaign" },
+  { icon: Briefcase, label: "Serviços", path: "/services" },
+  { icon: CreditCard, label: "Planos", path: "/plans" },
   {
     label: "Configurações",
     icon: Settings,
     items: [
       { icon: UserCog, label: "Meu Perfil", path: "/profile" },
-      { icon: CreditCard, label: "Planos", path: "/plans" },
       { icon: FileText, label: "Templates", path: "/templates" },
       { icon: MessageSquare, label: "WhatsApp", path: "/whatsapp" },
       { icon: Wallet, label: "Gateway Pagamentos", path: "/payment-gateway" },
@@ -83,17 +73,6 @@ const userNav: NavEntry[] = [
   { icon: Video, label: "Tutoriais", path: "/tutorials" },
   { icon: BookOpen, label: "Material de Apoio", path: "/support-materials" },
   { icon: Crown, label: "Meu Plano", path: "/subscribe" },
-  {
-    label: "Módulos",
-    icon: Puzzle,
-    items: [
-      { icon: Megaphone, label: "Campanha", path: "/campaign" },
-      { icon: Gamepad2, label: "Jogos do Dia", path: "/games-day" },
-      { icon: Image, label: "Banners Filmes/Séries", path: "/movies-series" },
-      { icon: PenLine, label: "Templates J.D", path: "/templates-jd" },
-      // { icon: Clapperboard, label: "Video Banner", path: "/video-banner" }, // Temporariamente desativado - Cobalt com problema no YouTube
-    ],
-  },
 ];
 
 const adminNav: NavEntry[] = [
@@ -133,11 +112,11 @@ function SidebarItem({
       onClick={item.soon ? undefined : onClick}
       disabled={item.soon}
       className={cn(
-        "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm transition-colors",
+        "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all duration-150",
         item.soon
           ? "cursor-not-allowed text-sidebar-foreground/30"
           : active
-          ? "bg-sidebar-accent text-sidebar-primary"
+          ? "bg-sidebar-primary/15 text-sidebar-primary font-medium"
           : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
       )}
     >
@@ -152,7 +131,7 @@ function SidebarItem({
   );
 }
 
-function SidebarGroup({
+function SidebarGroupComponent({
   group,
   currentPath,
   onNavigate,
@@ -170,7 +149,7 @@ function SidebarGroup({
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <CollapsibleTrigger className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors">
+      <CollapsibleTrigger className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all duration-150">
         <group.icon className="h-4 w-4 shrink-0" />
         <span className="truncate">{group.label}</span>
         <ChevronDown
@@ -207,7 +186,7 @@ function NavSection({
     <div className="space-y-0.5">
       {entries.map((entry) =>
         isGroup(entry) ? (
-          <SidebarGroup
+          <SidebarGroupComponent
             key={entry.label}
             group={entry}
             currentPath={currentPath}
@@ -257,32 +236,32 @@ export function AppSidebar() {
     .toUpperCase();
 
   return (
-    <aside className="flex h-screen w-64 flex-col bg-sidebar text-sidebar-foreground overflow-hidden">
+    <aside className="flex h-screen w-64 flex-col bg-sidebar text-sidebar-foreground overflow-hidden border-r border-sidebar-border">
       {/* Header */}
-      <div className="flex items-center gap-3 border-b border-sidebar-border p-5">
+      <div className="flex items-center gap-3 border-b border-sidebar-border px-5 py-4">
         {platform.logo_url ? (
           <img
             src={platform.logo_url}
             alt={platform.system_name}
-            className="h-9 w-auto max-w-[140px] object-contain"
+            className="h-8 w-auto max-w-[140px] object-contain"
           />
         ) : (
-          <>
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sidebar-primary">
-              <MessageSquare className="h-5 w-5 text-sidebar-primary-foreground" />
+          <div className="flex items-center gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary">
+              <MessageSquare className="h-4 w-4 text-sidebar-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-sm font-bold text-sidebar-primary-foreground">
+              <h1 className="text-sm font-semibold text-sidebar-accent-foreground">
                 {platform.system_name}
               </h1>
-              <p className="text-xs text-sidebar-foreground/60">Gestão de Cobranças</p>
+              <p className="text-[11px] text-sidebar-foreground/50">CRM</p>
             </div>
-          </>
+          </div>
         )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto p-3 space-y-4 scrollbar-thin">
+      <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-4 scrollbar-thin">
         <NavSection
           entries={userNav}
           currentPath={location.pathname}
@@ -292,7 +271,7 @@ export function AppSidebar() {
         {isAdmin && (
           <>
             <div className="border-t border-sidebar-border my-2" />
-            <p className="px-3 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/40">
+            <p className="px-3 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/30">
               Admin
             </p>
             <NavSection
@@ -306,25 +285,25 @@ export function AppSidebar() {
 
       {/* Footer */}
       <div className="border-t border-sidebar-border p-3">
-        <div className="mb-2 flex items-center gap-2 px-3">
+        <div className="mb-2 flex items-center gap-2.5 px-2">
           <Avatar className="h-8 w-8">
             <AvatarImage src={avatarUrl || undefined} alt={fullName} />
-            <AvatarFallback className="text-xs">{initials}</AvatarFallback>
+            <AvatarFallback className="text-xs bg-sidebar-accent text-sidebar-accent-foreground">{initials}</AvatarFallback>
           </Avatar>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             {fullName && (
-              <p className="text-xs font-medium text-sidebar-foreground truncate">
+              <p className="text-xs font-medium text-sidebar-accent-foreground truncate">
                 {fullName}
               </p>
             )}
-            <p className="text-xs text-sidebar-foreground/50 truncate">
+            <p className="text-[11px] text-sidebar-foreground/40 truncate">
               {user?.email}
             </p>
           </div>
         </div>
         <Button
           variant="ghost"
-          className="w-full justify-start text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+          className="w-full justify-start text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground text-xs"
           onClick={signOut}
         >
           <LogOut className="mr-2 h-4 w-4" />
