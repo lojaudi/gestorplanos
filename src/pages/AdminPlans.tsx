@@ -18,7 +18,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Crown, Users, Megaphone, Gamepad2, Image, Calendar } from "lucide-react";
+import { Plus, Pencil, Trash2, Crown, Users, Megaphone, Calendar } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -162,8 +162,6 @@ const AdminPlans = () => {
   const modulesList = (p: AdminPlan) => {
     const modules: string[] = [];
     if (p.module_campaigns) modules.push("Campanha");
-    if (p.module_games) modules.push("Jogos do Dia");
-    if (p.module_banners) modules.push("Banners");
     return modules;
   };
 
@@ -343,26 +341,6 @@ const AdminPlans = () => {
                   <Switch
                     checked={form.module_campaigns}
                     onCheckedChange={(v) => setForm({ ...form, module_campaigns: v })}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Gamepad2 className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">Jogos do Dia</span>
-                  </div>
-                  <Switch
-                    checked={form.module_games}
-                    onCheckedChange={(v) => setForm({ ...form, module_games: v })}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Image className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">Banners Filmes/Séries</span>
-                  </div>
-                  <Switch
-                    checked={form.module_banners}
-                    onCheckedChange={(v) => setForm({ ...form, module_banners: v })}
                   />
                 </div>
               </div>

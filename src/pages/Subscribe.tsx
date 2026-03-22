@@ -161,8 +161,6 @@ const Subscribe = () => {
   const modulesList = (p: AdminPlan) => {
     const m: string[] = [];
     if (p.module_campaigns) m.push("Campanha");
-    if (p.module_games) m.push("Jogos do Dia");
-    if (p.module_banners) m.push("Banners");
     return m;
   };
 
