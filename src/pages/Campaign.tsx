@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
 import { Megaphone, ImagePlus, Send, Users, UserCheck, UserX, Loader2, X } from "lucide-react";
+import { CampaignImageCreator } from "@/components/campaign/CampaignImageCreator";
 
 interface Client {
   id: string;
