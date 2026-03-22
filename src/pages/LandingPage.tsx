@@ -369,7 +369,86 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* CTA */}
+      {/* Pricing */}
+      {plans.length > 0 && (
+        <section className="py-20 sm:py-28 border-b border-border/50 bg-muted/30">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-2xl text-center">
+              <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+                Planos que cabem no{" "}
+                <span className="text-primary">seu bolso</span>
+              </h2>
+              <p className="mt-4 text-lg text-muted-foreground">
+                Escolha o plano ideal para o tamanho do seu negócio e comece a automatizar hoje.
+              </p>
+            </div>
+            <div className="mx-auto mt-16 grid max-w-5xl gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {plans.map((plan, idx) => {
+                const isPopular = idx === Math.min(1, plans.length - 1) && plans.length > 1;
+                return (
+                  <div
+                    key={plan.id}
+                    className={`relative rounded-2xl border p-6 backdrop-blur-sm transition-all duration-300 hover:shadow-xl ${
+                      isPopular
+                        ? "border-primary bg-primary/5 shadow-lg shadow-primary/10 scale-[1.02]"
+                        : "border-border/50 bg-card/80 hover:border-primary/30 hover:shadow-primary/5"
+                    }`}
+                  >
+                    {isPopular && (
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground shadow-lg shadow-primary/25">
+                          <Crown className="h-3 w-3" /> Mais Popular
+                        </span>
+                      </div>
+                    )}
+                    <h3 className="text-xl font-bold">{plan.name}</h3>
+                    {plan.description && (
+                      <p className="mt-1 text-sm text-muted-foreground">{plan.description}</p>
+                    )}
+                    <div className="mt-4 flex items-baseline gap-1">
+                      <span className="text-4xl font-extrabold text-primary">
+                        R$ {plan.price.toFixed(2).replace(".", ",")}
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        /{durationLabels[plan.duration_months] || `${plan.duration_months} meses`}
+                      </span>
+                    </div>
+                    <ul className="mt-6 space-y-3">
+                      <li className="flex items-center gap-2 text-sm">
+                        <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                        Até <strong className="mx-1">{plan.max_clients}</strong> clientes
+                      </li>
+                      <li className="flex items-center gap-2 text-sm">
+                        <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                        WhatsApp integrado
+                      </li>
+                      <li className="flex items-center gap-2 text-sm">
+                        <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                        Cobranças automáticas
+                      </li>
+                      {plan.module_campaigns && (
+                        <li className="flex items-center gap-2 text-sm">
+                          <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                          Campanhas em massa
+                        </li>
+                      )}
+                    </ul>
+                    <Button
+                      className={`mt-6 w-full ${isPopular ? "shadow-lg shadow-primary/25" : ""}`}
+                      variant={isPopular ? "default" : "outline"}
+                      onClick={() => navigate("/auth")}
+                    >
+                      Começar Agora <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
+
       <section className="relative overflow-hidden border-t border-border/50 bg-primary/5">
         <div className="absolute inset-0 -z-10">
           <div className="absolute left-1/4 bottom-0 h-[400px] w-[400px] rounded-full bg-primary/10 blur-3xl" />
