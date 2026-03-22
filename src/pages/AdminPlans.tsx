@@ -343,26 +343,6 @@ const AdminPlans = () => {
                     onCheckedChange={(v) => setForm({ ...form, module_campaigns: v })}
                   />
                 </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Gamepad2 className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">Jogos do Dia</span>
-                  </div>
-                  <Switch
-                    checked={form.module_games}
-                    onCheckedChange={(v) => setForm({ ...form, module_games: v })}
-                  />
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Image className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm">Banners Filmes/Séries</span>
-                  </div>
-                  <Switch
-                    checked={form.module_banners}
-                    onCheckedChange={(v) => setForm({ ...form, module_banners: v })}
-                  />
-                </div>
               </div>
             </div>
 
