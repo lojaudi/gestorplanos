@@ -101,6 +101,7 @@ export function PlatformSettingsProvider({ children }: { children: ReactNode }) 
             accent_color: data.accent_color,
             whatsapp_verification_enabled: (data as any).whatsapp_verification_enabled ?? true,
             email_verification_enabled: (data as any).email_verification_enabled ?? false,
+            landing_dark_mode: (data as any).landing_dark_mode ?? false,
           };
           setSettings(s);
           document.title = `${s.system_name} - Gestão de Cobranças`;
