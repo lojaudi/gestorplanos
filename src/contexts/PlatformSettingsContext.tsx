@@ -11,6 +11,7 @@ interface PlatformSettings {
   accent_color: string;
   whatsapp_verification_enabled: boolean;
   email_verification_enabled: boolean;
+  landing_dark_mode: boolean;
 }
 
 const defaultSettings: PlatformSettings = {
