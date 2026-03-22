@@ -143,6 +143,96 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Pain Points & WhatsApp Solution */}
+      <section className="py-20 sm:py-28 border-b border-border/50">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-3xl text-center mb-16">
+            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-destructive/20 bg-destructive/5 px-4 py-1.5 text-sm font-medium text-destructive">
+              <Clock className="h-3.5 w-3.5" />
+              O problema que você enfrenta
+            </div>
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
+              Cobrar clientes manualmente é{" "}
+              <span className="text-destructive">desgastante e ineficiente</span>
+            </h2>
+            <p className="mt-6 text-lg text-muted-foreground leading-relaxed">
+              Você ainda perde horas do seu dia ligando, enviando e-mails ou anotando em planilhas quem pagou e quem não pagou?
+            </p>
+          </div>
+
+          <div className="mx-auto max-w-5xl grid gap-8 lg:grid-cols-2 items-center">
+            {/* Pain points */}
+            <div className="space-y-6">
+              <div className="flex gap-4 items-start rounded-2xl border border-destructive/20 bg-destructive/5 p-5">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm mb-1">Cobranças manuais consomem seu tempo</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Ligar para cada cliente, anotar quem pagou e quem está devendo gasta horas preciosas que você poderia investir no crescimento do seu negócio.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-4 items-start rounded-2xl border border-destructive/20 bg-destructive/5 p-5">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm mb-1">E-mails não funcionam mais</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    A taxa de abertura de e-mails de cobrança é inferior a 20%. Seus clientes simplesmente ignoram ou nem veem suas mensagens na caixa de entrada cheia de spam.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-4 items-start rounded-2xl border border-destructive/20 bg-destructive/5 p-5">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-destructive/10 text-destructive">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-sm mb-1">Clientes caem no esquecimento</h3>
+                  <p className="text-sm text-muted-foreground leading-relaxed">
+                    Sem um sistema organizado, clientes inadimplentes passam despercebidos e você perde receita mês após mês sem nem perceber.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Solution */}
+            <div className="rounded-2xl border border-primary/30 bg-primary/5 p-8">
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary">
+                <MessageSquare className="h-3.5 w-3.5" />
+                A solução ideal
+              </div>
+              <h3 className="text-2xl font-bold mb-4">
+                WhatsApp: onde seu cliente{" "}
+                <span className="text-primary">realmente está</span>
+              </h3>
+              <p className="text-muted-foreground leading-relaxed mb-6">
+                Com mais de <strong className="text-foreground">98% de taxa de leitura</strong>, o WhatsApp é o canal mais eficaz para se comunicar com seus clientes. Diferente do e-mail, suas mensagens são lidas em minutos — não em dias.
+              </p>
+              <ul className="space-y-3">
+                {[
+                  "Cobranças automáticas antes, no dia e após o vencimento",
+                  "Mensagens personalizadas com nome, valor e data",
+                  "Nenhum cliente fica esquecido no sistema",
+                  "Reduza inadimplência em até 40% no primeiro mês",
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2.5 text-sm">
+                    <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+              <Button className="mt-8 w-full shadow-lg shadow-primary/25" size="lg" onClick={() => navigate("/auth")}>
+                Automatizar Minhas Cobranças <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+
       {/* Stats */}
       <section className="border-y border-border/50 bg-muted/30">
         <div className="mx-auto grid max-w-7xl grid-cols-2 gap-6 px-4 py-12 sm:px-6 lg:grid-cols-4 lg:px-8">
