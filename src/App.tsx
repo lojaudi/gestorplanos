@@ -34,6 +34,7 @@ import SupportMaterialsPage from "./pages/SupportMaterials";
 const queryClient = new QueryClient();
 
 const App = () => (
+  <ThemeProvider attribute="class" defaultTheme="light" storageKey="crm-theme">
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
