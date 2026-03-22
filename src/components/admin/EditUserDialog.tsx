@@ -196,9 +196,7 @@ export function EditUserDialog({ user, open, onOpenChange, onUpdated }: EditUser
                 </p>
                 <div className="flex flex-wrap gap-1">
                   {currentPlan.module_campaigns && <Badge variant="secondary" className="text-[10px]">Campanha</Badge>}
-                  {currentPlan.module_games && <Badge variant="secondary" className="text-[10px]">Jogos do Dia</Badge>}
-                  {currentPlan.module_banners && <Badge variant="secondary" className="text-[10px]">Banners</Badge>}
-                  {!currentPlan.module_campaigns && !currentPlan.module_games && !currentPlan.module_banners && (
+                  {!currentPlan.module_campaigns && (
                     <span className="text-muted-foreground text-xs">Nenhum módulo incluso</span>
                   )}
                 </div>
