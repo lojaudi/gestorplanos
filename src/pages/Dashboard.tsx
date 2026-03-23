@@ -232,9 +232,9 @@ const Dashboard = () => {
   }, [user]);
 
   const chartData = [
-    { name: "Pendentes", value: stats.pending, color: "hsl(43, 96%, 56%)" },
-    { name: "Vencidas", value: stats.overdue, color: "hsl(0, 84%, 60%)" },
-    { name: "Pagas", value: stats.paid, color: "hsl(160, 84%, 39%)" },
+    { name: "Recebido (Geral)", value: financial.totalReceivedAllTime, color: "hsl(160, 84%, 39%)" },
+    { name: "Recebido (Mês)", value: financial.totalReceivedMonth, color: "hsl(217, 91%, 60%)" },
+    { name: "A Receber (Mês)", value: financial.totalToReceiveMonth, color: "hsl(43, 96%, 56%)" },
   ];
 
   const quickActions = [
