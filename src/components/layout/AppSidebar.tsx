@@ -59,6 +59,7 @@ const userNav: NavEntry[] = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
   { icon: Users, label: "Clientes", path: "/clients" },
   { icon: CreditCard, label: "Faturamento", path: "/billing" },
+  { icon: BarChart3, label: "Relatórios", path: "/reports" },
   { icon: Megaphone, label: "Campanhas", path: "/campaign" },
   {
     label: "Configurações",
