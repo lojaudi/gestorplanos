@@ -232,9 +232,9 @@ const Dashboard = () => {
   }, [user]);
 
   const chartData = [
-    { name: "Pendentes", value: stats.pending, color: "hsl(43, 96%, 56%)" },
-    { name: "Vencidas", value: stats.overdue, color: "hsl(0, 84%, 60%)" },
-    { name: "Pagas", value: stats.paid, color: "hsl(160, 84%, 39%)" },
+    { name: "Recebido (Geral)", value: financial.totalReceivedAllTime, color: "hsl(160, 84%, 39%)" },
+    { name: "Recebido (Mês)", value: financial.totalReceivedMonth, color: "hsl(217, 91%, 60%)" },
+    { name: "A Receber (Mês)", value: financial.totalToReceiveMonth, color: "hsl(43, 96%, 56%)" },
   ];
 
   const quickActions = [
@@ -295,7 +295,7 @@ const Dashboard = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <BarChart className="h-4 w-4 text-primary" />
-              Faturas por Status
+              Resumo Financeiro (R$)
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -303,8 +303,9 @@ const Dashboard = () => {
               <BarChart data={chartData} barSize={48}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" vertical={false} />
                 <XAxis dataKey="name" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v) => `R$ ${v.toLocaleString("pt-BR")}`} />
                 <Tooltip
+                  formatter={(value: number) => [`R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, "Valor"]}
                   contentStyle={{
                     backgroundColor: "hsl(var(--card))",
                     border: "1px solid hsl(var(--border))",
