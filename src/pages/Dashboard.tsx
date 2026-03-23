@@ -303,8 +303,9 @@ const Dashboard = () => {
               <BarChart data={chartData} barSize={48}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" vertical={false} />
                 <XAxis dataKey="name" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v) => `R$ ${v.toLocaleString("pt-BR")}`} />
                 <Tooltip
+                  formatter={(value: number) => [`R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, "Valor"]}
                   contentStyle={{
                     backgroundColor: "hsl(var(--card))",
                     border: "1px solid hsl(var(--border))",
