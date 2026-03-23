@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { buildLegacyPaidEntries, type ClientRevenueSnapshot } from "@/lib/financial-history";
+import { buildLegacyPaidEntries, getMonthKey, formatMonthLabel, type ClientRevenueSnapshot } from "@/lib/financial-history";
 import { startOfMonth, endOfMonth, subMonths, startOfQuarter, endOfQuarter, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -142,6 +143,26 @@ export default function Reports() {
     const overdue = filtered.filter((i) => i.status === "overdue").reduce((s, i) => s + i.amount, 0);
     const pending = filtered.filter((i) => i.status === "pending").reduce((s, i) => s + i.amount, 0);
     return { paid, overdue, pending, all: paid + overdue + pending };
+  }, [filtered]);
+
+  const chartData = useMemo(() => {
+    const byMonth: Record<string, { received: number; pending: number; overdue: number }> = {};
+    for (const inv of filtered) {
+      const refDate = new Date(inv.payment_date ?? `${inv.due_date}T12:00:00`);
+      const key = getMonthKey(refDate);
+      if (!byMonth[key]) byMonth[key] = { received: 0, pending: 0, overdue: 0 };
+      if (inv.status === "paid") byMonth[key].received += inv.amount;
+      else if (inv.status === "overdue") byMonth[key].overdue += inv.amount;
+      else byMonth[key].pending += inv.amount;
+    }
+    return Object.keys(byMonth)
+      .sort()
+      .map((key) => ({
+        name: formatMonthLabel(key),
+        Recebido: byMonth[key].received,
+        Pendente: byMonth[key].pending,
+        Atrasado: byMonth[key].overdue,
+      }));
   }, [filtered]);
 
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -298,6 +319,38 @@ export default function Reports() {
           <CardContent><p className="text-xl font-bold text-amber-600">{fmt(totals.pending)}</p></CardContent>
         </Card>
       </div>
+
+      {/* Monthly evolution chart */}
+      {chartData.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Evolução Mensal</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[300px] w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                  <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} className="fill-muted-foreground" />
+                  <YAxis tick={{ fontSize: 12 }} className="fill-muted-foreground" tickFormatter={(v) => `R$${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip
+                    formatter={(value: number, name: string) => [
+                      value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }),
+                      name,
+                    ]}
+                    contentStyle={{ borderRadius: "8px", border: "1px solid hsl(var(--border))", background: "hsl(var(--background))" }}
+                    labelStyle={{ fontWeight: 600 }}
+                  />
+                  <Legend />
+                  <Bar dataKey="Recebido" fill="hsl(142, 71%, 45%)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Pendente" fill="hsl(38, 92%, 50%)" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="Atrasado" fill="hsl(0, 84%, 60%)" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Search */}
       <div className="relative w-full">
