@@ -28,6 +28,13 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import {
+  buildMonthlyFinancialChart,
+  calculateLegacyRevenueBreakdown,
+  getMonthKey,
+  type ClientRevenueSnapshot,
+  type MonthlyFinancialPoint,
+} from "@/lib/financial-history";
 
 interface Stats {
   totalClients: number;
@@ -44,125 +51,8 @@ interface FinancialStats {
   totalToReceiveMonth: number;
 }
 
-interface ClientRevenueSnapshot {
-  id: string;
-  created_at: string;
-  registration_date: string;
-  due_date: string;
-  plan_id: string | null;
-  plans: {
-    price: number | null;
-    duration_months: number;
-  } | null;
-}
-
-interface MonthlyFinancialPoint {
-  name: string;
-  received: number;
-  pending: number;
-}
-
-interface LegacyRevenueBreakdown {
-  total: number;
-  byMonth: Record<string, number>;
-}
-
-const AVERAGE_DAYS_PER_MONTH = 30.4375;
-
-const getMonthKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-
-const formatMonthLabel = (monthKey: string) => {
-  const [year, month] = monthKey.split("-").map(Number);
-  const date = new Date(year, month - 1, 1, 12);
-  return new Intl.DateTimeFormat("pt-BR", { month: "short", year: "2-digit" }).format(date).replace(".", "");
-};
-
-const addMonthsSafe = (date: Date, monthsToAdd: number) => {
-  const result = new Date(date);
-  const day = result.getDate();
-
-  result.setHours(12, 0, 0, 0);
-  result.setDate(1);
-  result.setMonth(result.getMonth() + monthsToAdd);
-
-  const lastDayOfMonth = new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate();
-  result.setDate(Math.min(day, lastDayOfMonth));
-
-  return result;
-};
-
-const getMonthRange = (startKey: string, endKey: string) => {
-  const [startYear, startMonth] = startKey.split("-").map(Number);
-  const [endYear, endMonth] = endKey.split("-").map(Number);
-  const months: string[] = [];
-  const cursor = new Date(startYear, startMonth - 1, 1, 12);
-  const end = new Date(endYear, endMonth - 1, 1, 12);
-
-  while (cursor <= end) {
-    months.push(getMonthKey(cursor));
-    cursor.setMonth(cursor.getMonth() + 1);
-  }
-
-  return months;
-};
-
 const sumByMonth = (target: Record<string, number>, monthKey: string, amount: number) => {
   target[monthKey] = (target[monthKey] ?? 0) + amount;
-};
-
-const calculateLegacyRevenueBreakdown = (clients: ClientRevenueSnapshot[], cutoffDate: Date) => {
-  const byMonth: Record<string, number> = {};
-  let total = 0;
-
-  for (const client of clients) {
-    const price = Number(client.plans?.price ?? 0);
-    const durationMonths = Math.max(Number(client.plans?.duration_months ?? 1), 1);
-
-    if (!price || !client.created_at) continue;
-
-    const startDate = new Date(client.created_at);
-    const dueDate = client.due_date ? new Date(`${client.due_date}T12:00:00`) : null;
-
-    if (Number.isNaN(startDate.getTime()) || startDate > cutoffDate) continue;
-
-    const cycleLengthInDays = durationMonths * AVERAGE_DAYS_PER_MONTH;
-    const elapsedDaysUntilCutoff = Math.max(0, (cutoffDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-    const maxPossibleCycles = Math.max(1, Math.floor(elapsedDaysUntilCutoff / cycleLengthInDays) + 1);
-
-    const estimatedCyclesFromDueDate = dueDate && !Number.isNaN(dueDate.getTime())
-      ? Math.max(1, Math.round(((dueDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) / cycleLengthInDays))
-      : 1;
-
-    const paidCycles = Math.min(maxPossibleCycles, estimatedCyclesFromDueDate);
-
-    for (let cycleIndex = 0; cycleIndex < paidCycles; cycleIndex += 1) {
-      const paymentDate = addMonthsSafe(startDate, cycleIndex * durationMonths);
-      if (paymentDate > cutoffDate) break;
-
-      sumByMonth(byMonth, getMonthKey(paymentDate), price);
-      total += price;
-    }
-  }
-
-  return { total, byMonth } satisfies LegacyRevenueBreakdown;
-};
-
-const buildMonthlyFinancialChart = (
-  receivedByMonth: Record<string, number>,
-  pendingByMonth: Record<string, number>,
-  currentMonthKey: string,
-) => {
-  const availableMonths = [...new Set([...Object.keys(receivedByMonth), ...Object.keys(pendingByMonth), currentMonthKey])].sort();
-
-  if (availableMonths.length === 0) {
-    return [] as MonthlyFinancialPoint[];
-  }
-
-  return getMonthRange(availableMonths[0], availableMonths[availableMonths.length - 1]).map((monthKey) => ({
-    name: formatMonthLabel(monthKey),
-    received: receivedByMonth[monthKey] ?? 0,
-    pending: pendingByMonth[monthKey] ?? 0,
-  }));
 };
 
 const Dashboard = () => {
@@ -241,7 +131,7 @@ const MoneyCard = ({
       const [{ data: clientsDataRaw }, { data: invoicesData }, { data: paidLinks }] = await Promise.all([
         supabase
           .from("clients")
-          .select("id, created_at, registration_date, due_date, plan_id, plans(price, duration_months)")
+          .select("id, created_at, due_date, plan_id, plans(price, duration_months)")
           .eq("user_id", user.id),
         supabase
           .from("invoices")
