@@ -295,7 +295,7 @@ const Dashboard = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <BarChart className="h-4 w-4 text-primary" />
-              Faturas por Status
+              Resumo Financeiro (R$)
             </CardTitle>
           </CardHeader>
           <CardContent>
