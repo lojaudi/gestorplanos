@@ -142,11 +142,11 @@ const Dashboard = () => {
       for (const inv of invoices) {
         if (inv.status === "paid") {
           totalReceivedAllTime += Number(inv.amount);
-          if (inv.payment_date) {
-            const pd = new Date(inv.payment_date);
-            if (pd.getMonth() === currentMonth && pd.getFullYear() === currentYear) {
-              totalReceivedMonth += Number(inv.amount);
-            }
+          const dateRef = inv.payment_date 
+            ? new Date(inv.payment_date) 
+            : new Date(inv.due_date + "T00:00:00");
+          if (dateRef.getMonth() === currentMonth && dateRef.getFullYear() === currentYear) {
+            totalReceivedMonth += Number(inv.amount);
           }
         } else {
           const dueDate = new Date(inv.due_date + "T00:00:00");
