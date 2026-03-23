@@ -52,6 +52,7 @@ const App = () => (
               <Route path="/templates" element={<ProtectedPage><Templates /></ProtectedPage>} />
               <Route path="/whatsapp" element={<ProtectedPage><WhatsApp /></ProtectedPage>} />
               <Route path="/billing" element={<ProtectedPage><Billing /></ProtectedPage>} />
+              <Route path="/reports" element={<ProtectedPage><Reports /></ProtectedPage>} />
               <Route path="/logs" element={<ProtectedPage><Logs /></ProtectedPage>} />
               <Route path="/payment-gateway" element={<ProtectedPage><PaymentGateway /></ProtectedPage>} />
               <Route path="/profile" element={<ProtectedPage><Profile /></ProtectedPage>} />
