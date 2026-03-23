@@ -145,6 +145,26 @@ export default function Reports() {
     return { paid, overdue, pending, all: paid + overdue + pending };
   }, [filtered]);
 
+  const chartData = useMemo(() => {
+    const byMonth: Record<string, { received: number; pending: number; overdue: number }> = {};
+    for (const inv of filtered) {
+      const refDate = new Date(inv.payment_date ?? `${inv.due_date}T12:00:00`);
+      const key = getMonthKey(refDate);
+      if (!byMonth[key]) byMonth[key] = { received: 0, pending: 0, overdue: 0 };
+      if (inv.status === "paid") byMonth[key].received += inv.amount;
+      else if (inv.status === "overdue") byMonth[key].overdue += inv.amount;
+      else byMonth[key].pending += inv.amount;
+    }
+    return Object.keys(byMonth)
+      .sort()
+      .map((key) => ({
+        name: formatMonthLabel(key),
+        Recebido: byMonth[key].received,
+        Pendente: byMonth[key].pending,
+        Atrasado: byMonth[key].overdue,
+      }));
+  }, [filtered]);
+
   const fmt = (v: number) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
   const fmtDate = (d: string | null) => d ? new Date(d + (d.includes("T") ? "" : "T12:00:00")).toLocaleDateString("pt-BR") : "—";
   const fmtDateBtn = (d: Date | undefined) => d ? format(d, "dd/MM/yyyy", { locale: ptBR }) : "Selecionar";
