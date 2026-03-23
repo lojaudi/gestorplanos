@@ -30,6 +30,7 @@ import Campaign from "./pages/Campaign";
 import Subscribe from "./pages/Subscribe";
 import AdminSupportMaterials from "./pages/AdminSupportMaterials";
 import SupportMaterialsPage from "./pages/SupportMaterials";
+import Reports from "./pages/Reports";
 
 const queryClient = new QueryClient();
 
