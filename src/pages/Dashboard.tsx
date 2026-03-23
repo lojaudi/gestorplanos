@@ -10,7 +10,6 @@ import {
   MessageSquare,
   AlertTriangle,
   Clock,
-  CheckCircle,
   Megaphone,
   ArrowRight,
   TrendingUp,
@@ -28,7 +27,6 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Cell,
 } from "recharts";
 
 interface Stats {
@@ -48,6 +46,7 @@ interface FinancialStats {
 
 interface ClientRevenueSnapshot {
   id: string;
+  created_at: string;
   registration_date: string;
   due_date: string;
   plan_id: string | null;
@@ -57,38 +56,125 @@ interface ClientRevenueSnapshot {
   } | null;
 }
 
-const getCoveredMonths = (startDate: Date, endDate: Date) => {
-  const months = (endDate.getFullYear() - startDate.getFullYear()) * 12 + (endDate.getMonth() - startDate.getMonth());
-  return Math.max(1, endDate.getDate() >= startDate.getDate() ? months + 1 : months);
+interface MonthlyFinancialPoint {
+  name: string;
+  received: number;
+  pending: number;
+}
+
+interface LegacyRevenueBreakdown {
+  total: number;
+  byMonth: Record<string, number>;
+}
+
+const AVERAGE_DAYS_PER_MONTH = 30.4375;
+
+const getMonthKey = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+
+const formatMonthLabel = (monthKey: string) => {
+  const [year, month] = monthKey.split("-").map(Number);
+  const date = new Date(year, month - 1, 1, 12);
+  return new Intl.DateTimeFormat("pt-BR", { month: "short", year: "2-digit" }).format(date).replace(".", "");
 };
 
-const calculateLegacyReceivedTotal = (clients: ClientRevenueSnapshot[], migrationDate: Date | null) => {
-  if (!migrationDate) return 0;
+const addMonthsSafe = (date: Date, monthsToAdd: number) => {
+  const result = new Date(date);
+  const day = result.getDate();
 
-  return clients.reduce((total, client) => {
+  result.setHours(12, 0, 0, 0);
+  result.setDate(1);
+  result.setMonth(result.getMonth() + monthsToAdd);
+
+  const lastDayOfMonth = new Date(result.getFullYear(), result.getMonth() + 1, 0).getDate();
+  result.setDate(Math.min(day, lastDayOfMonth));
+
+  return result;
+};
+
+const getMonthRange = (startKey: string, endKey: string) => {
+  const [startYear, startMonth] = startKey.split("-").map(Number);
+  const [endYear, endMonth] = endKey.split("-").map(Number);
+  const months: string[] = [];
+  const cursor = new Date(startYear, startMonth - 1, 1, 12);
+  const end = new Date(endYear, endMonth - 1, 1, 12);
+
+  while (cursor <= end) {
+    months.push(getMonthKey(cursor));
+    cursor.setMonth(cursor.getMonth() + 1);
+  }
+
+  return months;
+};
+
+const sumByMonth = (target: Record<string, number>, monthKey: string, amount: number) => {
+  target[monthKey] = (target[monthKey] ?? 0) + amount;
+};
+
+const calculateLegacyRevenueBreakdown = (clients: ClientRevenueSnapshot[], cutoffDate: Date) => {
+  const byMonth: Record<string, number> = {};
+  let total = 0;
+
+  for (const client of clients) {
     const price = Number(client.plans?.price ?? 0);
     const durationMonths = Math.max(Number(client.plans?.duration_months ?? 1), 1);
 
-    if (!price || !client.registration_date) return total;
+    if (!price || !client.created_at) continue;
 
-    const startDate = new Date(`${client.registration_date}T12:00:00`);
-    const dueDate = new Date(`${client.due_date}T12:00:00`);
-    const effectiveEndDate = dueDate < migrationDate ? dueDate : migrationDate;
+    const startDate = new Date(client.created_at);
+    const dueDate = client.due_date ? new Date(`${client.due_date}T12:00:00`) : null;
 
-    if (Number.isNaN(startDate.getTime()) || Number.isNaN(effectiveEndDate.getTime())) {
-      return total + price;
+    if (Number.isNaN(startDate.getTime()) || startDate > cutoffDate) continue;
+
+    const cycleLengthInDays = durationMonths * AVERAGE_DAYS_PER_MONTH;
+    const elapsedDaysUntilCutoff = Math.max(0, (cutoffDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
+    const maxPossibleCycles = Math.max(1, Math.floor(elapsedDaysUntilCutoff / cycleLengthInDays) + 1);
+
+    const estimatedCyclesFromDueDate = dueDate && !Number.isNaN(dueDate.getTime())
+      ? Math.max(1, Math.round(((dueDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) / cycleLengthInDays))
+      : 1;
+
+    const paidCycles = Math.min(maxPossibleCycles, estimatedCyclesFromDueDate);
+
+    for (let cycleIndex = 0; cycleIndex < paidCycles; cycleIndex += 1) {
+      const paymentDate = addMonthsSafe(startDate, cycleIndex * durationMonths);
+      if (paymentDate > cutoffDate) break;
+
+      sumByMonth(byMonth, getMonthKey(paymentDate), price);
+      total += price;
     }
+  }
 
-    if (effectiveEndDate < startDate) {
-      return total + price;
-    }
-
-    const coveredMonths = getCoveredMonths(startDate, effectiveEndDate);
-    const estimatedCycles = Math.max(1, Math.ceil(coveredMonths / durationMonths));
-
-    return total + estimatedCycles * price;
-  }, 0);
+  return { total, byMonth } satisfies LegacyRevenueBreakdown;
 };
+
+const buildMonthlyFinancialChart = (
+  receivedByMonth: Record<string, number>,
+  pendingByMonth: Record<string, number>,
+  currentMonthKey: string,
+) => {
+  const availableMonths = [...new Set([...Object.keys(receivedByMonth), ...Object.keys(pendingByMonth), currentMonthKey])].sort();
+
+  if (availableMonths.length === 0) {
+    return [] as MonthlyFinancialPoint[];
+  }
+
+  return getMonthRange(availableMonths[0], availableMonths[availableMonths.length - 1]).map((monthKey) => ({
+    name: formatMonthLabel(monthKey),
+    received: receivedByMonth[monthKey] ?? 0,
+    pending: pendingByMonth[monthKey] ?? 0,
+  }));
+};
+
+const Dashboard = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const [stats, setStats] = useState<Stats>({ totalClients: 0, totalInvoices: 0, dueToday: 0, overdue: 0, paid: 0, pending: 0 });
+  const [financial, setFinancial] = useState<FinancialStats>({
+    totalReceivedAllTime: 0,
+    totalReceivedMonth: 0,
+    totalToReceiveMonth: 0,
+  });
+  const [financialChart, setFinancialChart] = useState<MonthlyFinancialPoint[]>([]);
 
 const StatCard = ({
   icon: Icon,
@@ -142,16 +228,6 @@ const MoneyCard = ({
   </Card>
 );
 
-const Dashboard = () => {
-  const { user } = useAuth();
-  const navigate = useNavigate();
-  const [stats, setStats] = useState<Stats>({ totalClients: 0, totalInvoices: 0, dueToday: 0, overdue: 0, paid: 0, pending: 0 });
-  const [financial, setFinancial] = useState<FinancialStats>({
-    totalReceivedAllTime: 0,
-    totalReceivedMonth: 0,
-    totalToReceiveMonth: 0,
-  });
-
   useEffect(() => {
     if (!user) return;
 
@@ -160,16 +236,22 @@ const Dashboard = () => {
       const now = new Date();
       const currentMonth = now.getMonth();
       const currentYear = now.getFullYear();
+      const currentMonthKey = getMonthKey(now);
 
-      const [{ data: clientsDataRaw }, { data: invoicesData }] = await Promise.all([
+      const [{ data: clientsDataRaw }, { data: invoicesData }, { data: paidLinks }] = await Promise.all([
         supabase
           .from("clients")
-          .select("id, registration_date, due_date, plan_id, plans(price, duration_months)")
+          .select("id, created_at, registration_date, due_date, plan_id, plans(price, duration_months)")
           .eq("user_id", user.id),
         supabase
           .from("invoices")
           .select("id, due_date, status, amount, payment_date, created_at")
           .eq("user_id", user.id),
+        supabase
+          .from("payment_links")
+          .select("amount, created_at, status")
+          .eq("user_id", user.id)
+          .eq("status", "paid"),
       ]);
 
       const clients = (clientsDataRaw as ClientRevenueSnapshot[] | null) || [];
@@ -177,7 +259,7 @@ const Dashboard = () => {
       const pending = invoices.filter(i => i.status !== "paid");
       const migrationDate = invoices.length > 0
         ? new Date(Math.min(...invoices.map((invoice) => new Date(invoice.created_at).getTime())))
-        : null;
+        : now;
 
       setStats({
         totalClients: clients.length,
@@ -188,54 +270,60 @@ const Dashboard = () => {
         pending: pending.length,
       });
 
-      let totalReceivedAllTime = calculateLegacyReceivedTotal(clients, migrationDate);
-      let totalReceivedMonth = 0;
+      const legacyRevenue = calculateLegacyRevenueBreakdown(clients, migrationDate);
+      const receivedByMonth = { ...legacyRevenue.byMonth };
+      const pendingByMonth: Record<string, number> = {};
+
+      let totalReceivedAllTime = legacyRevenue.total;
+      let totalReceivedMonth = legacyRevenue.byMonth[currentMonthKey] ?? 0;
       let totalToReceiveMonth = 0;
 
       for (const inv of invoices) {
         if (inv.status === "paid") {
-          totalReceivedAllTime += Number(inv.amount);
+          const amount = Number(inv.amount);
           const dateRef = inv.payment_date
             ? new Date(inv.payment_date)
             : new Date(inv.due_date + "T00:00:00");
+          const monthKey = getMonthKey(dateRef);
+
+          totalReceivedAllTime += amount;
+          sumByMonth(receivedByMonth, monthKey, amount);
+
           if (dateRef.getMonth() === currentMonth && dateRef.getFullYear() === currentYear) {
-            totalReceivedMonth += Number(inv.amount);
+            totalReceivedMonth += amount;
           }
         } else {
           const dueDate = new Date(inv.due_date + "T00:00:00");
+          const amount = Number(inv.amount);
+          sumByMonth(pendingByMonth, getMonthKey(dueDate), amount);
+
           if (dueDate.getMonth() === currentMonth && dueDate.getFullYear() === currentYear) {
-            totalToReceiveMonth += Number(inv.amount);
+            totalToReceiveMonth += amount;
           }
         }
       }
 
-      const { data: paidLinks } = await supabase
-        .from("payment_links")
-        .select("amount, created_at, status")
-        .eq("user_id", user.id)
-        .eq("status", "paid");
-
       if (paidLinks) {
         for (const link of paidLinks) {
-          totalReceivedAllTime += Number(link.amount);
+          const amount = Number(link.amount);
           const createdAt = new Date(link.created_at);
+          const monthKey = getMonthKey(createdAt);
+
+          totalReceivedAllTime += amount;
+          sumByMonth(receivedByMonth, monthKey, amount);
+
           if (createdAt.getMonth() === currentMonth && createdAt.getFullYear() === currentYear) {
-            totalReceivedMonth += Number(link.amount);
+            totalReceivedMonth += amount;
           }
         }
       }
 
       setFinancial({ totalReceivedAllTime, totalReceivedMonth, totalToReceiveMonth });
+      setFinancialChart(buildMonthlyFinancialChart(receivedByMonth, pendingByMonth, currentMonthKey));
     };
 
     fetchStats();
   }, [user]);
-
-  const chartData = [
-    { name: "Recebido (Geral)", value: financial.totalReceivedAllTime, color: "hsl(160, 84%, 39%)" },
-    { name: "Recebido (Mês)", value: financial.totalReceivedMonth, color: "hsl(217, 91%, 60%)" },
-    { name: "A Receber (Mês)", value: financial.totalToReceiveMonth, color: "hsl(43, 96%, 56%)" },
-  ];
 
   const quickActions = [
     { icon: Users, label: "Clientes", description: "Gerenciar base", path: "/clients" },
@@ -295,12 +383,12 @@ const Dashboard = () => {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <BarChart className="h-4 w-4 text-primary" />
-              Resumo Financeiro (R$)
+              Evolução Financeira (R$)
             </CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={chartData} barSize={48}>
+              <BarChart data={financialChart} barSize={28}>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" vertical={false} />
                 <XAxis dataKey="name" tick={{ fontSize: 12 }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 12 }} axisLine={false} tickLine={false} tickFormatter={(v) => `R$ ${v.toLocaleString("pt-BR")}`} />
@@ -314,11 +402,8 @@ const Dashboard = () => {
                     boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1)",
                   }}
                 />
-                <Bar dataKey="value" radius={[8, 8, 0, 0]}>
-                  {chartData.map((entry, index) => (
-                    <Cell key={index} fill={entry.color} />
-                  ))}
-                </Bar>
+                <Bar dataKey="received" name="Recebido" radius={[8, 8, 0, 0]} fill="hsl(var(--primary))" />
+                <Bar dataKey="pending" name="A receber" radius={[8, 8, 0, 0]} fill="hsl(var(--accent))" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
