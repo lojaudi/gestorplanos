@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { buildLegacyPaidEntries, type ClientRevenueSnapshot } from "@/lib/financial-history";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,10 @@ interface InvoiceReport {
   client_name: string;
 }
 
+interface ClientReportSnapshot extends ClientRevenueSnapshot {
+  name: string;
+}
+
 export default function Reports() {
   const { user } = useAuth();
   const [invoices, setInvoices] = useState<InvoiceReport[]>([]);
@@ -36,35 +41,43 @@ export default function Reports() {
     if (!user) return;
     (async () => {
       setLoading(true);
-      const { data } = await supabase
-        .from("invoices")
-        .select("id, amount, due_date, payment_date, status, client_id")
-        .eq("user_id", user.id);
+      const [{ data: invoiceRows }, { data: clientRows }] = await Promise.all([
+        supabase
+          .from("invoices")
+          .select("id, amount, due_date, payment_date, status, client_id, created_at")
+          .eq("user_id", user.id),
+        supabase
+          .from("clients")
+          .select("id, name, created_at, due_date, plan_id, plans(price, duration_months)")
+          .eq("user_id", user.id),
+      ]);
 
-      if (!data || data.length === 0) {
-        setInvoices([]);
-        setLoading(false);
-        return;
-      }
+      const clients = (clientRows as ClientReportSnapshot[] | null) ?? [];
+      const clientMap = new Map(clients.map((client) => [client.id, client.name]));
+      const invoicesData = invoiceRows ?? [];
+      const migrationDate = invoicesData.length > 0
+        ? new Date(Math.min(...invoicesData.map((invoice) => new Date(invoice.created_at).getTime())))
+        : new Date();
 
-      const clientIds = [...new Set(data.map((i) => i.client_id))];
-      const { data: clients } = await supabase
-        .from("clients")
-        .select("id, name")
-        .in("id", clientIds);
+      const legacyPaidEntries = buildLegacyPaidEntries(clients, migrationDate);
 
-      const clientMap = new Map(clients?.map((c) => [c.id, c.name]) ?? []);
-
-      setInvoices(
-        data.map((inv) => ({
+      const history = [
+        ...legacyPaidEntries,
+        ...invoicesData.map((inv) => ({
           id: inv.id,
           amount: Number(inv.amount),
           due_date: inv.due_date,
           payment_date: inv.payment_date,
           status: inv.status,
           client_name: clientMap.get(inv.client_id) ?? "—",
-        }))
-      );
+        })),
+      ].sort((a, b) => {
+        const dateA = new Date(a.payment_date ?? `${a.due_date}T12:00:00`).getTime();
+        const dateB = new Date(b.payment_date ?? `${b.due_date}T12:00:00`).getTime();
+        return dateB - dateA;
+      });
+
+      setInvoices(history);
       setLoading(false);
     })();
   }, [user]);
