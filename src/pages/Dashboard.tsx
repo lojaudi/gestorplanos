@@ -46,6 +46,50 @@ interface FinancialStats {
   totalToReceiveMonth: number;
 }
 
+interface ClientRevenueSnapshot {
+  id: string;
+  registration_date: string;
+  due_date: string;
+  plan_id: string | null;
+  plans: {
+    price: number | null;
+    duration_months: number;
+  } | null;
+}
+
+const getCoveredMonths = (startDate: Date, endDate: Date) => {
+  const months = (endDate.getFullYear() - startDate.getFullYear()) * 12 + (endDate.getMonth() - startDate.getMonth());
+  return Math.max(1, endDate.getDate() >= startDate.getDate() ? months + 1 : months);
+};
+
+const calculateLegacyReceivedTotal = (clients: ClientRevenueSnapshot[], migrationDate: Date | null) => {
+  if (!migrationDate) return 0;
+
+  return clients.reduce((total, client) => {
+    const price = Number(client.plans?.price ?? 0);
+    const durationMonths = Math.max(Number(client.plans?.duration_months ?? 1), 1);
+
+    if (!price || !client.registration_date) return total;
+
+    const startDate = new Date(`${client.registration_date}T12:00:00`);
+    const dueDate = new Date(`${client.due_date}T12:00:00`);
+    const effectiveEndDate = dueDate < migrationDate ? dueDate : migrationDate;
+
+    if (Number.isNaN(startDate.getTime()) || Number.isNaN(effectiveEndDate.getTime())) {
+      return total + price;
+    }
+
+    if (effectiveEndDate < startDate) {
+      return total + price;
+    }
+
+    const coveredMonths = getCoveredMonths(startDate, effectiveEndDate);
+    const estimatedCycles = Math.max(1, Math.ceil(coveredMonths / durationMonths));
+
+    return total + estimatedCycles * price;
+  }, 0);
+};
+
 const StatCard = ({
   icon: Icon,
   label,
@@ -117,16 +161,26 @@ const Dashboard = () => {
       const currentMonth = now.getMonth();
       const currentYear = now.getFullYear();
 
-      const [{ data: clients }, { data: invoicesData }] = await Promise.all([
-        supabase.from("clients").select("id").eq("user_id", user.id),
-        supabase.from("invoices").select("id, due_date, status, amount, payment_date").eq("user_id", user.id),
+      const [{ data: clientsDataRaw }, { data: invoicesData }] = await Promise.all([
+        supabase
+          .from("clients")
+          .select("id, registration_date, due_date, plan_id, plans(price, duration_months)")
+          .eq("user_id", user.id),
+        supabase
+          .from("invoices")
+          .select("id, due_date, status, amount, payment_date, created_at")
+          .eq("user_id", user.id),
       ]);
 
+      const clients = (clientsDataRaw as ClientRevenueSnapshot[] | null) || [];
       const invoices = invoicesData || [];
       const pending = invoices.filter(i => i.status !== "paid");
+      const migrationDate = invoices.length > 0
+        ? new Date(Math.min(...invoices.map((invoice) => new Date(invoice.created_at).getTime())))
+        : null;
 
       setStats({
-        totalClients: clients?.length || 0,
+        totalClients: clients.length,
         totalInvoices: invoices.length,
         dueToday: pending.filter(i => i.due_date === today).length,
         overdue: pending.filter(i => i.due_date < today).length,
@@ -134,16 +188,15 @@ const Dashboard = () => {
         pending: pending.length,
       });
 
-      // Financial stats from invoices
-      let totalReceivedAllTime = 0;
+      let totalReceivedAllTime = calculateLegacyReceivedTotal(clients, migrationDate);
       let totalReceivedMonth = 0;
       let totalToReceiveMonth = 0;
 
       for (const inv of invoices) {
         if (inv.status === "paid") {
           totalReceivedAllTime += Number(inv.amount);
-          const dateRef = inv.payment_date 
-            ? new Date(inv.payment_date) 
+          const dateRef = inv.payment_date
+            ? new Date(inv.payment_date)
             : new Date(inv.due_date + "T00:00:00");
           if (dateRef.getMonth() === currentMonth && dateRef.getFullYear() === currentYear) {
             totalReceivedMonth += Number(inv.amount);
@@ -156,7 +209,6 @@ const Dashboard = () => {
         }
       }
 
-      // Also check payment_links
       const { data: paidLinks } = await supabase
         .from("payment_links")
         .select("amount, created_at, status")
