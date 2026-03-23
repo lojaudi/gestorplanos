@@ -1,9 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { buildLegacyPaidEntries, type ClientRevenueSnapshot } from "@/lib/financial-history";
+import { buildLegacyPaidEntries, getMonthKey, formatMonthLabel, type ClientRevenueSnapshot } from "@/lib/financial-history";
 import { startOfMonth, endOfMonth, subMonths, startOfQuarter, endOfQuarter, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
