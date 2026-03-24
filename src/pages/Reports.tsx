@@ -46,7 +46,7 @@ const statusLabel = (s: string) => {
   return "Pendente";
 };
 
-export default function Reports() {
+export default function Reports() { // v2 - with chart, pagination, period filters, CSV/PDF export
   const { user } = useAuth();
   const [invoices, setInvoices] = useState<InvoiceReport[]>([]);
   const [loading, setLoading] = useState(true);
