@@ -31,6 +31,7 @@ import Subscribe from "./pages/Subscribe";
 import AdminSupportMaterials from "./pages/AdminSupportMaterials";
 import SupportMaterialsPage from "./pages/SupportMaterials";
 import Reports from "./pages/Reports";
+import PriceBoard from "./pages/PriceBoard";
 
 const queryClient = new QueryClient();
 
@@ -62,6 +63,7 @@ const App = () => (
               <Route path="/admin/tutorials" element={<ProtectedPage><AdminTutorials /></ProtectedPage>} />
               <Route path="/tutorials" element={<ProtectedPage><Tutorials /></ProtectedPage>} />
               <Route path="/campaign" element={<ProtectedPage><Campaign /></ProtectedPage>} />
+              <Route path="/price-board" element={<ProtectedPage><PriceBoard /></ProtectedPage>} />
               <Route path="/subscribe" element={<ProtectedPage><Subscribe /></ProtectedPage>} />
               <Route path="/support-materials" element={<ProtectedPage><SupportMaterialsPage /></ProtectedPage>} />
               <Route path="/admin/support-materials" element={<ProtectedPage><AdminSupportMaterials /></ProtectedPage>} />
