@@ -62,6 +62,7 @@ const userNav: NavEntry[] = [
   { icon: CreditCard, label: "Faturamento", path: "/billing" },
   { icon: BarChart3, label: "Relatórios", path: "/reports" },
   { icon: Megaphone, label: "Campanhas", path: "/campaign" },
+  { icon: ShoppingBasket, label: "Tabela de Preços", path: "/price-board" },
   {
     label: "Configurações",
     icon: Settings,
