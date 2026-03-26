@@ -25,6 +25,7 @@ import {
   UserPlus,
   BarChart3,
   ChevronLeft,
+  ShoppingBasket,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
