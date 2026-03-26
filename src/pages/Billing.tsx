@@ -315,20 +315,31 @@ export default function Billing() {
     inv: Invoice,
     pixCode?: string,
     paymentLinkId?: string,
+    overrides?: {
+      dueDate?: string;
+      nextDueDate?: string;
+      paymentDate?: Date;
+    },
   ) => {
     const clientName = inv.clients?.name || "";
     const clientPhone = inv.clients?.phone || "";
     const plan = inv.plans || plans.find(p => p.id === inv.plan_id);
     const planName = plan?.name || "";
     const planPrice = inv.amount > 0 ? inv.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : (plan?.price != null ? plan.price.toLocaleString("pt-BR", { minimumFractionDigits: 2 }) : "");
-    const dueDate = new Date(inv.due_date + "T12:00:00");
+    const resolvedDueDate = overrides?.dueDate ?? inv.due_date;
+    const dueDate = new Date(resolvedDueDate + "T12:00:00");
     const formattedDue = dueDate.toLocaleDateString("pt-BR");
     const serviceName = services.find(s => s.id === inv.clients?.service_id)?.name || "";
 
     const durationMonths = plan?.duration_months || 1;
-    const nextDue = new Date(dueDate);
-    nextDue.setMonth(nextDue.getMonth() + durationMonths);
+    const nextDue = overrides?.nextDueDate
+      ? new Date(overrides.nextDueDate + "T12:00:00")
+      : new Date(dueDate);
+    if (!overrides?.nextDueDate) {
+      nextDue.setMonth(nextDue.getMonth() + durationMonths);
+    }
     const formattedNextDue = nextDue.toLocaleDateString("pt-BR");
+    const paymentDate = overrides?.paymentDate ?? new Date();
 
     const paymentLink = paymentLinkId ? `${window.location.origin}/pay?id=${paymentLinkId}` : (pixCode || "");
 
@@ -338,7 +349,7 @@ export default function Billing() {
       .replace(/{plano}/g, planName)
       .replace(/{valor_plano}/g, planPrice)
       .replace(/{data_vencimento}/g, formattedDue)
-      .replace(/{data_pagamento}/g, new Date().toLocaleDateString("pt-BR"))
+      .replace(/{data_pagamento}/g, paymentDate.toLocaleDateString("pt-BR"))
       .replace(/{proximo_vencimento}/g, formattedNextDue)
       .replace(/{link_pagamento}/g, paymentLink)
       .replace(/{meio_de_pagamento}/g, pixCode || "");
@@ -527,10 +538,12 @@ export default function Billing() {
     }
     setConfirmingPaymentId(inv.id);
     try {
+      const paymentConfirmationDate = new Date();
+
       // Mark invoice as paid
       await supabase.from("invoices").update({
         status: "paid",
-        payment_date: new Date().toISOString(),
+        payment_date: paymentConfirmationDate.toISOString(),
         payment_method: gatewayEnabled ? "mercado_pago" : (fixedPixKey ? "pix_fixo" : "manual"),
       }).eq("id", inv.id);
 
@@ -557,9 +570,12 @@ export default function Billing() {
       // Also update client's due_date for backward compatibility
       await supabase.from("clients").update({ due_date: newDueDateStr }).eq("id", inv.client_id);
 
-      // Send confirmation message (use original invoice — resolveTemplateFromInvoice
-      // already calculates {proximo_vencimento} by adding durationMonths to due_date)
-      const messageContent = resolveTemplateFromInvoice(confirmTemplate, inv);
+      // Send confirmation message with the exact renewed due date,
+      // avoiding any double calculation of {proximo_vencimento}.
+      const messageContent = resolveTemplateFromInvoice(confirmTemplate, inv, undefined, undefined, {
+        nextDueDate: newDueDateStr,
+        paymentDate: paymentConfirmationDate,
+      });
       await callEvolutionApi("send-bulk", {
         messages: [{ phone: inv.clients?.phone, message: messageContent, client_id: inv.client_id, template_type: "confirmacao_pagamento" }],
       });
