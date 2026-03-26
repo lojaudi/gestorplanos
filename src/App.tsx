@@ -31,6 +31,7 @@ import Subscribe from "./pages/Subscribe";
 import AdminSupportMaterials from "./pages/AdminSupportMaterials";
 import SupportMaterialsPage from "./pages/SupportMaterials";
 import Reports from "./pages/Reports";
+import PriceBoard from "./pages/PriceBoard";
 
 const queryClient = new QueryClient();
 
