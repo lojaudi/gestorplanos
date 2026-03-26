@@ -557,11 +557,9 @@ export default function Billing() {
       // Also update client's due_date for backward compatibility
       await supabase.from("clients").update({ due_date: newDueDateStr }).eq("id", inv.client_id);
 
-      // Send confirmation message
-      const messageContent = resolveTemplateFromInvoice(confirmTemplate, {
-        ...inv,
-        due_date: newDueDateStr,
-      });
+      // Send confirmation message (use original invoice — resolveTemplateFromInvoice
+      // already calculates {proximo_vencimento} by adding durationMonths to due_date)
+      const messageContent = resolveTemplateFromInvoice(confirmTemplate, inv);
       await callEvolutionApi("send-bulk", {
         messages: [{ phone: inv.clients?.phone, message: messageContent, client_id: inv.client_id, template_type: "confirmacao_pagamento" }],
       });
