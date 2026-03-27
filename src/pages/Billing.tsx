@@ -146,6 +146,12 @@ export default function Billing() {
   const [confirmingPaymentId, setConfirmingPaymentId] = useState<string | null>(null);
   const [deleteInvoiceId, setDeleteInvoiceId] = useState<string | null>(null);
 
+  // Payment confirmation preview
+  const [confirmPreviewOpen, setConfirmPreviewOpen] = useState(false);
+  const [confirmPreviewInvoice, setConfirmPreviewInvoice] = useState<Invoice | null>(null);
+  const [confirmPreviewMessage, setConfirmPreviewMessage] = useState("");
+  const [confirmPreviewNextDue, setConfirmPreviewNextDue] = useState("");
+
   // Automation state
   const [autoEnabled, setAutoEnabled] = useState(false);
   const [autoBeforeDue, setAutoBeforeDue] = useState(true);
