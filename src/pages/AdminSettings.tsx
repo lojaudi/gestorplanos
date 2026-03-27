@@ -70,6 +70,14 @@ const AdminSettings = () => {
     return result;
   }, []);
 
+  const normalizeEvolutionError = (err: any) => {
+    const message = err?.message ? String(err.message) : "Erro na requisição";
+    if (message.includes("Ação desconhecida")) {
+      return "A função evolution-api no Supabase está desatualizada. Faça o deploy da função para aplicar as novas ações.";
+    }
+    return message;
+  };
+
   const fetchSettings = async () => {
     setLoading(true);
     const { data } = await supabase
@@ -512,7 +520,7 @@ const AdminSettings = () => {
                   setPlatformHasConfig(true);
                   toast({ title: "Instância da plataforma criada! Escaneie o QR Code para conectar." });
                 } catch (err: any) {
-                  toast({ title: err.message, variant: "destructive" });
+                  toast({ title: normalizeEvolutionError(err), variant: "destructive" });
                 }
                 setPlatformActionLoading(null);
               }}
@@ -542,7 +550,7 @@ const AdminSettings = () => {
                     }
                     toast({ title: connected ? "WhatsApp da plataforma conectado!" : "WhatsApp da plataforma desconectado", variant: connected ? "default" : "destructive" });
                   } catch (err: any) {
-                    toast({ title: err.message, variant: "destructive" });
+                    toast({ title: normalizeEvolutionError(err), variant: "destructive" });
                   }
                   setPlatformActionLoading(null);
                 }}
@@ -598,7 +606,7 @@ const AdminSettings = () => {
                     setPlatformInstanceConnected(false);
                     toast({ title: "Instância da plataforma deslogada" });
                   } catch (err: any) {
-                    toast({ title: err.message, variant: "destructive" });
+                    toast({ title: normalizeEvolutionError(err), variant: "destructive" });
                   }
                   setPlatformActionLoading(null);
                 }}
@@ -621,7 +629,7 @@ const AdminSettings = () => {
                     setPlatformHasConfig(true);
                     toast({ title: "Instância da plataforma deletada" });
                   } catch (err: any) {
-                    toast({ title: err.message, variant: "destructive" });
+                    toast({ title: normalizeEvolutionError(err), variant: "destructive" });
                   }
                   setPlatformActionLoading(null);
                 }}
