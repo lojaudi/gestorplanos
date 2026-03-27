@@ -1209,6 +1209,48 @@ export default function Billing() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Payment Confirmation Preview Dialog */}
+      <Dialog open={confirmPreviewOpen} onOpenChange={setConfirmPreviewOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5" />
+              Preview da Confirmação de Pagamento
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex flex-wrap gap-4 text-sm">
+              <div>
+                <span className="text-muted-foreground">Cliente:</span>{" "}
+                <strong>{confirmPreviewInvoice?.clients?.name}</strong>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Próximo vencimento:</span>{" "}
+                <strong>{confirmPreviewNextDue}</strong>
+              </div>
+            </div>
+            <Card className="bg-muted/50">
+              <CardContent className="p-4">
+                <p className="whitespace-pre-wrap text-sm">{confirmPreviewMessage}</p>
+              </CardContent>
+            </Card>
+            <p className="text-xs text-muted-foreground">
+              Ao confirmar, o pagamento será registrado, uma nova fatura será gerada e esta mensagem será enviada via WhatsApp.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmPreviewOpen(false)}>Cancelar</Button>
+            <Button
+              onClick={() => confirmPreviewInvoice && handleConfirmPayment(confirmPreviewInvoice)}
+              disabled={confirmingPaymentId !== null}
+            >
+              {confirmingPaymentId ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+              Confirmar Pagamento
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
