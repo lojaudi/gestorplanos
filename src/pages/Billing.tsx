@@ -1127,7 +1127,7 @@ export default function Billing() {
               <Label>Cliente *</Label>
               <Select value={invoiceClientId} onValueChange={handleInvoiceClientChange}>
                 <SelectTrigger><SelectValue placeholder="Selecione o cliente..." /></SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-h-[300px] overflow-y-auto">
                   {clients.map((c) => (
                     <SelectItem key={c.id} value={c.id}>{c.name} — {c.phone}</SelectItem>
                   ))}
@@ -1137,9 +1137,10 @@ export default function Billing() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Plano</Label>
-                <Select value={invoicePlanId} onValueChange={handleInvoicePlanChange}>
+                <Select value={invoicePlanId || "none"} onValueChange={(v) => handleInvoicePlanChange(v === "none" ? "" : v)}>
                   <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-[300px] overflow-y-auto">
+                    <SelectItem value="none">Sem plano</SelectItem>
                     {plans.map((p) => (
                       <SelectItem key={p.id} value={p.id}>{p.name} — R$ {p.price?.toFixed(2).replace(".", ",") || "0,00"}</SelectItem>
                     ))}
