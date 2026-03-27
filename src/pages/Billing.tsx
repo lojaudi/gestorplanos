@@ -40,6 +40,7 @@ import {
   Trash2,
   FileText,
   Eye,
+  ChevronDown,
 } from "lucide-react";
 import {
   Dialog,
@@ -1137,15 +1138,21 @@ export default function Billing() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>Plano</Label>
-                <Select value={invoicePlanId || "none"} onValueChange={(v) => handleInvoicePlanChange(v === "none" ? "" : v)}>
-                  <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
-                  <SelectContent className="max-h-[300px] overflow-y-auto">
-                    <SelectItem value="none">Sem plano</SelectItem>
+                <div className="relative">
+                  <select
+                    value={invoicePlanId}
+                    onChange={(e) => handleInvoicePlanChange(e.target.value)}
+                    className="flex h-10 w-full appearance-none rounded-md border border-input bg-background px-3 py-2 pr-10 text-sm text-foreground ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                  >
+                    <option value="">Sem plano</option>
                     {plans.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>{p.name} — R$ {p.price?.toFixed(2).replace(".", ",") || "0,00"}</SelectItem>
+                      <option key={p.id} value={p.id}>
+                        {p.name} — R$ {p.price?.toFixed(2).replace(".", ",") || "0,00"}
+                      </option>
                     ))}
-                  </SelectContent>
-                </Select>
+                  </select>
+                  <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                </div>
               </div>
               <div className="space-y-2">
                 <Label>Valor (R$) *</Label>
