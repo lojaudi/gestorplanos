@@ -63,12 +63,12 @@ async function getGlobalConfig() {
 
 async function getPlatformInstance() {
   const supabase = getServiceClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("whatsapp_platform_instance")
     .select("*")
     .limit(1)
     .maybeSingle();
-  return data;
+  return { data, error };
 }
 
 async function getUserConfig(userId: string) {
@@ -165,9 +165,30 @@ serve(async (req) => {
       });
 
       // Send code via WhatsApp using global config instance
-      const platformInstance = await getPlatformInstance();
-      if (!platformInstance || !platformInstance.is_connected) {
-        return errorResponse("Instância WhatsApp da plataforma não configurada ou desconectada. Contate o suporte.");
+      const { data: platformInstance } = await getPlatformInstance();
+
+      let instanceName: string | null = null;
+      if (platformInstance && platformInstance.is_connected) {
+        instanceName = platformInstance.instance_name;
+      } else {
+        const { data: adminRoles } = await supabase
+          .from("user_roles")
+          .select("user_id")
+          .eq("role", "admin");
+
+        if (adminRoles && adminRoles.length > 0) {
+          for (const ar of adminRoles) {
+            const adminConfig = await getUserConfig(ar.user_id);
+            if (adminConfig && adminConfig.is_connected) {
+              instanceName = adminConfig.instance_name;
+              break;
+            }
+          }
+        }
+      }
+
+      if (!instanceName) {
+        return errorResponse("Nenhuma instância WhatsApp configurada para verificação está conectada. Contate o suporte.");
       }
 
       const formattedPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
@@ -177,7 +198,7 @@ serve(async (req) => {
         await evolutionFetch(
           globalConfig.api_url,
           globalConfig.api_key,
-          `/message/sendText/${platformInstance.instance_name}`,
+          `/message/sendText/${instanceName}`,
           "POST",
           { number: formattedPhone, text: message }
         );
@@ -185,7 +206,7 @@ serve(async (req) => {
         console.error("Erro ao enviar código:", sendErr);
         const errMsg = sendErr instanceof Error ? sendErr.message : String(sendErr);
         if (errMsg.includes("not exist")) {
-          return errorResponse("Instância WhatsApp do administrador não encontrada. Contate o suporte.");
+          return errorResponse("Instância WhatsApp configurada para verificação não encontrada. Contate o suporte.");
         }
         return errorResponse("Erro ao enviar código de verificação via WhatsApp. Tente novamente mais tarde.");
       }
@@ -323,7 +344,8 @@ serve(async (req) => {
       const isAdmin = await checkIsAdmin(user.id);
       if (!isAdmin) return errorResponse("Acesso negado", 403);
 
-      const platformInstance = await getPlatformInstance();
+      const { data: platformInstance, error } = await getPlatformInstance();
+      if (error) return jsonResponse({ platform_instance: null });
       return jsonResponse({ platform_instance: platformInstance });
     }
 
@@ -342,17 +364,26 @@ serve(async (req) => {
       }
 
       const supabase = getServiceClient();
-      const existing = await getPlatformInstance();
+      const { data: existing, error: platformError } = await getPlatformInstance();
+      if (platformError) {
+        return errorResponse("Estrutura do banco não atualizada para instância da plataforma. Aplique as migrations do Supabase.", 500);
+      }
       if (existing) {
-        await supabase
+        const { error } = await supabase
           .from("whatsapp_platform_instance")
           .update({ instance_name, is_connected: false })
           .eq("id", existing.id);
+        if (error) {
+          return errorResponse("Erro ao salvar instância da plataforma.", 500);
+        }
       } else {
-        await supabase.from("whatsapp_platform_instance").insert({
+        const { error } = await supabase.from("whatsapp_platform_instance").insert({
           instance_name,
           is_connected: false,
         });
+        if (error) {
+          return errorResponse("Erro ao salvar instância da plataforma.", 500);
+        }
       }
 
       const { api_url, api_key } = globalConfig;
@@ -388,7 +419,10 @@ serve(async (req) => {
         return errorResponse("Configuração global do WhatsApp não encontrada. Contate o administrador.");
       }
 
-      const platformInstance = await getPlatformInstance();
+      const { data: platformInstance, error: platformError } = await getPlatformInstance();
+      if (platformError) {
+        return errorResponse("Estrutura do banco não atualizada para instância da plataforma. Aplique as migrations do Supabase.", 500);
+      }
       if (!platformInstance) return errorResponse("Instância WhatsApp da plataforma não configurada.");
 
       const { api_url, api_key } = globalConfig;
@@ -418,7 +452,10 @@ serve(async (req) => {
         return errorResponse("Configuração global do WhatsApp não encontrada. Contate o administrador.");
       }
 
-      const platformInstance = await getPlatformInstance();
+      const { data: platformInstance, error: platformError } = await getPlatformInstance();
+      if (platformError) {
+        return errorResponse("Estrutura do banco não atualizada para instância da plataforma. Aplique as migrations do Supabase.", 500);
+      }
       if (!platformInstance) return errorResponse("Instância WhatsApp da plataforma não configurada.");
 
       const { api_url, api_key } = globalConfig;
@@ -447,7 +484,10 @@ serve(async (req) => {
         return errorResponse("Configuração global do WhatsApp não encontrada. Contate o administrador.");
       }
 
-      const platformInstance = await getPlatformInstance();
+      const { data: platformInstance, error: platformError } = await getPlatformInstance();
+      if (platformError) {
+        return errorResponse("Estrutura do banco não atualizada para instância da plataforma. Aplique as migrations do Supabase.", 500);
+      }
       if (!platformInstance) return errorResponse("Instância WhatsApp da plataforma não configurada.");
 
       const { api_url, api_key } = globalConfig;
