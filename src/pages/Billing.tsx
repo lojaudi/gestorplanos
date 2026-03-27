@@ -531,8 +531,8 @@ export default function Billing() {
     setSendingManualId(null);
   };
 
-  // Confirm payment for invoice + auto-create next invoice
-  const handleConfirmPayment = async (inv: Invoice) => {
+  // Open preview before confirming payment
+  const openConfirmPreview = (inv: Invoice) => {
     const confirmTemplate = templates.find((t) => t.type === "confirmacao_pagamento");
     if (!confirmTemplate) {
       toast({
@@ -542,6 +542,28 @@ export default function Billing() {
       });
       return;
     }
+    const plan = inv.plans || plans.find(p => p.id === inv.plan_id);
+    const durationMonths = plan?.duration_months || 1;
+    const currentDue = new Date(inv.due_date + "T12:00:00");
+    const todayDate = new Date();
+    todayDate.setHours(12, 0, 0, 0);
+    const baseDate = currentDue < todayDate ? new Date(todayDate) : new Date(currentDue);
+    baseDate.setMonth(baseDate.getMonth() + durationMonths);
+    const newDueDateStr = baseDate.toISOString().split("T")[0];
+
+    const previewMsg = resolveTemplateFromInvoice(confirmTemplate, inv, undefined, undefined, {
+      nextDueDate: newDueDateStr,
+      paymentDate: new Date(),
+    });
+    setConfirmPreviewInvoice(inv);
+    setConfirmPreviewMessage(previewMsg);
+    setConfirmPreviewNextDue(new Date(newDueDateStr + "T12:00:00").toLocaleDateString("pt-BR"));
+    setConfirmPreviewOpen(true);
+  };
+
+  // Confirm payment for invoice + auto-create next invoice
+  const handleConfirmPayment = async (inv: Invoice) => {
+    setConfirmPreviewOpen(false);
     setConfirmingPaymentId(inv.id);
     try {
       const paymentConfirmationDate = new Date();
