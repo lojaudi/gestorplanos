@@ -1127,7 +1127,7 @@ export default function Billing() {
               <Label>Cliente *</Label>
               <Select value={invoiceClientId} onValueChange={handleInvoiceClientChange}>
                 <SelectTrigger><SelectValue placeholder="Selecione o cliente..." /></SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-h-[300px] overflow-y-auto">
                   {clients.map((c) => (
                     <SelectItem key={c.id} value={c.id}>{c.name} — {c.phone}</SelectItem>
                   ))}
