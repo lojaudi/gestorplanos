@@ -933,10 +933,10 @@ export default function Billing() {
                                     variant="outline"
                                     size="sm"
                                     disabled={confirmingPaymentId === inv.id}
-                                    onClick={() => handleConfirmPayment(inv)}
+                                    onClick={() => openConfirmPreview(inv)}
                                     title="Confirmar pagamento"
                                   >
-                                    {confirmingPaymentId === inv.id ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-1 h-3 w-3" />}
+                                    {confirmingPaymentId === inv.id ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <CheckCircle className="mr-1 h-3 w-3" />}
                                     Confirmar
                                   </Button>
                                 </>
