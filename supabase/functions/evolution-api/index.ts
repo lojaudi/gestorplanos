@@ -61,6 +61,16 @@ async function getGlobalConfig() {
   return data;
 }
 
+async function getPlatformInstance() {
+  const supabase = getServiceClient();
+  const { data } = await supabase
+    .from("whatsapp_platform_instance")
+    .select("*")
+    .limit(1)
+    .maybeSingle();
+  return data;
+}
+
 async function getUserConfig(userId: string) {
   const supabase = getServiceClient();
   const { data } = await supabase
@@ -155,27 +165,9 @@ serve(async (req) => {
       });
 
       // Send code via WhatsApp using global config instance
-      // We need an admin instance to send. Use global config.
-      // Find any admin's whatsapp_config or use a system instance
-      // Find any admin with a connected WhatsApp instance
-      const { data: adminRoles } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .eq("role", "admin");
-
-      let instanceName: string | null = null;
-      if (adminRoles && adminRoles.length > 0) {
-        for (const ar of adminRoles) {
-          const adminConfig = await getUserConfig(ar.user_id);
-          if (adminConfig && adminConfig.is_connected) {
-            instanceName = adminConfig.instance_name;
-            break;
-          }
-        }
-      }
-
-      if (!instanceName) {
-        return errorResponse("Nenhuma instância WhatsApp do administrador está conectada. Contate o suporte.");
+      const platformInstance = await getPlatformInstance();
+      if (!platformInstance || !platformInstance.is_connected) {
+        return errorResponse("Instância WhatsApp da plataforma não configurada ou desconectada. Contate o suporte.");
       }
 
       const formattedPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
@@ -185,7 +177,7 @@ serve(async (req) => {
         await evolutionFetch(
           globalConfig.api_url,
           globalConfig.api_key,
-          `/message/sendText/${instanceName}`,
+          `/message/sendText/${platformInstance.instance_name}`,
           "POST",
           { number: formattedPhone, text: message }
         );
@@ -325,6 +317,154 @@ serve(async (req) => {
 
       const config = await getGlobalConfig();
       return jsonResponse({ config });
+    }
+
+    if (action === "get-platform-instance") {
+      const isAdmin = await checkIsAdmin(user.id);
+      if (!isAdmin) return errorResponse("Acesso negado", 403);
+
+      const platformInstance = await getPlatformInstance();
+      return jsonResponse({ platform_instance: platformInstance });
+    }
+
+    if (action === "connect-platform-instance") {
+      const isAdmin = await checkIsAdmin(user.id);
+      if (!isAdmin) return errorResponse("Acesso negado", 403);
+
+      const { instance_name } = params;
+      if (!instance_name) {
+        return errorResponse("Nome da instância é obrigatório");
+      }
+
+      const globalConfig = await getGlobalConfig();
+      if (!globalConfig) {
+        return errorResponse("Configuração global do WhatsApp não encontrada. Contate o administrador.");
+      }
+
+      const supabase = getServiceClient();
+      const existing = await getPlatformInstance();
+      if (existing) {
+        await supabase
+          .from("whatsapp_platform_instance")
+          .update({ instance_name, is_connected: false })
+          .eq("id", existing.id);
+      } else {
+        await supabase.from("whatsapp_platform_instance").insert({
+          instance_name,
+          is_connected: false,
+        });
+      }
+
+      const { api_url, api_key } = globalConfig;
+      let resultData;
+      try {
+        resultData = await evolutionFetch(api_url, api_key, `/instance/connect/${instance_name}`);
+      } catch (_e) {
+        try {
+          resultData = await evolutionFetch(api_url, api_key, "/instance/create", "POST", {
+            instanceName: instance_name,
+            integration: "WHATSAPP-BAILEYS",
+            qrcode: true,
+          });
+        } catch (createErr) {
+          const msg = createErr instanceof Error ? createErr.message : String(createErr);
+          if (msg.includes("already in use")) {
+            resultData = await evolutionFetch(api_url, api_key, `/instance/connect/${instance_name}`);
+          } else {
+            throw createErr;
+          }
+        }
+      }
+
+      return jsonResponse(resultData);
+    }
+
+    if (action === "platform-connection-status") {
+      const isAdmin = await checkIsAdmin(user.id);
+      if (!isAdmin) return errorResponse("Acesso negado", 403);
+
+      const globalConfig = await getGlobalConfig();
+      if (!globalConfig) {
+        return errorResponse("Configuração global do WhatsApp não encontrada. Contate o administrador.");
+      }
+
+      const platformInstance = await getPlatformInstance();
+      if (!platformInstance) return errorResponse("Instância WhatsApp da plataforma não configurada.");
+
+      const { api_url, api_key } = globalConfig;
+      const data = await evolutionFetch(
+        api_url,
+        api_key,
+        `/instance/connectionState/${platformInstance.instance_name}`
+      );
+
+      const connected = data?.instance?.state === "open";
+
+      const supabase = getServiceClient();
+      await supabase
+        .from("whatsapp_platform_instance")
+        .update({ is_connected: connected })
+        .eq("id", platformInstance.id);
+
+      return jsonResponse({ ...data, is_connected: connected });
+    }
+
+    if (action === "logout-platform-instance") {
+      const isAdmin = await checkIsAdmin(user.id);
+      if (!isAdmin) return errorResponse("Acesso negado", 403);
+
+      const globalConfig = await getGlobalConfig();
+      if (!globalConfig) {
+        return errorResponse("Configuração global do WhatsApp não encontrada. Contate o administrador.");
+      }
+
+      const platformInstance = await getPlatformInstance();
+      if (!platformInstance) return errorResponse("Instância WhatsApp da plataforma não configurada.");
+
+      const { api_url, api_key } = globalConfig;
+      const data = await evolutionFetch(
+        api_url,
+        api_key,
+        `/instance/logout/${platformInstance.instance_name}`,
+        "DELETE"
+      );
+
+      const supabase = getServiceClient();
+      await supabase
+        .from("whatsapp_platform_instance")
+        .update({ is_connected: false })
+        .eq("id", platformInstance.id);
+
+      return jsonResponse(data);
+    }
+
+    if (action === "delete-platform-instance") {
+      const isAdmin = await checkIsAdmin(user.id);
+      if (!isAdmin) return errorResponse("Acesso negado", 403);
+
+      const globalConfig = await getGlobalConfig();
+      if (!globalConfig) {
+        return errorResponse("Configuração global do WhatsApp não encontrada. Contate o administrador.");
+      }
+
+      const platformInstance = await getPlatformInstance();
+      if (!platformInstance) return errorResponse("Instância WhatsApp da plataforma não configurada.");
+
+      const { api_url, api_key } = globalConfig;
+      const data = await evolutionFetch(
+        api_url,
+        api_key,
+        `/instance/delete/${platformInstance.instance_name}`,
+        "DELETE"
+      );
+
+      const supabase = getServiceClient();
+      await supabase
+        .from("whatsapp_platform_instance")
+        .update({ is_connected: false })
+        .eq("id", platformInstance.id);
+
+      return jsonResponse(data);
     }
 
     // === USER ACTIONS: save instance name ===

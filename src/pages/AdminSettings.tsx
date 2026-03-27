@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { Settings, Save, Upload, Loader2, Trash2, Shield, Eye, EyeOff, MessageSquare, Mail } from "lucide-react";
+import { Settings, Save, Upload, Loader2, Trash2, Shield, Eye, EyeOff, MessageSquare, Mail, QrCode, RefreshCw, LogOut } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 
 interface PlatformSettings {
@@ -43,6 +43,13 @@ const AdminSettings = () => {
   const [hasGlobalConfig, setHasGlobalConfig] = useState(false);
   const [savingGlobal, setSavingGlobal] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
+
+  const [platformInstanceName, setPlatformInstanceName] = useState("");
+  const [platformInstanceConnected, setPlatformInstanceConnected] = useState(false);
+  const [platformHasConfig, setPlatformHasConfig] = useState(false);
+  const [platformQrCode, setPlatformQrCode] = useState<string | null>(null);
+  const [platformPairingCode, setPlatformPairingCode] = useState<string | null>(null);
+  const [platformActionLoading, setPlatformActionLoading] = useState<string | null>(null);
 
   const callEvolutionApi = useCallback(async (action: string, extraParams = {}) => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -101,12 +108,30 @@ const AdminSettings = () => {
     }
   }, [callEvolutionApi]);
 
+  const fetchPlatformInstance = useCallback(async () => {
+    try {
+      const res = await callEvolutionApi("get-platform-instance");
+      if (res.platform_instance) {
+        setPlatformHasConfig(true);
+        setPlatformInstanceName(res.platform_instance.instance_name || "");
+        setPlatformInstanceConnected(!!res.platform_instance.is_connected);
+      } else {
+        setPlatformHasConfig(false);
+        setPlatformInstanceConnected(false);
+      }
+    } catch {
+      setPlatformHasConfig(false);
+      setPlatformInstanceConnected(false);
+    }
+  }, [callEvolutionApi]);
+
   useEffect(() => {
     if (isAdmin) {
       fetchSettings();
       fetchGlobalEvolutionConfig();
+      fetchPlatformInstance();
     }
-  }, [isAdmin, fetchGlobalEvolutionConfig]);
+  }, [isAdmin, fetchGlobalEvolutionConfig, fetchPlatformInstance]);
 
   const uploadFile = async (
     file: File,
@@ -446,6 +471,171 @@ const AdminSettings = () => {
             </Button>
             {hasGlobalConfig && <Badge variant="default">Configurada</Badge>}
           </div>
+        </CardContent>
+      </Card>
+
+      <Card className="border-primary/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <MessageSquare className="h-5 w-5 text-primary" />
+            Configurar Instancia Whatsapp da Plataforma
+          </CardTitle>
+          <CardDescription>
+            Esta instância é usada para enviar mensagens de verificação de cadastro (OTP) para novos usuários.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="platform_instance_name">Nome da Instância</Label>
+            <Input
+              id="platform_instance_name"
+              placeholder="plataforma-whatsapp"
+              value={platformInstanceName}
+              onChange={(e) => setPlatformInstanceName(e.target.value)}
+              disabled={!!platformActionLoading}
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <Button
+              onClick={async () => {
+                const trimmed = platformInstanceName.trim();
+                if (!trimmed) {
+                  toast({ title: "Informe o nome da instância", variant: "destructive" });
+                  return;
+                }
+                setPlatformActionLoading("connect");
+                try {
+                  const data = await callEvolutionApi("connect-platform-instance", { instance_name: trimmed });
+                  if (data?.qrcode?.base64) setPlatformQrCode(data.qrcode.base64);
+                  if (data?.qrcode?.pairingCode) setPlatformPairingCode(data.qrcode.pairingCode);
+                  setPlatformHasConfig(true);
+                  toast({ title: "Instância da plataforma criada! Escaneie o QR Code para conectar." });
+                } catch (err: any) {
+                  toast({ title: err.message, variant: "destructive" });
+                }
+                setPlatformActionLoading(null);
+              }}
+              disabled={!!platformActionLoading}
+              className="flex-1"
+            >
+              {platformActionLoading === "connect" ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <QrCode className="mr-2 h-4 w-4" />
+              )}
+              Conectar Instância da Plataforma
+            </Button>
+
+            {platformHasConfig && (
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  setPlatformActionLoading("status");
+                  try {
+                    const data = await callEvolutionApi("platform-connection-status");
+                    const connected = !!data.is_connected;
+                    setPlatformInstanceConnected(connected);
+                    if (connected) {
+                      setPlatformQrCode(null);
+                      setPlatformPairingCode(null);
+                    }
+                    toast({ title: connected ? "WhatsApp da plataforma conectado!" : "WhatsApp da plataforma desconectado", variant: connected ? "default" : "destructive" });
+                  } catch (err: any) {
+                    toast({ title: err.message, variant: "destructive" });
+                  }
+                  setPlatformActionLoading(null);
+                }}
+                disabled={!!platformActionLoading}
+              >
+                {platformActionLoading === "status" ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                )}
+                Verificar Conexão
+              </Button>
+            )}
+
+            {platformHasConfig && (
+              <Badge variant={platformInstanceConnected ? "default" : "secondary"}>
+                {platformInstanceConnected ? "Conectada" : "Desconectada"}
+              </Badge>
+            )}
+          </div>
+
+          {platformQrCode && (
+            <div className="flex flex-col items-center gap-4 rounded-lg border border-border bg-muted/30 p-6">
+              <p className="text-sm font-medium text-foreground">
+                Escaneie o QR Code com o WhatsApp que será usado pela plataforma
+              </p>
+              <img
+                src={platformQrCode.startsWith("data:") ? platformQrCode : `data:image/png;base64,${platformQrCode}`}
+                alt="QR Code WhatsApp da Plataforma"
+                className="h-64 w-64 rounded-lg"
+              />
+              {platformPairingCode && (
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground mb-1">
+                    Ou use o código de pareamento:
+                  </p>
+                  <p className="font-mono text-lg font-bold tracking-widest text-primary">
+                    {platformPairingCode}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {platformHasConfig && platformInstanceConnected && (
+            <div className="flex flex-wrap gap-3">
+              <Button
+                variant="secondary"
+                onClick={async () => {
+                  setPlatformActionLoading("logout");
+                  try {
+                    await callEvolutionApi("logout-platform-instance");
+                    setPlatformInstanceConnected(false);
+                    toast({ title: "Instância da plataforma deslogada" });
+                  } catch (err: any) {
+                    toast({ title: err.message, variant: "destructive" });
+                  }
+                  setPlatformActionLoading(null);
+                }}
+                disabled={!!platformActionLoading}
+              >
+                {platformActionLoading === "logout" ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <LogOut className="mr-2 h-4 w-4" />
+                )}
+                Deslogar
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={async () => {
+                  setPlatformActionLoading("delete");
+                  try {
+                    await callEvolutionApi("delete-platform-instance");
+                    setPlatformInstanceConnected(false);
+                    setPlatformHasConfig(true);
+                    toast({ title: "Instância da plataforma deletada" });
+                  } catch (err: any) {
+                    toast({ title: err.message, variant: "destructive" });
+                  }
+                  setPlatformActionLoading(null);
+                }}
+                disabled={!!platformActionLoading}
+              >
+                {platformActionLoading === "delete" ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="mr-2 h-4 w-4" />
+                )}
+                Deletar Instância
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
