@@ -172,7 +172,7 @@ export default function Billing() {
       supabase.from("invoices").select("*, clients(name, phone, username, plan_id, service_id), plans(name, price, duration_months)").eq("user_id", user.id).order("due_date", { ascending: true }),
       supabase.from("message_templates").select("*").eq("user_id", user.id),
       supabase.from("services").select("id, name").eq("user_id", user.id),
-      supabase.from("plans").select("id, name, price, duration_months").eq("user_id", user.id),
+      supabase.from("plans").select("id, name, price, duration_months").order("name"),
     ]);
     setClients((clientsRes.data as Client[]) || []);
     setInvoices((invoicesRes.data as Invoice[]) || []);
