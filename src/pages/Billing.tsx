@@ -39,6 +39,7 @@ import {
   Plus,
   Trash2,
   FileText,
+  Eye,
 } from "lucide-react";
 import {
   Dialog,
@@ -145,6 +146,12 @@ export default function Billing() {
   const [sendingManualId, setSendingManualId] = useState<string | null>(null);
   const [confirmingPaymentId, setConfirmingPaymentId] = useState<string | null>(null);
   const [deleteInvoiceId, setDeleteInvoiceId] = useState<string | null>(null);
+
+  // Payment confirmation preview
+  const [confirmPreviewOpen, setConfirmPreviewOpen] = useState(false);
+  const [confirmPreviewInvoice, setConfirmPreviewInvoice] = useState<Invoice | null>(null);
+  const [confirmPreviewMessage, setConfirmPreviewMessage] = useState("");
+  const [confirmPreviewNextDue, setConfirmPreviewNextDue] = useState("");
 
   // Automation state
   const [autoEnabled, setAutoEnabled] = useState(false);
@@ -525,8 +532,8 @@ export default function Billing() {
     setSendingManualId(null);
   };
 
-  // Confirm payment for invoice + auto-create next invoice
-  const handleConfirmPayment = async (inv: Invoice) => {
+  // Open preview before confirming payment
+  const openConfirmPreview = (inv: Invoice) => {
     const confirmTemplate = templates.find((t) => t.type === "confirmacao_pagamento");
     if (!confirmTemplate) {
       toast({
@@ -536,6 +543,28 @@ export default function Billing() {
       });
       return;
     }
+    const plan = inv.plans || plans.find(p => p.id === inv.plan_id);
+    const durationMonths = plan?.duration_months || 1;
+    const currentDue = new Date(inv.due_date + "T12:00:00");
+    const todayDate = new Date();
+    todayDate.setHours(12, 0, 0, 0);
+    const baseDate = currentDue < todayDate ? new Date(todayDate) : new Date(currentDue);
+    baseDate.setMonth(baseDate.getMonth() + durationMonths);
+    const newDueDateStr = baseDate.toISOString().split("T")[0];
+
+    const previewMsg = resolveTemplateFromInvoice(confirmTemplate, inv, undefined, undefined, {
+      nextDueDate: newDueDateStr,
+      paymentDate: new Date(),
+    });
+    setConfirmPreviewInvoice(inv);
+    setConfirmPreviewMessage(previewMsg);
+    setConfirmPreviewNextDue(new Date(newDueDateStr + "T12:00:00").toLocaleDateString("pt-BR"));
+    setConfirmPreviewOpen(true);
+  };
+
+  // Confirm payment for invoice + auto-create next invoice
+  const handleConfirmPayment = async (inv: Invoice) => {
+    setConfirmPreviewOpen(false);
     setConfirmingPaymentId(inv.id);
     try {
       const paymentConfirmationDate = new Date();
@@ -570,12 +599,14 @@ export default function Billing() {
       // Also update client's due_date for backward compatibility
       await supabase.from("clients").update({ due_date: newDueDateStr }).eq("id", inv.client_id);
 
-      // Send confirmation message with the exact renewed due date,
-      // avoiding any double calculation of {proximo_vencimento}.
-      const messageContent = resolveTemplateFromInvoice(confirmTemplate, inv, undefined, undefined, {
-        nextDueDate: newDueDateStr,
-        paymentDate: paymentConfirmationDate,
-      });
+      // Send confirmation message with the exact renewed due date
+      const confirmTemplate = templates.find((t) => t.type === "confirmacao_pagamento");
+      const messageContent = confirmTemplate
+        ? resolveTemplateFromInvoice(confirmTemplate, inv, undefined, undefined, {
+            nextDueDate: newDueDateStr,
+            paymentDate: paymentConfirmationDate,
+          })
+        : "";
       await callEvolutionApi("send-bulk", {
         messages: [{ phone: inv.clients?.phone, message: messageContent, client_id: inv.client_id, template_type: "confirmacao_pagamento" }],
       });
@@ -903,10 +934,10 @@ export default function Billing() {
                                     variant="outline"
                                     size="sm"
                                     disabled={confirmingPaymentId === inv.id}
-                                    onClick={() => handleConfirmPayment(inv)}
+                                    onClick={() => openConfirmPreview(inv)}
                                     title="Confirmar pagamento"
                                   >
-                                    {confirmingPaymentId === inv.id ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <RefreshCw className="mr-1 h-3 w-3" />}
+                                    {confirmingPaymentId === inv.id ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <CheckCircle className="mr-1 h-3 w-3" />}
                                     Confirmar
                                   </Button>
                                 </>
@@ -1177,6 +1208,48 @@ export default function Billing() {
               Gerar e Copiar Link Pix
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment Confirmation Preview Dialog */}
+      <Dialog open={confirmPreviewOpen} onOpenChange={setConfirmPreviewOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye className="h-5 w-5" />
+              Preview da Confirmação de Pagamento
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex flex-wrap gap-4 text-sm">
+              <div>
+                <span className="text-muted-foreground">Cliente:</span>{" "}
+                <strong>{confirmPreviewInvoice?.clients?.name}</strong>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Próximo vencimento:</span>{" "}
+                <strong>{confirmPreviewNextDue}</strong>
+              </div>
+            </div>
+            <Card className="bg-muted/50">
+              <CardContent className="p-4">
+                <p className="whitespace-pre-wrap text-sm">{confirmPreviewMessage}</p>
+              </CardContent>
+            </Card>
+            <p className="text-xs text-muted-foreground">
+              Ao confirmar, o pagamento será registrado, uma nova fatura será gerada e esta mensagem será enviada via WhatsApp.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmPreviewOpen(false)}>Cancelar</Button>
+            <Button
+              onClick={() => confirmPreviewInvoice && handleConfirmPayment(confirmPreviewInvoice)}
+              disabled={confirmingPaymentId !== null}
+            >
+              {confirmingPaymentId ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CheckCircle className="mr-2 h-4 w-4" />}
+              Confirmar Pagamento
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
