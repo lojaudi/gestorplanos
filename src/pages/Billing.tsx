@@ -39,6 +39,7 @@ import {
   Plus,
   Trash2,
   FileText,
+  Eye,
 } from "lucide-react";
 import {
   Dialog,
