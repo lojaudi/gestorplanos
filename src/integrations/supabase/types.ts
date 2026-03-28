@@ -860,6 +860,30 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_platform_instance: {
+        Row: {
+          created_at: string
+          id: string
+          instance_name: string
+          is_connected: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          instance_name: string
+          is_connected?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          instance_name?: string
+          is_connected?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       whatsapp_verifications: {
         Row: {
           code: string
