@@ -504,6 +504,10 @@ const Clients = () => {
                 </Select>
               </div>
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="clientDueDate">Data de Vencimento</Label>
+              <Input id="clientDueDate" type="date" value={formDueDate} onChange={(e) => setFormDueDate(e.target.value)} />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
