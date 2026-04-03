@@ -24,6 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Users, Search, ChevronLeft, ChevronRight, PenLine } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { BulkEditClientsDialog } from "@/components/clients/BulkEditClientsDialog";
+import { editClientWithInvoiceSync } from "@/lib/client-edit-with-invoice";
 
 type Client = Tables<"clients">;
 type Service = Tables<"services">;
