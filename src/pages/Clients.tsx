@@ -167,21 +167,32 @@ const Clients = () => {
       service_id: formServiceId || null,
       plan_id: formPlanId || null,
     };
-    console.log("[Clients] handleSave payload:", JSON.stringify(payload));
-    console.log("[Clients] editing:", editing?.id, "formPlanId:", formPlanId, "formServiceId:", formServiceId);
     try {
       if (editing) {
-        const { error, data, count } = await supabase.from("clients").update(payload).eq("id", editing.id).select();
-        console.log("[Clients] update result - error:", error, "data:", data, "count:", count);
+        // Update basic fields (name, phone, username, service)
+        const { error, data } = await supabase.from("clients").update(payload).eq("id", editing.id).select();
         if (error) throw error;
         if (!data || data.length === 0) {
-          console.warn("[Clients] Update returned no rows - possible RLS issue");
           toast({ title: "Aviso", description: "A atualização pode não ter sido aplicada. Tente novamente.", variant: "destructive" });
         } else {
-          toast({ title: "Cliente atualizado!" });
+          // Sync invoices if plan or due date changed
+          const result = await editClientWithInvoiceSync({
+            clientId: editing.id,
+            userId: user.id,
+            newPlanId: formPlanId || null,
+            newDueDate: formDueDate || editing.due_date,
+            oldPlanId: editing.plan_id || null,
+            oldDueDate: editing.due_date,
+          });
+          toast({
+            title: result.success ? "Cliente atualizado!" : "Aviso",
+            description: result.message,
+            variant: result.success ? "default" : "destructive",
+          });
         }
       } else {
-        const { error } = await supabase.from("clients").insert({ ...payload, user_id: user.id });
+        const dueDate = formDueDate || new Date().toISOString().split("T")[0];
+        const { error } = await supabase.from("clients").insert({ ...payload, user_id: user.id, due_date: dueDate });
         if (error) throw error;
         toast({ title: "Cliente criado!" });
       }
