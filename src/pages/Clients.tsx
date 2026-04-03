@@ -24,6 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, Users, Search, ChevronLeft, ChevronRight, PenLine } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { BulkEditClientsDialog } from "@/components/clients/BulkEditClientsDialog";
+import { editClientWithInvoiceSync } from "@/lib/client-edit-with-invoice";
 
 type Client = Tables<"clients">;
 type Service = Tables<"services">;
@@ -77,7 +78,7 @@ const Clients = () => {
   const [formUsername, setFormUsername] = useState("");
   const [formServiceId, setFormServiceId] = useState<string>("");
   const [formPlanId, setFormPlanId] = useState<string>("");
-  // formDueDate removed - invoices manage due dates now
+  const [formDueDate, setFormDueDate] = useState<string>("");
 
   const fetchData = async () => {
     if (!user) return;
@@ -135,6 +136,7 @@ const Clients = () => {
     setFormUsername("");
     setFormServiceId("");
     setFormPlanId("");
+    setFormDueDate("");
     setDialogOpen(true);
   };
 
@@ -145,6 +147,7 @@ const Clients = () => {
     setFormUsername(c.username || "");
     setFormServiceId(c.service_id || "");
     setFormPlanId(c.plan_id || "");
+    setFormDueDate(c.due_date || "");
     setDialogOpen(true);
   };
 
@@ -164,21 +167,32 @@ const Clients = () => {
       service_id: formServiceId || null,
       plan_id: formPlanId || null,
     };
-    console.log("[Clients] handleSave payload:", JSON.stringify(payload));
-    console.log("[Clients] editing:", editing?.id, "formPlanId:", formPlanId, "formServiceId:", formServiceId);
     try {
       if (editing) {
-        const { error, data, count } = await supabase.from("clients").update(payload).eq("id", editing.id).select();
-        console.log("[Clients] update result - error:", error, "data:", data, "count:", count);
+        // Update basic fields (name, phone, username, service)
+        const { error, data } = await supabase.from("clients").update(payload).eq("id", editing.id).select();
         if (error) throw error;
         if (!data || data.length === 0) {
-          console.warn("[Clients] Update returned no rows - possible RLS issue");
           toast({ title: "Aviso", description: "A atualização pode não ter sido aplicada. Tente novamente.", variant: "destructive" });
         } else {
-          toast({ title: "Cliente atualizado!" });
+          // Sync invoices if plan or due date changed
+          const result = await editClientWithInvoiceSync({
+            clientId: editing.id,
+            userId: user.id,
+            newPlanId: formPlanId || null,
+            newDueDate: formDueDate || editing.due_date,
+            oldPlanId: editing.plan_id || null,
+            oldDueDate: editing.due_date,
+          });
+          toast({
+            title: result.success ? "Cliente atualizado!" : "Aviso",
+            description: result.message,
+            variant: result.success ? "default" : "destructive",
+          });
         }
       } else {
-        const { error } = await supabase.from("clients").insert({ ...payload, user_id: user.id });
+        const dueDate = formDueDate || new Date().toISOString().split("T")[0];
+        const { error } = await supabase.from("clients").insert({ ...payload, user_id: user.id, due_date: dueDate });
         if (error) throw error;
         toast({ title: "Cliente criado!" });
       }
@@ -489,6 +503,10 @@ const Clients = () => {
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="clientDueDate">Data de Vencimento</Label>
+              <Input id="clientDueDate" type="date" value={formDueDate} onChange={(e) => setFormDueDate(e.target.value)} />
             </div>
           </div>
           <DialogFooter>
