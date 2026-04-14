@@ -192,8 +192,24 @@ const Clients = () => {
         }
       } else {
         const dueDate = formDueDate || new Date().toISOString().split("T")[0];
-        const { error } = await supabase.from("clients").insert({ ...payload, user_id: user.id, due_date: dueDate });
+        const { data: newClient, error } = await supabase.from("clients").insert({ ...payload, user_id: user.id, due_date: dueDate }).select("id").single();
         if (error) throw error;
+
+        // Auto-generate invoice if client has a plan
+        if (newClient && formPlanId) {
+          const { data: plan } = await supabase.from("plans").select("price, name").eq("id", formPlanId).single();
+          if (plan) {
+            await supabase.from("invoices").insert({
+              user_id: user.id,
+              client_id: newClient.id,
+              plan_id: formPlanId,
+              amount: plan.price ?? 0,
+              due_date: dueDate,
+              status: "pending",
+              description: plan.name,
+            });
+          }
+        }
         toast({ title: "Cliente criado!" });
       }
       setDialogOpen(false);
