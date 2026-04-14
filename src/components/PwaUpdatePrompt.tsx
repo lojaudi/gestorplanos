@@ -4,46 +4,52 @@ import { Button } from "@/components/ui/button";
 
 export function PwaUpdatePrompt() {
   const [showUpdate, setShowUpdate] = useState(false);
-  const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null);
+  const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
 
-    const handleControllerChange = () => {
-      window.location.reload();
-    };
+    const detect = async () => {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (!reg) return;
 
-    const checkWaiting = async () => {
-      const registration = await navigator.serviceWorker.getRegistration();
-      if (!registration) return;
-
-      if (registration.waiting) {
-        setWaitingWorker(registration.waiting);
+      // If there's already a waiting worker
+      if (reg.waiting) {
+        setRegistration(reg);
         setShowUpdate(true);
+        return;
       }
 
-      registration.addEventListener("updatefound", () => {
-        const newWorker = registration.installing;
+      // Listen for new service workers
+      reg.addEventListener("updatefound", () => {
+        const newWorker = reg.installing;
         if (!newWorker) return;
+
         newWorker.addEventListener("statechange", () => {
           if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-            setWaitingWorker(newWorker);
+            setRegistration(reg);
             setShowUpdate(true);
           }
         });
       });
+
+      // Also check periodically for updates (every 60s)
+      const interval = setInterval(() => {
+        reg.update().catch(() => {});
+      }, 60 * 1000);
+
+      return () => clearInterval(interval);
     };
 
-    navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange);
-    checkWaiting();
-
-    return () => {
-      navigator.serviceWorker.removeEventListener("controllerchange", handleControllerChange);
-    };
+    detect();
   }, []);
 
   const handleUpdate = () => {
-    waitingWorker?.postMessage({ type: "SKIP_WAITING" });
+    if (registration?.waiting) {
+      registration.waiting.postMessage({ type: "SKIP_WAITING" });
+    }
+    // Reload after a brief delay to let the new SW activate
+    setTimeout(() => window.location.reload(), 300);
   };
 
   if (!showUpdate) return null;
