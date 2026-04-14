@@ -17,7 +17,7 @@ export default defineConfig(({ mode }) => ({
     react(),
     mode === "development" && componentTagger(),
     VitePWA({
-      registerType: "autoUpdate",
+      registerType: "prompt",
       includeAssets: ["favicon.ico", "pwa-192x192.png", "pwa-512x512.png"],
       manifest: false,
       devOptions: {
@@ -27,7 +27,6 @@ export default defineConfig(({ mode }) => ({
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         navigateFallbackDenylist: [/^\/~oauth/],
         cleanupOutdatedCaches: true,
-        skipWaiting: true,
         clientsClaim: true,
       },
     }),
