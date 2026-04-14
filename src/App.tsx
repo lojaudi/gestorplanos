@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { PlatformSettingsProvider } from "@/contexts/PlatformSettingsContext";
 import { PwaInstallPrompt } from "@/components/PwaInstallPrompt";
+import { PwaUpdatePrompt } from "@/components/PwaUpdatePrompt";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
@@ -69,6 +70,7 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
             <PwaInstallPrompt />
+            <PwaUpdatePrompt />
           </PlatformSettingsProvider>
         </AuthProvider>
       </BrowserRouter>
