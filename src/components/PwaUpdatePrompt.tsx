@@ -1,55 +1,110 @@
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { registerSW } from "virtual:pwa-register";
 
 export function PwaUpdatePrompt() {
   const [showUpdate, setShowUpdate] = useState(false);
-  const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const updateSWRef = useRef<((reloadPage?: boolean) => Promise<void>) | null>(null);
 
   useEffect(() => {
-    if (!("serviceWorker" in navigator)) return;
+    if (!("serviceWorker" in navigator) || !import.meta.env.PROD) return;
 
-    const detect = async () => {
-      const reg = await navigator.serviceWorker.getRegistration();
-      if (!reg) return;
-
-      // If there's already a waiting worker
-      if (reg.waiting) {
-        setRegistration(reg);
-        setShowUpdate(true);
-        return;
+    const isInIframe = (() => {
+      try {
+        return window.self !== window.top;
+      } catch {
+        return true;
       }
+    })();
 
-      // Listen for new service workers
-      reg.addEventListener("updatefound", () => {
-        const newWorker = reg.installing;
-        if (!newWorker) return;
+    const isPreviewHost =
+      window.location.hostname.includes("id-preview--") ||
+      window.location.hostname.includes("lovableproject.com");
 
-        newWorker.addEventListener("statechange", () => {
-          if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-            setRegistration(reg);
-            setShowUpdate(true);
-          }
-        });
-      });
+    if (isInIframe || isPreviewHost) return;
 
-      // Also check periodically for updates (every 60s)
-      const interval = setInterval(() => {
-        reg.update().catch(() => {});
-      }, 60 * 1000);
+    let intervalId: number | undefined;
 
-      return () => clearInterval(interval);
+    const recheckForUpdates = async () => {
+      try {
+        const registration = await navigator.serviceWorker.getRegistration();
+        if (!registration) return;
+
+        await registration.update();
+
+        if (registration.waiting) {
+          setShowUpdate(true);
+        }
+      } catch {
+        // ignore silent update check failures
+      }
     };
 
-    detect();
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        void recheckForUpdates();
+      }
+    };
+
+    const handleControllerChange = () => {
+      window.location.reload();
+    };
+
+    updateSWRef.current = registerSW({
+      immediate: true,
+      onNeedRefresh() {
+        setShowUpdate(true);
+      },
+      onRegisteredSW(_swUrl, registration) {
+        if (!registration) return;
+
+        if (registration.waiting) {
+          setShowUpdate(true);
+        }
+
+        void registration.update();
+
+        intervalId = window.setInterval(() => {
+          if (document.visibilityState === "visible") {
+            void registration.update();
+          }
+
+          if (registration.waiting) {
+            setShowUpdate(true);
+          }
+        }, 30 * 1000);
+      },
+    });
+
+    navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange);
+    window.addEventListener("focus", recheckForUpdates);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    void recheckForUpdates();
+
+    return () => {
+      if (intervalId) {
+        window.clearInterval(intervalId);
+      }
+
+      navigator.serviceWorker.removeEventListener("controllerchange", handleControllerChange);
+      window.removeEventListener("focus", recheckForUpdates);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, []);
 
-  const handleUpdate = () => {
-    if (registration?.waiting) {
-      registration.waiting.postMessage({ type: "SKIP_WAITING" });
+  const handleUpdate = async () => {
+    if (!updateSWRef.current) return;
+
+    setIsUpdating(true);
+
+    try {
+      await updateSWRef.current(true);
+    } catch {
+      window.location.reload();
     }
-    // Reload after a brief delay to let the new SW activate
-    setTimeout(() => window.location.reload(), 300);
   };
 
   if (!showUpdate) return null;
@@ -57,12 +112,12 @@ export function PwaUpdatePrompt() {
   return (
     <div className="fixed top-4 inset-x-0 z-50 flex justify-center px-4 animate-in slide-in-from-top duration-300">
       <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-5 py-3 shadow-lg max-w-md w-full">
-        <RefreshCw className="h-5 w-5 text-primary shrink-0" />
+        <RefreshCw className={`h-5 w-5 text-primary shrink-0 ${isUpdating ? "animate-spin" : ""}`} />
         <p className="text-sm text-foreground flex-1">
           Nova versão disponível!
         </p>
-        <Button size="sm" onClick={handleUpdate}>
-          Atualizar
+        <Button size="sm" onClick={() => void handleUpdate()} disabled={isUpdating}>
+          {isUpdating ? "Atualizando..." : "Atualizar"}
         </Button>
       </div>
     </div>
