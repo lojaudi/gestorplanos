@@ -38,7 +38,9 @@ type ClientWithRelations = Client & {
 const getStatus = (dueDate: string) => {
   if (!dueDate) return "sem_fatura";
   const today = new Date().toISOString().split("T")[0];
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
   if (dueDate === today) return "vencendo";
+  if (dueDate === tomorrow) return "vence_amanha";
   if (dueDate < today) return "vencido";
   return "ativo";
 };
@@ -46,6 +48,7 @@ const getStatus = (dueDate: string) => {
 const statusConfig: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
   ativo: { label: "Ativo", variant: "default" },
   vencendo: { label: "Vencendo Hoje", variant: "secondary" },
+  vence_amanha: { label: "Vence Amanhã", variant: "outline" },
   vencido: { label: "Vencido", variant: "destructive" },
   sem_fatura: { label: "Sem Fatura", variant: "outline" },
 };
@@ -309,6 +312,7 @@ const Clients = () => {
             <SelectItem value="all">Todos os Status</SelectItem>
             <SelectItem value="ativo">Ativos</SelectItem>
             <SelectItem value="vencendo">Vencendo Hoje</SelectItem>
+            <SelectItem value="vence_amanha">Vence Amanhã</SelectItem>
             <SelectItem value="vencido">Vencidos</SelectItem>
           </SelectContent>
         </Select>
