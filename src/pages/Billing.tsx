@@ -109,7 +109,7 @@ interface Plan {
   duration_months: number;
 }
 
-type FilterType = "all" | "due_today" | "overdue" | "pending" | "paid";
+type FilterType = "all" | "due_today" | "due_tomorrow" | "overdue" | "pending" | "paid";
 
 export default function Billing() {
   const { user } = useAuth();
@@ -232,6 +232,7 @@ export default function Billing() {
       const matchesFilter = (() => {
         switch (filter) {
           case "due_today": return inv.due_date === today && inv.status !== "paid";
+          case "due_tomorrow": return inv.due_date === tomorrow && inv.status !== "paid";
           case "overdue": return inv.due_date < today && inv.status !== "paid";
           case "pending": return inv.status === "pending";
           case "paid": return inv.status === "paid";
@@ -261,6 +262,7 @@ export default function Billing() {
     if (inv.status === "paid") return { label: "Pago", variant: "default" as const };
     if (inv.due_date < today) return { label: "Vencido", variant: "destructive" as const };
     if (inv.due_date === today) return { label: "Vence Hoje", variant: "secondary" as const };
+    if (inv.due_date === tomorrow) return { label: "Vence Amanhã", variant: "outline" as const };
     return { label: "Pendente", variant: "outline" as const };
   };
 
@@ -859,6 +861,7 @@ export default function Billing() {
               <SelectContent>
                 <SelectItem value="all">Todas</SelectItem>
                 <SelectItem value="due_today">Vence Hoje</SelectItem>
+                <SelectItem value="due_tomorrow">Vence Amanhã</SelectItem>
                 <SelectItem value="overdue">Vencidas</SelectItem>
                 <SelectItem value="pending">Pendentes</SelectItem>
                 <SelectItem value="paid">Pagas</SelectItem>
