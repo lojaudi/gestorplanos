@@ -62,6 +62,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { formatDateBRT, getTodayBRT, shiftDateBRT } from "@/lib/date-brt";
 
 interface Client {
   id: string;
@@ -752,7 +753,7 @@ export default function Billing() {
           setInvoiceClientId("");
           setInvoicePlanId("");
           setInvoiceAmount("");
-          setInvoiceDueDate(new Date().toISOString().split("T")[0]);
+          setInvoiceDueDate(getTodayBRT());
           setInvoiceDescription("");
           setInvoiceDialogOpen(true);
         }}>
