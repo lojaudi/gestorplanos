@@ -224,8 +224,8 @@ export default function Billing() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const today = new Date().toISOString().split("T")[0];
-  const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+  const today = getTodayBRT();
+  const tomorrow = shiftDateBRT(1);
 
   const filteredInvoices = useMemo(() => {
     return invoices.filter((inv) => {
@@ -916,7 +916,7 @@ export default function Billing() {
                               ? `R$ ${inv.amount.toFixed(2).replace(".", ",")}`
                               : "—"}
                           </TableCell>
-                          <TableCell>{new Date(inv.due_date + "T12:00:00").toLocaleDateString("pt-BR")}</TableCell>
+                          <TableCell>{formatDateBRT(inv.due_date)}</TableCell>
                           <TableCell>
                             <Badge variant={status.variant}>{status.label}</Badge>
                           </TableCell>
