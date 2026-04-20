@@ -412,7 +412,7 @@ const Clients = () => {
                           ? `R$ ${c.plans.price.toFixed(2).replace(".", ",")}`
                           : "—"}
                       </TableCell>
-                      <TableCell>{new Date(c.due_date + "T00:00:00").toLocaleDateString("pt-BR")}</TableCell>
+                      <TableCell>{formatDateBRT(c.due_date)}</TableCell>
                       <TableCell>
                         <Badge variant={cfg.variant}>{cfg.label}</Badge>
                       </TableCell>
