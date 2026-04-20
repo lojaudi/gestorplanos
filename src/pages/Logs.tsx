@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/table";
 import { toast } from "@/hooks/use-toast";
 import { Settings, RefreshCw, Loader2 } from "lucide-react";
-import { format } from "date-fns";
+import { formatDateTimeBRT } from "@/lib/date-brt";
 
 interface MessageLog {
   id: string;
@@ -108,7 +108,7 @@ export default function Logs() {
               {logs.map((log) => (
                 <TableRow key={log.id}>
                   <TableCell className="whitespace-nowrap">
-                    {format(new Date(log.sent_at), "dd/MM/yyyy HH:mm")}
+                    {formatDateTimeBRT(log.sent_at)}
                   </TableCell>
                   <TableCell>{log.client_name}</TableCell>
                   <TableCell>

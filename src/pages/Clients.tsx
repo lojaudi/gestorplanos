@@ -25,6 +25,7 @@ import { Plus, Pencil, Trash2, Users, Search, ChevronLeft, ChevronRight, PenLine
 import type { Tables } from "@/integrations/supabase/types";
 import { BulkEditClientsDialog } from "@/components/clients/BulkEditClientsDialog";
 import { editClientWithInvoiceSync } from "@/lib/client-edit-with-invoice";
+import { formatDateBRT, getTodayBRT, shiftDateBRT } from "@/lib/date-brt";
 
 type Client = Tables<"clients">;
 type Service = Tables<"services">;
@@ -37,8 +38,8 @@ type ClientWithRelations = Client & {
 
 const getStatus = (dueDate: string) => {
   if (!dueDate) return "sem_fatura";
-  const today = new Date().toISOString().split("T")[0];
-  const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+  const today = getTodayBRT();
+  const tomorrow = shiftDateBRT(1);
   if (dueDate === today) return "vencendo";
   if (dueDate === tomorrow) return "vence_amanha";
   if (dueDate < today) return "vencido";
@@ -411,7 +412,7 @@ const Clients = () => {
                           ? `R$ ${c.plans.price.toFixed(2).replace(".", ",")}`
                           : "—"}
                       </TableCell>
-                      <TableCell>{new Date(c.due_date + "T00:00:00").toLocaleDateString("pt-BR")}</TableCell>
+                      <TableCell>{formatDateBRT(c.due_date)}</TableCell>
                       <TableCell>
                         <Badge variant={cfg.variant}>{cfg.label}</Badge>
                       </TableCell>
