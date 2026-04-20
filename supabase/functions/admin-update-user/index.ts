@@ -51,29 +51,45 @@ Deno.serve(async (req) => {
 
     const { user_id, email, password } = await req.json();
     if (!user_id) {
-      return new Response(JSON.stringify({ error: "user_id is required" }), {
+      return new Response(JSON.stringify({ error: "user_id é obrigatório" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const updates: Record<string, string> = {};
-    if (email) updates.email = email;
+    if (password && password.length < 6) {
+      return new Response(
+        JSON.stringify({ error: "A senha deve ter pelo menos 6 caracteres" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    const updates: Record<string, unknown> = {};
+    if (email) {
+      updates.email = email;
+      // Admin-initiated change: skip the email confirmation flow
+      updates.email_confirm = true;
+    }
     if (password) updates.password = password;
+
+    console.log("[admin-update-user] updating", user_id, Object.keys(updates));
 
     const { data, error } = await adminClient.auth.admin.updateUserById(user_id, updates);
     if (error) {
+      console.error("[admin-update-user] supabase error:", error);
       return new Response(JSON.stringify({ error: error.message }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    return new Response(JSON.stringify({ success: true }), {
+    return new Response(JSON.stringify({ success: true, user: data?.user?.id }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[admin-update-user] unhandled error:", message);
+    return new Response(JSON.stringify({ error: message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });

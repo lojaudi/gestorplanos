@@ -93,6 +93,10 @@ export function EditUserDialog({ user, open, onOpenChange, onUpdated }: EditUser
       toast({ title: "O campo Nome Completo é obrigatório", variant: "destructive" });
       return;
     }
+    if (newPassword && newPassword.length < 6) {
+      toast({ title: "A senha deve ter pelo menos 6 caracteres", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     try {
       const planId = selectedPlanId === "none" ? null : selectedPlanId;
@@ -104,7 +108,6 @@ export function EditUserDialog({ user, open, onOpenChange, onUpdated }: EditUser
         if (selectedPlan) {
           const now = new Date();
           if (selectedPlan.name === "Free") {
-            // Free/trial: 7 days
             now.setDate(now.getDate() + 7);
           } else {
             now.setMonth(now.getMonth() + selectedPlan.duration_months);
@@ -130,8 +133,11 @@ export function EditUserDialog({ user, open, onOpenChange, onUpdated }: EditUser
         const { data, error } = await supabase.functions.invoke("admin-update-user", {
           body: { user_id: user.user_id, ...updates },
         });
-        if (error) throw error;
-        if (data?.error) throw new Error(data.error);
+        // Edge function returns a JSON error body even on non-2xx; surface that message.
+        const fnMessage = (data as any)?.error;
+        if (error || fnMessage) {
+          throw new Error(fnMessage || error?.message || "Falha ao atualizar credenciais");
+        }
       }
 
       toast({ title: "Usuário atualizado com sucesso" });
