@@ -122,7 +122,7 @@ const MoneyCard = ({
     if (!user) return;
 
     const fetchStats = async () => {
-      const today = new Date().toISOString().split("T")[0];
+      const today = getTodayBRT();
       const now = new Date();
       const currentMonth = now.getMonth();
       const currentYear = now.getFullYear();
