@@ -195,7 +195,7 @@ const Clients = () => {
           });
         }
       } else {
-        const dueDate = formDueDate || new Date().toISOString().split("T")[0];
+        const dueDate = formDueDate || getTodayBRT();
         const { data: newClient, error } = await supabase.from("clients").insert({ ...payload, user_id: user.id, due_date: dueDate }).select("id").single();
         if (error) throw error;
 
@@ -240,7 +240,7 @@ const Clients = () => {
   };
 
   const expiredClients = useMemo(() => {
-    const today = new Date().toISOString().split("T")[0];
+    const today = getTodayBRT();
     return clients.filter((c) => c.due_date < today);
   }, [clients]);
 

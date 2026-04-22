@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { getTodayBRT } from "@/lib/date-brt";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -122,7 +123,7 @@ const MoneyCard = ({
     if (!user) return;
 
     const fetchStats = async () => {
-      const today = new Date().toISOString().split("T")[0];
+      const today = getTodayBRT();
       const now = new Date();
       const currentMonth = now.getMonth();
       const currentYear = now.getFullYear();
