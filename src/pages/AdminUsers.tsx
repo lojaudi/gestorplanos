@@ -229,7 +229,7 @@ const AdminUsers = () => {
           { label: "Templates", value: metrics.totalTemplates },
           { label: "Mensagens Enviadas", value: metrics.totalMessages },
         ].map((item) => (
-          <Card key={item.label}>
+          <Card key={item.label} className={item.label === "Mensagens Enviadas" ? "cursor-pointer hover:bg-muted/50 transition-colors" : ""} onClick={() => item.label === "Mensagens Enviadas" && (window.location.href = "/admin/logs")}>
             <CardContent className="p-4 text-center">
               <p className="text-sm text-muted-foreground">{item.label}</p>
               <p className="text-xl font-bold">{item.value}</p>
