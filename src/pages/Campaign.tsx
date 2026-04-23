@@ -175,9 +175,15 @@ export default function Campaign() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Campanha</h1>
-        <p className="text-muted-foreground">Envie mensagens e imagens para seus clientes via WhatsApp.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Campanha</h1>
+          <p className="text-muted-foreground">Envie mensagens e imagens para seus clientes via WhatsApp.</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => navigate("/logs")}>
+          <ClipboardList className="mr-2 h-4 w-4" />
+          Ver Logs de Envio
+        </Button>
       </div>
 
       <CampaignImageCreator onImageReady={handleAiImageReady} />
