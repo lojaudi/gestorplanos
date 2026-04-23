@@ -54,6 +54,7 @@ interface PlatformMetrics {
 
 const AdminUsers = () => {
   const { isAdmin, isLoading: authLoading } = useAuth();
+  const navigate = useNavigate();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [metrics, setMetrics] = useState<PlatformMetrics>({
     totalUsers: 0,
