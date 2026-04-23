@@ -306,6 +306,14 @@ const AdminUsers = () => {
                       <Button
                         variant="ghost"
                         size="icon"
+                        title="Ver Logs de Envio"
+                        onClick={() => navigate(`/admin/logs?userId=${user.user_id}`)}
+                      >
+                        <ClipboardList className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={() => { setEditUser(user); setEditOpen(true); }}
                       >
                         <Pencil className="h-4 w-4" />
