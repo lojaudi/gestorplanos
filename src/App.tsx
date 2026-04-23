@@ -22,6 +22,7 @@ import AdminTutorials from "./pages/AdminTutorials";
 import WhatsApp from "./pages/WhatsApp";
 import Billing from "./pages/Billing";
 import Logs from "./pages/Logs";
+import AdminLogs from "./pages/AdminLogs";
 import PaymentGateway from "./pages/PaymentGateway";
 import PaymentPage from "./pages/PaymentPage";
 import Profile from "./pages/Profile";
