@@ -108,9 +108,13 @@ export default function AdminLogs() {
       <div>
         <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
           <ClipboardList className="h-6 w-6 text-primary" />
-          Logs Globais de Envio
+          {filterUserId ? "Logs do Usuário" : "Logs Globais de Envio"}
         </h1>
-        <p className="text-muted-foreground">Histórico de todas as mensagens enviadas via WhatsApp na plataforma</p>
+        <p className="text-muted-foreground">
+          {filterUserId 
+            ? `Mostrando histórico de mensagens para o usuário selecionado` 
+            : "Histórico de todas as mensagens enviadas via WhatsApp na plataforma"}
+        </p>
       </div>
 
       <Card>
