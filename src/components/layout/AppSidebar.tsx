@@ -88,6 +88,7 @@ const adminNav: NavEntry[] = [
       { icon: Settings, label: "Configuração Geral", path: "/admin/settings" },
       { icon: Globe, label: "Config. WhatsApp Global", path: "/admin/settings" },
       { icon: Video, label: "Gerenciamento de Tutoriais", path: "/admin/tutorials" },
+      { icon: ClipboardList, label: "Logs Globais", path: "/admin/logs" },
     ],
   },
   {
