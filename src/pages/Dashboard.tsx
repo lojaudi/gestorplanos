@@ -222,6 +222,7 @@ const MoneyCard = ({
     { icon: Megaphone, label: "Campanhas", description: "Enviar mensagens", path: "/campaign" },
     { icon: FileText, label: "Templates", description: "Modelos de mensagem", path: "/templates" },
     { icon: MessageSquare, label: "WhatsApp", description: "Configurar API", path: "/whatsapp" },
+    { icon: Activity, label: "Logs de Envio", description: "Histórico de mensagens", path: "/logs" },
   ];
 
   return (
