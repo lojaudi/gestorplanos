@@ -21,6 +21,7 @@ import {
   UserX,
   Shield,
   BarChart3,
+  ClipboardList,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
