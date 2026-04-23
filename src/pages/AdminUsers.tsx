@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navigate } from "react-router-dom";
@@ -20,6 +21,7 @@ import {
   UserX,
   Shield,
   BarChart3,
+  ClipboardList,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -53,6 +55,7 @@ interface PlatformMetrics {
 
 const AdminUsers = () => {
   const { isAdmin, isLoading: authLoading } = useAuth();
+  const navigate = useNavigate();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [metrics, setMetrics] = useState<PlatformMetrics>({
     totalUsers: 0,
@@ -229,7 +232,7 @@ const AdminUsers = () => {
           { label: "Templates", value: metrics.totalTemplates },
           { label: "Mensagens Enviadas", value: metrics.totalMessages },
         ].map((item) => (
-          <Card key={item.label}>
+          <Card key={item.label} className={item.label === "Mensagens Enviadas" ? "cursor-pointer hover:bg-muted/50 transition-colors" : ""} onClick={() => item.label === "Mensagens Enviadas" && (window.location.href = "/admin/logs")}>
             <CardContent className="p-4 text-center">
               <p className="text-sm text-muted-foreground">{item.label}</p>
               <p className="text-xl font-bold">{item.value}</p>
@@ -300,6 +303,14 @@ const AdminUsers = () => {
                         checked={user.is_active}
                         onCheckedChange={() => toggleActive(user)}
                       />
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        title="Ver Logs de Envio"
+                        onClick={() => navigate(`/admin/logs?userId=${user.user_id}`)}
+                      >
+                        <ClipboardList className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"

@@ -58,6 +58,7 @@ function isGroup(entry: NavEntry): entry is NavGroup {
 const userNav: NavEntry[] = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
   { icon: Users, label: "Clientes", path: "/clients" },
+  { icon: ClipboardList, label: "Logs de Envio", path: "/logs" },
   { icon: CreditCard, label: "Faturamento", path: "/billing" },
   { icon: BarChart3, label: "Relatórios", path: "/reports" },
   { icon: Megaphone, label: "Campanhas", path: "/campaign" },
@@ -87,6 +88,7 @@ const adminNav: NavEntry[] = [
       { icon: Settings, label: "Configuração Geral", path: "/admin/settings" },
       { icon: Globe, label: "Config. WhatsApp Global", path: "/admin/settings" },
       { icon: Video, label: "Gerenciamento de Tutoriais", path: "/admin/tutorials" },
+      { icon: ClipboardList, label: "Logs Globais", path: "/admin/logs" },
     ],
   },
   {

@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "@/hooks/use-toast";
-import { Megaphone, ImagePlus, Send, Users, UserCheck, UserX, Loader2, X } from "lucide-react";
+import { Megaphone, ImagePlus, Send, Users, UserCheck, UserX, Loader2, X, ClipboardList } from "lucide-react";
 import { CampaignImageCreator } from "@/components/campaign/CampaignImageCreator";
 
 interface Client {
@@ -26,6 +27,7 @@ function getStatus(dueDate: string): "ativo" | "vencido" {
 
 export default function Campaign() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [message, setMessage] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -173,9 +175,15 @@ export default function Campaign() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Campanha</h1>
-        <p className="text-muted-foreground">Envie mensagens e imagens para seus clientes via WhatsApp.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Campanha</h1>
+          <p className="text-muted-foreground">Envie mensagens e imagens para seus clientes via WhatsApp.</p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => navigate("/logs")}>
+          <ClipboardList className="mr-2 h-4 w-4" />
+          Ver Logs de Envio
+        </Button>
       </div>
 
       <CampaignImageCreator onImageReady={handleAiImageReady} />

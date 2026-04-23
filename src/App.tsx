@@ -22,6 +22,7 @@ import AdminTutorials from "./pages/AdminTutorials";
 import WhatsApp from "./pages/WhatsApp";
 import Billing from "./pages/Billing";
 import Logs from "./pages/Logs";
+import AdminLogs from "./pages/AdminLogs";
 import PaymentGateway from "./pages/PaymentGateway";
 import PaymentPage from "./pages/PaymentPage";
 import Profile from "./pages/Profile";
@@ -58,6 +59,7 @@ const App = () => (
               <Route path="/payment-gateway" element={<ProtectedPage><PaymentGateway /></ProtectedPage>} />
               <Route path="/profile" element={<ProtectedPage><Profile /></ProtectedPage>} />
               <Route path="/admin/users" element={<ProtectedPage><AdminUsers /></ProtectedPage>} />
+              <Route path="/admin/logs" element={<ProtectedPage><AdminLogs /></ProtectedPage>} />
               <Route path="/admin/settings" element={<ProtectedPage><AdminSettings /></ProtectedPage>} />
               <Route path="/admin/plans" element={<ProtectedPage><AdminPlans /></ProtectedPage>} />
               <Route path="/admin/tutorials" element={<ProtectedPage><AdminTutorials /></ProtectedPage>} />
