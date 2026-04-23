@@ -31,6 +31,8 @@ interface MessageLog {
 
 export default function AdminLogs() {
   const { isAdmin } = useAuth();
+  const [searchParams] = useSearchParams();
+  const filterUserId = searchParams.get("userId");
   const [logs, setLogs] = useState<MessageLog[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -39,11 +41,17 @@ export default function AdminLogs() {
     setLoading(true);
 
     try {
-      const { data: logsData, error } = await supabase
+      let query = supabase
         .from("message_logs")
         .select("*")
         .order("sent_at", { ascending: false })
         .limit(200);
+
+      if (filterUserId) {
+        query = query.eq("user_id", filterUserId);
+      }
+
+      const { data: logsData, error } = await query;
 
       if (error) throw error;
 
