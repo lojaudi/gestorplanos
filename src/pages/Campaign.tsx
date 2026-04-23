@@ -27,6 +27,7 @@ function getStatus(dueDate: string): "ativo" | "vencido" {
 
 export default function Campaign() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [message, setMessage] = useState("");
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
