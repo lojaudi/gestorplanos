@@ -29,9 +29,20 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Settings, RefreshCw, Loader2, FilterX, Download } from "lucide-react";
+import { Settings, RefreshCw, Loader2, FilterX, Download, Trash2 } from "lucide-react";
 import { formatDateTimeBRT } from "@/lib/date-brt";
 import { toast } from "@/hooks/use-toast";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface MessageLog {
   id: string;
