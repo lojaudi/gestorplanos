@@ -78,6 +78,11 @@ export default function Logs() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
 
+  // Selection / deletion
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState<null | "selected" | "all" | "filtered">(null);
+
   const enrichWithClientNames = useCallback(async (rows: MessageLog[]) => {
     const clientIds = [...new Set(rows.filter((l) => l.client_id).map((l) => l.client_id!))];
     if (clientIds.length === 0) {
