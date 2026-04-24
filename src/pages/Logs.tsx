@@ -596,6 +596,41 @@ export default function Logs() {
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={confirmOpen !== null} onOpenChange={(open) => !open && !deleting && setConfirmOpen(null)}>
+        <AlertDialogContent className="w-[calc(100%-2rem)] max-h-[85vh] overflow-y-auto">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmOpen === "all"
+                ? "Excluir TODOS os logs?"
+                : confirmOpen === "filtered"
+                ? "Excluir logs filtrados?"
+                : "Excluir logs selecionados?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmOpen === "all" && (
+                <>Esta ação removerá <strong>todos os {totalCount ?? logs.length} registros</strong> de logs de envio da sua conta. Não pode ser desfeita.</>
+              )}
+              {confirmOpen === "filtered" && (
+                <>Serão removidos <strong>{filteredLogs.length} registro(s)</strong> que correspondem aos filtros atuais. Esta ação não pode ser desfeita.</>
+              )}
+              {confirmOpen === "selected" && (
+                <>Serão removidos <strong>{selected.size} registro(s)</strong> selecionado(s). Esta ação não pode ser desfeita.</>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); if (confirmOpen) performDelete(confirmOpen); }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Excluindo...</>) : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
