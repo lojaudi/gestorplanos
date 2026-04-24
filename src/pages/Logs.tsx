@@ -476,6 +476,13 @@ export default function Logs() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[40px]">
+                  <Checkbox
+                    checked={allOnPageSelected ? true : someOnPageSelected ? "indeterminate" : false}
+                    onCheckedChange={(v) => togglePage(v === true)}
+                    aria-label="Selecionar todos da página"
+                  />
+                </TableHead>
                 <TableHead>Data/Hora</TableHead>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Tipo</TableHead>
@@ -485,7 +492,14 @@ export default function Logs() {
             </TableHeader>
             <TableBody>
               {paginatedLogs.map((log) => (
-                <TableRow key={log.id}>
+                <TableRow key={log.id} data-state={selected.has(log.id) ? "selected" : undefined}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selected.has(log.id)}
+                      onCheckedChange={(v) => toggleOne(log.id, v === true)}
+                      aria-label="Selecionar log"
+                    />
+                  </TableCell>
                   <TableCell className="whitespace-nowrap">
                     {formatDateTimeBRT(log.sent_at)}
                   </TableCell>
@@ -506,7 +520,7 @@ export default function Logs() {
               ))}
               {paginatedLogs.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-10">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
                     {logs.length === 0
                       ? "Nenhuma mensagem enviada ainda"
                       : "Nenhum resultado para os filtros aplicados"}
