@@ -29,9 +29,20 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@/components/ui/pagination";
-import { Settings, RefreshCw, Loader2, FilterX, Download } from "lucide-react";
+import { Settings, RefreshCw, Loader2, FilterX, Download, Trash2 } from "lucide-react";
 import { formatDateTimeBRT } from "@/lib/date-brt";
 import { toast } from "@/hooks/use-toast";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface MessageLog {
   id: string;
@@ -66,6 +77,11 @@ export default function Logs() {
   // Pagination
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+
+  // Selection / deletion
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState<null | "selected" | "all" | "filtered">(null);
 
   const enrichWithClientNames = useCallback(async (rows: MessageLog[]) => {
     const clientIds = [...new Set(rows.filter((l) => l.client_id).map((l) => l.client_id!))];
@@ -173,6 +189,95 @@ export default function Logs() {
     const start = (currentPage - 1) * pageSize;
     return filteredLogs.slice(start, start + pageSize);
   }, [filteredLogs, currentPage, pageSize]);
+
+  // Selection helpers
+  const allOnPageSelected =
+    paginatedLogs.length > 0 && paginatedLogs.every((l) => selected.has(l.id));
+  const someOnPageSelected =
+    paginatedLogs.some((l) => selected.has(l.id)) && !allOnPageSelected;
+
+  const toggleOne = (id: string, checked: boolean) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  const togglePage = (checked: boolean) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      paginatedLogs.forEach((l) => {
+        if (checked) next.add(l.id);
+        else next.delete(l.id);
+      });
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelected(new Set());
+
+  // Clear stale selection when underlying logs change
+  useEffect(() => {
+    setSelected((prev) => {
+      const validIds = new Set(logs.map((l) => l.id));
+      const next = new Set<string>();
+      prev.forEach((id) => { if (validIds.has(id)) next.add(id); });
+      return next;
+    });
+  }, [logs]);
+
+  const performDelete = async (mode: "selected" | "all" | "filtered") => {
+    if (!user) return;
+    setDeleting(true);
+    try {
+      let deletedCount = 0;
+      if (mode === "all") {
+        const { error, count } = await supabase
+          .from("message_logs")
+          .delete({ count: "exact" })
+          .eq("user_id", user.id);
+        if (error) throw error;
+        deletedCount = count ?? 0;
+      } else {
+        const ids =
+          mode === "selected"
+            ? Array.from(selected)
+            : filteredLogs.map((l) => l.id);
+        if (ids.length === 0) {
+          setDeleting(false);
+          setConfirmOpen(null);
+          return;
+        }
+        // Chunk to avoid URL length limits
+        const chunkSize = 200;
+        for (let i = 0; i < ids.length; i += chunkSize) {
+          const chunk = ids.slice(i, i + chunkSize);
+          const { error, count } = await supabase
+            .from("message_logs")
+            .delete({ count: "exact" })
+            .eq("user_id", user.id)
+            .in("id", chunk);
+          if (error) throw error;
+          deletedCount += count ?? 0;
+        }
+      }
+      toast({
+        title: "Logs excluídos",
+        description: `${deletedCount} registro(s) removido(s).`,
+      });
+      clearSelection();
+      setConfirmOpen(null);
+      await fetchInitial();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erro desconhecido";
+      toast({ title: "Erro ao excluir", description: message, variant: "destructive" });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
 
   const clearFilters = () => {
     setStartDate("");
@@ -319,7 +424,44 @@ export default function Logs() {
               Carregados {logs.length}{totalCount !== null ? ` de ${totalCount}` : ""} registros
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {selected.size > 0 && (
+              <>
+                <span className="text-sm text-muted-foreground">
+                  {selected.size} selecionado(s)
+                </span>
+                <Button variant="ghost" size="sm" onClick={clearSelection}>
+                  Limpar seleção
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setConfirmOpen("selected")}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Excluir selecionados
+                </Button>
+              </>
+            )}
+            {hasActiveFilters && filteredLogs.length > 0 && selected.size === 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setConfirmOpen("filtered")}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Excluir filtrados
+              </Button>
+            )}
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setConfirmOpen("all")}
+              disabled={(totalCount ?? 0) === 0}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Excluir tudo
+            </Button>
             <Button variant="outline" size="sm" onClick={exportCSV}>
               <Download className="mr-2 h-4 w-4" />
               Exportar CSV
@@ -334,6 +476,13 @@ export default function Logs() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[40px]">
+                  <Checkbox
+                    checked={allOnPageSelected ? true : someOnPageSelected ? "indeterminate" : false}
+                    onCheckedChange={(v) => togglePage(v === true)}
+                    aria-label="Selecionar todos da página"
+                  />
+                </TableHead>
                 <TableHead>Data/Hora</TableHead>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Tipo</TableHead>
@@ -343,7 +492,14 @@ export default function Logs() {
             </TableHeader>
             <TableBody>
               {paginatedLogs.map((log) => (
-                <TableRow key={log.id}>
+                <TableRow key={log.id} data-state={selected.has(log.id) ? "selected" : undefined}>
+                  <TableCell>
+                    <Checkbox
+                      checked={selected.has(log.id)}
+                      onCheckedChange={(v) => toggleOne(log.id, v === true)}
+                      aria-label="Selecionar log"
+                    />
+                  </TableCell>
                   <TableCell className="whitespace-nowrap">
                     {formatDateTimeBRT(log.sent_at)}
                   </TableCell>
@@ -364,7 +520,7 @@ export default function Logs() {
               ))}
               {paginatedLogs.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center text-muted-foreground py-10">
+                  <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
                     {logs.length === 0
                       ? "Nenhuma mensagem enviada ainda"
                       : "Nenhum resultado para os filtros aplicados"}
@@ -440,6 +596,41 @@ export default function Logs() {
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog open={confirmOpen !== null} onOpenChange={(open) => !open && !deleting && setConfirmOpen(null)}>
+        <AlertDialogContent className="w-[calc(100%-2rem)] max-h-[85vh] overflow-y-auto">
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmOpen === "all"
+                ? "Excluir TODOS os logs?"
+                : confirmOpen === "filtered"
+                ? "Excluir logs filtrados?"
+                : "Excluir logs selecionados?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmOpen === "all" && (
+                <>Esta ação removerá <strong>todos os {totalCount ?? logs.length} registros</strong> de logs de envio da sua conta. Não pode ser desfeita.</>
+              )}
+              {confirmOpen === "filtered" && (
+                <>Serão removidos <strong>{filteredLogs.length} registro(s)</strong> que correspondem aos filtros atuais. Esta ação não pode ser desfeita.</>
+              )}
+              {confirmOpen === "selected" && (
+                <>Serão removidos <strong>{selected.size} registro(s)</strong> selecionado(s). Esta ação não pode ser desfeita.</>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); if (confirmOpen) performDelete(confirmOpen); }}
+              disabled={deleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleting ? (<><Loader2 className="mr-2 h-4 w-4 animate-spin" />Excluindo...</>) : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
