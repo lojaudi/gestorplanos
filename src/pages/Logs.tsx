@@ -424,7 +424,44 @@ export default function Logs() {
               Carregados {logs.length}{totalCount !== null ? ` de ${totalCount}` : ""} registros
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {selected.size > 0 && (
+              <>
+                <span className="text-sm text-muted-foreground">
+                  {selected.size} selecionado(s)
+                </span>
+                <Button variant="ghost" size="sm" onClick={clearSelection}>
+                  Limpar seleção
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => setConfirmOpen("selected")}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Excluir selecionados
+                </Button>
+              </>
+            )}
+            {hasActiveFilters && filteredLogs.length > 0 && selected.size === 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setConfirmOpen("filtered")}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Excluir filtrados
+              </Button>
+            )}
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setConfirmOpen("all")}
+              disabled={(totalCount ?? 0) === 0}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Excluir tudo
+            </Button>
             <Button variant="outline" size="sm" onClick={exportCSV}>
               <Download className="mr-2 h-4 w-4" />
               Exportar CSV
