@@ -190,6 +190,95 @@ export default function Logs() {
     return filteredLogs.slice(start, start + pageSize);
   }, [filteredLogs, currentPage, pageSize]);
 
+  // Selection helpers
+  const allOnPageSelected =
+    paginatedLogs.length > 0 && paginatedLogs.every((l) => selected.has(l.id));
+  const someOnPageSelected =
+    paginatedLogs.some((l) => selected.has(l.id)) && !allOnPageSelected;
+
+  const toggleOne = (id: string, checked: boolean) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  const togglePage = (checked: boolean) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      paginatedLogs.forEach((l) => {
+        if (checked) next.add(l.id);
+        else next.delete(l.id);
+      });
+      return next;
+    });
+  };
+
+  const clearSelection = () => setSelected(new Set());
+
+  // Clear stale selection when underlying logs change
+  useEffect(() => {
+    setSelected((prev) => {
+      const validIds = new Set(logs.map((l) => l.id));
+      const next = new Set<string>();
+      prev.forEach((id) => { if (validIds.has(id)) next.add(id); });
+      return next;
+    });
+  }, [logs]);
+
+  const performDelete = async (mode: "selected" | "all" | "filtered") => {
+    if (!user) return;
+    setDeleting(true);
+    try {
+      let deletedCount = 0;
+      if (mode === "all") {
+        const { error, count } = await supabase
+          .from("message_logs")
+          .delete({ count: "exact" })
+          .eq("user_id", user.id);
+        if (error) throw error;
+        deletedCount = count ?? 0;
+      } else {
+        const ids =
+          mode === "selected"
+            ? Array.from(selected)
+            : filteredLogs.map((l) => l.id);
+        if (ids.length === 0) {
+          setDeleting(false);
+          setConfirmOpen(null);
+          return;
+        }
+        // Chunk to avoid URL length limits
+        const chunkSize = 200;
+        for (let i = 0; i < ids.length; i += chunkSize) {
+          const chunk = ids.slice(i, i + chunkSize);
+          const { error, count } = await supabase
+            .from("message_logs")
+            .delete({ count: "exact" })
+            .eq("user_id", user.id)
+            .in("id", chunk);
+          if (error) throw error;
+          deletedCount += count ?? 0;
+        }
+      }
+      toast({
+        title: "Logs excluídos",
+        description: `${deletedCount} registro(s) removido(s).`,
+      });
+      clearSelection();
+      setConfirmOpen(null);
+      await fetchInitial();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erro desconhecido";
+      toast({ title: "Erro ao excluir", description: message, variant: "destructive" });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+
   const clearFilters = () => {
     setStartDate("");
     setEndDate("");
