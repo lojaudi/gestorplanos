@@ -100,8 +100,8 @@ export default function PaymentGateway() {
         pix_key: pixKey,
       });
       setHasConfig(true);
-      setAccessToken("");
       toast({ title: "Configuração salva com sucesso!" });
+      fetchData();
     } catch (err: any) {
       toast({ title: err.message, variant: "destructive" });
     }
