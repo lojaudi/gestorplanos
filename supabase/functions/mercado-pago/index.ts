@@ -139,7 +139,7 @@ serve(async (req) => {
     if (action === "get-config") {
       const { data } = await supabase
         .from("payment_gateway_config")
-        .select("id, provider, is_enabled, pix_key, created_at, updated_at")
+        .select("id, provider, is_enabled, pix_key, access_token, created_at, updated_at")
         .eq("user_id", user.id)
         .eq("provider", "mercado_pago")
         .maybeSingle();

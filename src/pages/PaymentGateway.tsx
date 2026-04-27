@@ -76,6 +76,7 @@ export default function PaymentGateway() {
         setHasConfig(true);
         setIsEnabled(configRes.config.is_enabled);
         setPixKey(configRes.config.pix_key || "");
+        setAccessToken(configRes.config.access_token || "");
       }
       setPayments(paymentsRes.payments || []);
     } catch {
@@ -99,8 +100,8 @@ export default function PaymentGateway() {
         pix_key: pixKey,
       });
       setHasConfig(true);
-      setAccessToken("");
       toast({ title: "Configuração salva com sucesso!" });
+      fetchData();
     } catch (err: any) {
       toast({ title: err.message, variant: "destructive" });
     }
