@@ -76,6 +76,7 @@ export default function PaymentGateway() {
         setHasConfig(true);
         setIsEnabled(configRes.config.is_enabled);
         setPixKey(configRes.config.pix_key || "");
+        setAccessToken(configRes.config.access_token || "");
       }
       setPayments(paymentsRes.payments || []);
     } catch {
