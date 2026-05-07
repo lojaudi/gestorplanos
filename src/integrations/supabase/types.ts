@@ -922,7 +922,51 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      platform_settings_public: {
+        Row: {
+          accent_color: string | null
+          email_verification_enabled: boolean | null
+          favicon_url: string | null
+          football_banners_enabled: boolean | null
+          id: string | null
+          landing_dark_mode: boolean | null
+          login_bg_url: string | null
+          logo_url: string | null
+          primary_color: string | null
+          secondary_color: string | null
+          system_name: string | null
+          whatsapp_verification_enabled: boolean | null
+        }
+        Insert: {
+          accent_color?: string | null
+          email_verification_enabled?: boolean | null
+          favicon_url?: string | null
+          football_banners_enabled?: boolean | null
+          id?: string | null
+          landing_dark_mode?: boolean | null
+          login_bg_url?: string | null
+          logo_url?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
+          system_name?: string | null
+          whatsapp_verification_enabled?: boolean | null
+        }
+        Update: {
+          accent_color?: string | null
+          email_verification_enabled?: boolean | null
+          favicon_url?: string | null
+          football_banners_enabled?: boolean | null
+          id?: string | null
+          landing_dark_mode?: boolean | null
+          login_bg_url?: string | null
+          logo_url?: string | null
+          primary_color?: string | null
+          secondary_color?: string | null
+          system_name?: string | null
+          whatsapp_verification_enabled?: boolean | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       has_role: {
