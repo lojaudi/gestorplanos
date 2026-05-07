@@ -202,14 +202,15 @@ const Plans = () => {
             </div>
             <div className="space-y-2">
               <Label>Duração</Label>
-              <Select value={duration} onValueChange={setDuration}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {durationOptions.map((d) => (
-                    <SelectItem key={d.value} value={d.value}>{d.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <select
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                value={duration}
+                onChange={(e) => setDuration(e.target.value)}
+              >
+                {durationOptions.map((d) => (
+                  <option key={d.value} value={d.value}>{d.label}</option>
+                ))}
+              </select>
             </div>
             <div className="space-y-2">
               <Label htmlFor="planPrice">Valor (R$)</Label>
