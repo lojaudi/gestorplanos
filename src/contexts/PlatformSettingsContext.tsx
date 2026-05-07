@@ -85,7 +85,7 @@ export function PlatformSettingsProvider({ children }: { children: ReactNode }) 
 
   useEffect(() => {
     supabase
-      .from("platform_settings")
+      .from("platform_settings_public" as any)
       .select("*")
       .limit(1)
       .maybeSingle()
