@@ -26,6 +26,7 @@ type Plan = Tables<"plans">;
 
 const durationOptions = [
   { value: "1", label: "Mensal (1 mês)" },
+  { value: "2", label: "Bimestral (2 meses)" },
   { value: "3", label: "Trimestral (3 meses)" },
   { value: "6", label: "Semestral (6 meses)" },
   { value: "12", label: "Anual (12 meses)" },
