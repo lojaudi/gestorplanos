@@ -15,7 +15,6 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Trash2, CreditCard } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
