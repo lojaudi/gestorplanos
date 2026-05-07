@@ -89,7 +89,7 @@ export function PlatformSettingsProvider({ children }: { children: ReactNode }) 
       .select("*")
       .limit(1)
       .maybeSingle()
-      .then(({ data }) => {
+      .then(({ data }: { data: any }) => {
         if (data) {
           const s: PlatformSettings = {
             system_name: data.system_name,
