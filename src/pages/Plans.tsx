@@ -21,7 +21,7 @@ import type { Tables } from "@/integrations/supabase/types";
 
 type Plan = Tables<"plans">;
 
-const durationOptions = [
+const durationOptions: { value: string; label: string }[] = [
   { value: "1", label: "Mensal (1 mês)" },
   { value: "2", label: "Bimestral (2 meses)" },
   { value: "3", label: "Trimestral (3 meses)" },
