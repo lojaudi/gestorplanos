@@ -19,7 +19,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, TrendingUp, TrendingDown, Wallet, Crown, Tags } from "lucide-react";
+import { Plus, Pencil, Trash2, TrendingUp, TrendingDown, Wallet, Crown, Tags, RefreshCw } from "lucide-react";
 
 interface Entry {
   id: string;
@@ -70,6 +70,7 @@ const CashFlow = () => {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [recalculating, setRecalculating] = useState(false);
 
   // categories management
   const [catDialogOpen, setCatDialogOpen] = useState(false);
@@ -78,7 +79,7 @@ const CashFlow = () => {
   const [savingCat, setSavingCat] = useState(false);
   const [deleteCatId, setDeleteCatId] = useState<string | null>(null);
 
-  const fetchAll = async () => {
+  const fetchAll = async (notify = false) => {
     if (!user) return;
     const [
       { data: entriesData },
@@ -139,6 +140,15 @@ const CashFlow = () => {
     setEntries(all);
     setCategories((catData as Category[]) || []);
     setLoading(false);
+
+    if (notify) {
+      const total = invoiceEntries.length + linkEntries.length;
+      const sum = [...invoiceEntries, ...linkEntries].reduce((s, e) => s + e.amount, 0);
+      toast({
+        title: "Fluxo de caixa recalculado",
+        description: `${total} recebimento(s) de faturamento sincronizado(s) — total ${sum.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}.`,
+      });
+    }
   };
 
   useEffect(() => {
@@ -361,6 +371,17 @@ const CashFlow = () => {
           <p className="text-sm text-muted-foreground">Cadastre proventos e gastos manualmente</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            onClick={async () => {
+              setRecalculating(true);
+              try { await fetchAll(true); } finally { setRecalculating(false); }
+            }}
+            disabled={recalculating}
+          >
+            <RefreshCw className={`mr-2 h-4 w-4 ${recalculating ? "animate-spin" : ""}`} />
+            {recalculating ? "Recalculando..." : "Recalcular"}
+          </Button>
           <Button variant="outline" onClick={() => { openCatCreate(); setCatDialogOpen(true); }}>
             <Tags className="mr-2 h-4 w-4" /> Categorias
           </Button>
