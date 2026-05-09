@@ -66,6 +66,7 @@ const CashFlow = () => {
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "income" | "expense">("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 
@@ -95,10 +96,28 @@ const CashFlow = () => {
   const filtered = useMemo(() => {
     return entries.filter((e) => {
       if (filter !== "all" && e.type !== filter) return false;
+      if (categoryFilter !== "all") {
+        if (categoryFilter === "__none__") {
+          if (e.category && e.category.trim() !== "") return false;
+        } else if ((e.category ?? "") !== categoryFilter) {
+          return false;
+        }
+      }
       if (search && !`${e.description} ${e.category ?? ""}`.toLowerCase().includes(search.toLowerCase())) return false;
       return true;
     });
-  }, [entries, filter, search]);
+  }, [entries, filter, categoryFilter, search]);
+
+  const availableCategoryOptions = useMemo(() => {
+    const set = new Set<string>();
+    categories.forEach((c) => {
+      if (filter === "all" || c.type === filter) set.add(c.name);
+    });
+    entries.forEach((e) => {
+      if (e.category && (filter === "all" || e.type === filter)) set.add(e.category);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [categories, entries, filter]);
 
   const totals = useMemo(() => {
     const now = new Date();
@@ -344,12 +363,23 @@ const CashFlow = () => {
         <CardContent className="p-4 flex flex-wrap gap-3">
           <select
             value={filter}
-            onChange={(e) => { setFilter(e.target.value as any); setPage(1); }}
+            onChange={(e) => { setFilter(e.target.value as any); setCategoryFilter("all"); setPage(1); }}
             className="h-10 rounded-md border border-input bg-background px-3 text-sm"
           >
             <option value="all">Todos os tipos</option>
             <option value="income">Apenas proventos</option>
             <option value="expense">Apenas gastos</option>
+          </select>
+          <select
+            value={categoryFilter}
+            onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
+            className="h-10 rounded-md border border-input bg-background px-3 text-sm min-w-[180px]"
+          >
+            <option value="all">Todas as categorias</option>
+            <option value="__none__">Sem categoria</option>
+            {availableCategoryOptions.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
           </select>
           <Input
             placeholder="Buscar por descrição ou categoria..."
@@ -357,6 +387,14 @@ const CashFlow = () => {
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             className="flex-1 min-w-[200px]"
           />
+          {(filter !== "all" || categoryFilter !== "all" || search) && (
+            <Button
+              variant="ghost"
+              onClick={() => { setFilter("all"); setCategoryFilter("all"); setSearch(""); setPage(1); }}
+            >
+              Limpar
+            </Button>
+          )}
         </CardContent>
       </Card>
 
