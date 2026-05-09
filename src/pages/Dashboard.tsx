@@ -188,6 +188,7 @@ const MoneyCard = ({
 
       let totalReceivedAllTime = legacyRevenue.total;
       let totalReceivedMonth = legacyRevenue.byMonth[currentMonthKey] ?? 0;
+      let totalReceivedToday = 0;
       let totalToReceiveMonth = 0;
 
       for (const inv of invoices) {
@@ -204,6 +205,7 @@ const MoneyCard = ({
           if (dateRef.getMonth() === currentMonth && dateRef.getFullYear() === currentYear) {
             totalReceivedMonth += amount;
           }
+          if (toBrtDateStr(dateRef) === today) totalReceivedToday += amount;
         } else {
           const dueDate = new Date(inv.due_date + "T00:00:00");
           const amount = Number(inv.amount);
@@ -227,6 +229,7 @@ const MoneyCard = ({
           if (createdAt.getMonth() === currentMonth && createdAt.getFullYear() === currentYear) {
             totalReceivedMonth += amount;
           }
+          if (toBrtDateStr(createdAt) === today) totalReceivedToday += amount;
         }
       }
 
@@ -238,11 +241,13 @@ const MoneyCard = ({
           const dateRef = new Date(cf.entry_date + "T00:00:00");
           const monthKey = getMonthKey(dateRef);
           const inMonth = dateRef.getMonth() === currentMonth && dateRef.getFullYear() === currentYear;
+          const isToday = cf.entry_date === today;
 
           if (cf.type === "income") {
             totalReceivedAllTime += amount;
             sumByMonth(receivedByMonth, monthKey, amount);
             if (inMonth) totalReceivedMonth += amount;
+            if (isToday) totalReceivedToday += amount;
           } else if (cf.type === "expense") {
             totalExpensesAllTime += amount;
             if (inMonth) totalExpensesMonth += amount;
@@ -250,7 +255,7 @@ const MoneyCard = ({
         }
       }
 
-      setFinancial({ totalReceivedAllTime, totalReceivedMonth, totalToReceiveMonth, totalExpensesMonth, totalExpensesAllTime });
+      setFinancial({ totalReceivedAllTime, totalReceivedMonth, totalReceivedToday, totalToReceiveMonth, totalExpensesMonth, totalExpensesAllTime });
       setFinancialChart(buildMonthlyFinancialChart(receivedByMonth, pendingByMonth, currentMonthKey));
     };
 
