@@ -202,14 +202,16 @@ const MoneyCard = ({
             ? new Date(inv.payment_date)
             : new Date(inv.due_date + "T00:00:00");
           const monthKey = getMonthKey(dateRef);
+          const dayKey = toBrtDateStr(dateRef);
 
           totalReceivedAllTime += amount;
           sumByMonth(receivedByMonth, monthKey, amount);
+          byDate[dayKey] = (byDate[dayKey] ?? 0) + amount;
 
           if (dateRef.getMonth() === currentMonth && dateRef.getFullYear() === currentYear) {
             totalReceivedMonth += amount;
           }
-          if (toBrtDateStr(dateRef) === today) totalReceivedToday += amount;
+          if (dayKey === today) totalReceivedToday += amount;
         } else {
           const dueDate = new Date(inv.due_date + "T00:00:00");
           const amount = Number(inv.amount);
@@ -226,14 +228,16 @@ const MoneyCard = ({
           const amount = Number(link.amount);
           const createdAt = new Date(link.created_at);
           const monthKey = getMonthKey(createdAt);
+          const dayKey = toBrtDateStr(createdAt);
 
           totalReceivedAllTime += amount;
           sumByMonth(receivedByMonth, monthKey, amount);
+          byDate[dayKey] = (byDate[dayKey] ?? 0) + amount;
 
           if (createdAt.getMonth() === currentMonth && createdAt.getFullYear() === currentYear) {
             totalReceivedMonth += amount;
           }
-          if (toBrtDateStr(createdAt) === today) totalReceivedToday += amount;
+          if (dayKey === today) totalReceivedToday += amount;
         }
       }
 
