@@ -84,6 +84,8 @@ const Dashboard = () => {
     totalExpensesAllTime: 0,
   });
   const [financialChart, setFinancialChart] = useState<MonthlyFinancialPoint[]>([]);
+  const [dailyChart, setDailyChart] = useState<{ name: string; received: number }[]>([]);
+  const [dailyRange, setDailyRange] = useState<7 | 30>(7);
 
 const StatCard = ({
   icon: Icon,
