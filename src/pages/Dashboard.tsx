@@ -217,7 +217,27 @@ const MoneyCard = ({
         }
       }
 
-      setFinancial({ totalReceivedAllTime, totalReceivedMonth, totalToReceiveMonth });
+      let totalExpensesMonth = 0;
+      let totalExpensesAllTime = 0;
+      if (cashflowData) {
+        for (const cf of cashflowData) {
+          const amount = Number(cf.amount);
+          const dateRef = new Date(cf.entry_date + "T00:00:00");
+          const monthKey = getMonthKey(dateRef);
+          const inMonth = dateRef.getMonth() === currentMonth && dateRef.getFullYear() === currentYear;
+
+          if (cf.type === "income") {
+            totalReceivedAllTime += amount;
+            sumByMonth(receivedByMonth, monthKey, amount);
+            if (inMonth) totalReceivedMonth += amount;
+          } else if (cf.type === "expense") {
+            totalExpensesAllTime += amount;
+            if (inMonth) totalExpensesMonth += amount;
+          }
+        }
+      }
+
+      setFinancial({ totalReceivedAllTime, totalReceivedMonth, totalToReceiveMonth, totalExpensesMonth, totalExpensesAllTime });
       setFinancialChart(buildMonthlyFinancialChart(receivedByMonth, pendingByMonth, currentMonthKey));
     };
 
