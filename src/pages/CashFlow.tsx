@@ -363,12 +363,23 @@ const CashFlow = () => {
         <CardContent className="p-4 flex flex-wrap gap-3">
           <select
             value={filter}
-            onChange={(e) => { setFilter(e.target.value as any); setPage(1); }}
+            onChange={(e) => { setFilter(e.target.value as any); setCategoryFilter("all"); setPage(1); }}
             className="h-10 rounded-md border border-input bg-background px-3 text-sm"
           >
             <option value="all">Todos os tipos</option>
             <option value="income">Apenas proventos</option>
             <option value="expense">Apenas gastos</option>
+          </select>
+          <select
+            value={categoryFilter}
+            onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
+            className="h-10 rounded-md border border-input bg-background px-3 text-sm min-w-[180px]"
+          >
+            <option value="all">Todas as categorias</option>
+            <option value="__none__">Sem categoria</option>
+            {availableCategoryOptions.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
           </select>
           <Input
             placeholder="Buscar por descrição ou categoria..."
@@ -376,6 +387,14 @@ const CashFlow = () => {
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             className="flex-1 min-w-[200px]"
           />
+          {(filter !== "all" || categoryFilter !== "all" || search) && (
+            <Button
+              variant="ghost"
+              onClick={() => { setFilter("all"); setCategoryFilter("all"); setSearch(""); setPage(1); }}
+            >
+              Limpar
+            </Button>
+          )}
         </CardContent>
       </Card>
 
