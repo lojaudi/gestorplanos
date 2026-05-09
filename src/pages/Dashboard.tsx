@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { getTodayBRT } from "@/lib/date-brt";
+import { getTodayBRT, shiftDateBRT } from "@/lib/date-brt";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -83,6 +84,8 @@ const Dashboard = () => {
     totalExpensesAllTime: 0,
   });
   const [financialChart, setFinancialChart] = useState<MonthlyFinancialPoint[]>([]);
+  const [receivedByDate, setReceivedByDate] = useState<Record<string, number>>({});
+  const [dailyRange, setDailyRange] = useState<7 | 30>(7);
 
 const StatCard = ({
   icon: Icon,
@@ -185,6 +188,7 @@ const MoneyCard = ({
       const legacyRevenue = calculateLegacyRevenueBreakdown(clients, migrationDate);
       const receivedByMonth = { ...legacyRevenue.byMonth };
       const pendingByMonth: Record<string, number> = {};
+      const byDate: Record<string, number> = {};
 
       let totalReceivedAllTime = legacyRevenue.total;
       let totalReceivedMonth = legacyRevenue.byMonth[currentMonthKey] ?? 0;
@@ -198,14 +202,16 @@ const MoneyCard = ({
             ? new Date(inv.payment_date)
             : new Date(inv.due_date + "T00:00:00");
           const monthKey = getMonthKey(dateRef);
+          const dayKey = toBrtDateStr(dateRef);
 
           totalReceivedAllTime += amount;
           sumByMonth(receivedByMonth, monthKey, amount);
+          byDate[dayKey] = (byDate[dayKey] ?? 0) + amount;
 
           if (dateRef.getMonth() === currentMonth && dateRef.getFullYear() === currentYear) {
             totalReceivedMonth += amount;
           }
-          if (toBrtDateStr(dateRef) === today) totalReceivedToday += amount;
+          if (dayKey === today) totalReceivedToday += amount;
         } else {
           const dueDate = new Date(inv.due_date + "T00:00:00");
           const amount = Number(inv.amount);
@@ -222,14 +228,16 @@ const MoneyCard = ({
           const amount = Number(link.amount);
           const createdAt = new Date(link.created_at);
           const monthKey = getMonthKey(createdAt);
+          const dayKey = toBrtDateStr(createdAt);
 
           totalReceivedAllTime += amount;
           sumByMonth(receivedByMonth, monthKey, amount);
+          byDate[dayKey] = (byDate[dayKey] ?? 0) + amount;
 
           if (createdAt.getMonth() === currentMonth && createdAt.getFullYear() === currentYear) {
             totalReceivedMonth += amount;
           }
-          if (toBrtDateStr(createdAt) === today) totalReceivedToday += amount;
+          if (dayKey === today) totalReceivedToday += amount;
         }
       }
 
@@ -246,6 +254,7 @@ const MoneyCard = ({
           if (cf.type === "income") {
             totalReceivedAllTime += amount;
             sumByMonth(receivedByMonth, monthKey, amount);
+            byDate[cf.entry_date] = (byDate[cf.entry_date] ?? 0) + amount;
             if (inMonth) totalReceivedMonth += amount;
             if (isToday) totalReceivedToday += amount;
           } else if (cf.type === "expense") {
@@ -257,10 +266,21 @@ const MoneyCard = ({
 
       setFinancial({ totalReceivedAllTime, totalReceivedMonth, totalReceivedToday, totalToReceiveMonth, totalExpensesMonth, totalExpensesAllTime });
       setFinancialChart(buildMonthlyFinancialChart(receivedByMonth, pendingByMonth, currentMonthKey));
+      setReceivedByDate(byDate);
     };
 
     fetchStats();
   }, [user]);
+
+  const dailyChart = useMemo(() => {
+    const out: { name: string; received: number }[] = [];
+    for (let i = dailyRange - 1; i >= 0; i--) {
+      const iso = shiftDateBRT(-i);
+      const [y, m, d] = iso.split("-");
+      out.push({ name: `${d}/${m}`, received: receivedByDate[iso] ?? 0 });
+    }
+    return out;
+  }, [receivedByDate, dailyRange]);
 
   const quickActions = [
     { icon: Users, label: "Clientes", description: "Gerenciar base", path: "/clients" },
@@ -332,6 +352,60 @@ const MoneyCard = ({
           accent="bg-destructive/10 text-destructive"
         />
       </div>
+
+      {/* Daily Earnings Chart */}
+      <Card className="border-border/50 shadow-sm">
+        <CardHeader className="pb-2 flex flex-row items-center justify-between gap-2 space-y-0">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-emerald-500" />
+            Recebimentos por Dia (R$)
+          </CardTitle>
+          <div className="flex items-center gap-1">
+            <Button
+              size="sm"
+              variant={dailyRange === 7 ? "default" : "outline"}
+              onClick={() => setDailyRange(7)}
+              className="h-7 px-3 text-xs"
+            >
+              7 dias
+            </Button>
+            <Button
+              size="sm"
+              variant={dailyRange === 30 ? "default" : "outline"}
+              onClick={() => setDailyRange(30)}
+              className="h-7 px-3 text-xs"
+            >
+              30 dias
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={dailyChart} barSize={dailyRange === 7 ? 32 : 12}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" vertical={false} />
+              <XAxis
+                dataKey="name"
+                tick={{ fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+                interval={dailyRange === 30 ? 2 : 0}
+              />
+              <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `R$ ${v.toLocaleString("pt-BR")}`} />
+              <Tooltip
+                formatter={(value: number) => [`R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, "Recebido"]}
+                contentStyle={{
+                  backgroundColor: "hsl(var(--card))",
+                  border: "1px solid hsl(var(--border))",
+                  borderRadius: "0.75rem",
+                  fontSize: "12px",
+                  boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1)",
+                }}
+              />
+              <Bar dataKey="received" name="Recebido" radius={[6, 6, 0, 0]} fill="hsl(142 76% 36%)" />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
 
       {/* Chart + Quick Actions */}
       <div className="grid gap-6 lg:grid-cols-3">
