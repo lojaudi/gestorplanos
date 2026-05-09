@@ -353,6 +353,60 @@ const MoneyCard = ({
         />
       </div>
 
+      {/* Daily Earnings Chart */}
+      <Card className="border-border/50 shadow-sm">
+        <CardHeader className="pb-2 flex flex-row items-center justify-between gap-2 space-y-0">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-emerald-500" />
+            Recebimentos por Dia (R$)
+          </CardTitle>
+          <div className="flex items-center gap-1">
+            <Button
+              size="sm"
+              variant={dailyRange === 7 ? "default" : "outline"}
+              onClick={() => setDailyRange(7)}
+              className="h-7 px-3 text-xs"
+            >
+              7 dias
+            </Button>
+            <Button
+              size="sm"
+              variant={dailyRange === 30 ? "default" : "outline"}
+              onClick={() => setDailyRange(30)}
+              className="h-7 px-3 text-xs"
+            >
+              30 dias
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={dailyChart} barSize={dailyRange === 7 ? 32 : 12}>
+              <CartesianGrid strokeDasharray="3 3" className="stroke-border/50" vertical={false} />
+              <XAxis
+                dataKey="name"
+                tick={{ fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+                interval={dailyRange === 30 ? 2 : 0}
+              />
+              <YAxis tick={{ fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `R$ ${v.toLocaleString("pt-BR")}`} />
+              <Tooltip
+                formatter={(value: number) => [`R$ ${value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`, "Recebido"]}
+                contentStyle={{
+                  backgroundColor: "hsl(var(--card))",
+                  border: "1px solid hsl(var(--border))",
+                  borderRadius: "0.75rem",
+                  fontSize: "12px",
+                  boxShadow: "0 10px 25px -5px rgba(0,0,0,0.1)",
+                }}
+              />
+              <Bar dataKey="received" name="Recebido" radius={[6, 6, 0, 0]} fill="hsl(142 76% 36%)" />
+            </BarChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
       {/* Chart + Quick Actions */}
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2 border-border/50 shadow-sm">
