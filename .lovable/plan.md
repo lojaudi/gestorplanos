@@ -1,69 +1,77 @@
 
+# Plano: Módulo Fluxo de Caixa
 
-## Plano de Alteracoes - Jogos do Dia
+## 1. Banco de dados (migration)
 
-### 1. Filtro de Ligas na Edge Function
+**Nova coluna em `admin_plans`:**
+- `module_cashflow boolean NOT NULL DEFAULT false` — flag que libera o módulo por plano SaaS.
 
-Reduzir a lista `BRAZIL_LEAGUES` para apenas 4 campeonatos e remover o fallback que exibe todos os jogos quando nao ha resultados.
+**Nova tabela `cash_flow_entries`:**
+- `id`, `user_id`, `created_at`, `updated_at` (padrão)
+- `type text NOT NULL` — `'income'` (provento) ou `'expense'` (gasto)
+- `amount numeric NOT NULL`
+- `description text NOT NULL`
+- `category text` — texto livre (ex.: "Aluguel", "Marketing")
+- `entry_date date NOT NULL DEFAULT CURRENT_DATE` — data da entrada/saída
+- Trigger `update_updated_at_column`
+- RLS: usuário só lê/insere/edita/deleta próprios registros (`auth.uid() = user_id`)
+- Validação via trigger: `type IN ('income','expense')` e `amount > 0`
 
-**Ligas permitidas:**
-- Brasileirao Serie A (71)
-- Brasileirao Serie B (72)
-- Copa do Brasil (73)
-- Copa Libertadores (13)
+Faturas pagas **não** geram registro físico — serão somadas por agregação na leitura (sem duplicar).
 
-**Comportamento:** Quando nao houver jogos nessas ligas, retornar lista vazia (sem fallback para outros campeonatos).
+## 2. Controle de acesso por plano
 
-**Arquivo:** `supabase/functions/football-api/index.ts`
+- Estender `PlanGuard` / contexto que já lê `admin_plans` para expor `module_cashflow`.
+- Página `/cashflow` envolvida em guard: se plano do usuário não tem a flag, mostra tela de upgrade (mesmo padrão dos módulos atuais).
+- Item no `AppSidebar` aparece somente quando o módulo está liberado.
 
----
+## 3. Admin — edição do plano
 
-### 2. Melhoria do Layout dos Banners
+- Em `AdminPlans.tsx`, adicionar switch **"Módulo Fluxo de Caixa"** junto aos demais módulos (campaigns, banners, games), salvando `module_cashflow`.
 
-Ajustar os 3 templates para:
-- Logos dos times com tamanho proporcional e uniforme (usando `max-w` e `max-h` fixos em vez de classes absolutas como `h-8 w-8`)
-- Logos dos canais de transmissao integradas na mesma linha do horario de cada jogo, com tamanho controlado
-- Melhor espacamento e alinhamento geral
+## 4. Nova página `/cashflow`
 
-**Alteracoes por template:**
+Estrutura:
+- Header com título e botão **"Novo lançamento"**.
+- Filtros: tipo (todos/proventos/gastos), período (mês atual / mês anterior / customizado), busca por descrição.
+- Resumo do período: Total Proventos, Total Gastos, Saldo.
+- Tabela paginada (20/pág.) com colunas: Data, Tipo (badge verde/vermelho), Descrição, Categoria, Valor, Ações (editar/excluir).
+- Modal de cadastro/edição: tipo (provento/gasto), valor (BRL), data, descrição, categoria (input livre).
+- Modais seguindo padrão responsivo do projeto (`w-[calc(100%-2rem)]`, `max-h-[85vh]`).
 
-**ModernTemplate** (grade 2 colunas):
-- Logos dos times: tamanho controlado com `w-10 h-10 max-w-[2.5em] max-h-[2.5em]`
-- Logos dos canais: exibidas ao lado do horario, tamanho `h-3.5` com `max-h-[1em]`
-- Remover area separada de canais e integrar na linha do horario
+Rota registrada em `App.tsx` dentro de `<ProtectedPage>`.
 
-**SportyTemplate** (lista com barra lateral):
-- Logos dos times: padronizar em `w-8 h-8`
-- Logos dos canais: mover para dentro da area de horario/liga, tamanho `h-3.5`
-- Melhor truncamento de nomes longos
+## 5. Dashboard — novos cards
 
-**MinimalTemplate** (lista limpa):
-- Logos dos times: padronizar em `w-7 h-7`
-- Logos dos canais: integrar na linha do horario ao lado da hora
-- Melhor espacamento vertical
+Ajuste em `src/pages/Dashboard.tsx`:
 
-**Arquivos:**
-- `src/components/games/templates/ModernTemplate.tsx`
-- `src/components/games/templates/SportyTemplate.tsx`
-- `src/components/games/templates/MinimalTemplate.tsx`
+Cards financeiros existentes mantidos, com soma de proventos do `cash_flow_entries`:
+- **Total Recebido (Geral)** = faturas pagas + payment_links pagos + legado + **proventos (todos)**
+- **Recebido este Mês** = igual ao atual + **proventos do mês atual**
+- **A Receber este Mês** — sem alteração
 
----
+Novos cards:
+- **Gastos este Mês** (vermelho) — soma de `expense` do mês atual
+- **Gastos Total** (vermelho) — soma de `expense` desde sempre
+- (Opcional, se couber visualmente) **Saldo Líquido do Mês** = Recebido mês − Gastos mês
 
-### Detalhes Tecnicos
+Layout: grid de 3 colunas em `sm` vira 2 linhas (3+2 ou 3+3). Em mobile empilha.
 
-**Edge Function (`football-api/index.ts`):**
-```
-// Antes (11 ligas + fallback)
-const BRAZIL_LEAGUES = [71, 73, 13, 11, 2, 3, 39, 140, 135, 78, 61];
-const finalFixtures = filteredFixtures.length > 0 ? filteredFixtures : allFixtures;
+Carregamento: nova query paralela `supabase.from('cash_flow_entries').select('type, amount, entry_date').eq('user_id', user.id)` no `fetchStats`, com agregação em memória.
 
-// Depois (4 ligas, sem fallback)
-const BRAZIL_LEAGUES = [71, 72, 73, 13];
-const finalFixtures = filteredFixtures; // lista vazia se nao houver jogos
-```
+## 6. Relatórios (escopo mínimo)
 
-**Templates - Exemplo de mudanca nas logos (ModernTemplate):**
-- Logos dos times passam de `h-8 w-8` para dimensoes proporcionais com `max-w` e `max-h`
-- Canais saem de bloco separado abaixo e vao para a mesma linha do horario central
-- Filtro CSS `brightness(0) invert(1)` mantido para templates escuros, removido para o MinimalTemplate (fundo claro)
+- Em `Reports.tsx`, adicionar aba/seção **Fluxo de Caixa** com export CSV de `cash_flow_entries` filtrado por período. (Mantém o padrão atual de relatórios.)
 
+## 7. Memória
+
+Salvar `mem://features/cashflow` documentando:
+- Tabela `cash_flow_entries`, controle por flag `module_cashflow`, faturas pagas computadas por agregação (sem duplicar), cards do dashboard incluem proventos.
+
+## Detalhes técnicos
+
+- Supabase types: regenerados automaticamente após migration.
+- Sem edge function — tudo client-side com RLS.
+- Categoria livre (texto), sem CRUD próprio.
+- BRL via `toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })`.
+- Datas no fuso `America/Sao_Paulo` (helpers existentes em `src/lib/date-brt.ts`).
