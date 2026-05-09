@@ -50,6 +50,8 @@ interface FinancialStats {
   totalReceivedAllTime: number;
   totalReceivedMonth: number;
   totalToReceiveMonth: number;
+  totalExpensesMonth: number;
+  totalExpensesAllTime: number;
 }
 
 const sumByMonth = (target: Record<string, number>, monthKey: string, amount: number) => {
@@ -64,6 +66,8 @@ const Dashboard = () => {
     totalReceivedAllTime: 0,
     totalReceivedMonth: 0,
     totalToReceiveMonth: 0,
+    totalExpensesMonth: 0,
+    totalExpensesAllTime: 0,
   });
   const [financialChart, setFinancialChart] = useState<MonthlyFinancialPoint[]>([]);
 
@@ -129,7 +133,7 @@ const MoneyCard = ({
       const currentYear = now.getFullYear();
       const currentMonthKey = getMonthKey(now);
 
-      const [{ data: clientsDataRaw }, { data: invoicesData }, { data: paidLinks }] = await Promise.all([
+      const [{ data: clientsDataRaw }, { data: invoicesData }, { data: paidLinks }, { data: cashflowData }] = await Promise.all([
         supabase
           .from("clients")
           .select("id, created_at, due_date, plan_id, plans(price, duration_months)")
@@ -143,6 +147,10 @@ const MoneyCard = ({
           .select("amount, created_at, status")
           .eq("user_id", user.id)
           .eq("status", "paid"),
+        supabase
+          .from("cash_flow_entries")
+          .select("type, amount, entry_date")
+          .eq("user_id", user.id),
       ]);
 
       const clients = (clientsDataRaw as ClientRevenueSnapshot[] | null) || [];
