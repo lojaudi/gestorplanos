@@ -70,6 +70,7 @@ const CashFlow = () => {
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [recalculating, setRecalculating] = useState(false);
 
   // categories management
   const [catDialogOpen, setCatDialogOpen] = useState(false);
