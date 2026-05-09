@@ -49,10 +49,22 @@ interface Stats {
 interface FinancialStats {
   totalReceivedAllTime: number;
   totalReceivedMonth: number;
+  totalReceivedToday: number;
   totalToReceiveMonth: number;
   totalExpensesMonth: number;
   totalExpensesAllTime: number;
 }
+
+const toBrtDateStr = (d: Date): string => {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(d);
+  const y = parts.find(p => p.type === "year")?.value ?? "1970";
+  const m = parts.find(p => p.type === "month")?.value ?? "01";
+  const day = parts.find(p => p.type === "day")?.value ?? "01";
+  return `${y}-${m}-${day}`;
+};
 
 const sumByMonth = (target: Record<string, number>, monthKey: string, amount: number) => {
   target[monthKey] = (target[monthKey] ?? 0) + amount;
@@ -65,6 +77,7 @@ const Dashboard = () => {
   const [financial, setFinancial] = useState<FinancialStats>({
     totalReceivedAllTime: 0,
     totalReceivedMonth: 0,
+    totalReceivedToday: 0,
     totalToReceiveMonth: 0,
     totalExpensesMonth: 0,
     totalExpensesAllTime: 0,
@@ -175,6 +188,7 @@ const MoneyCard = ({
 
       let totalReceivedAllTime = legacyRevenue.total;
       let totalReceivedMonth = legacyRevenue.byMonth[currentMonthKey] ?? 0;
+      let totalReceivedToday = 0;
       let totalToReceiveMonth = 0;
 
       for (const inv of invoices) {
@@ -191,6 +205,7 @@ const MoneyCard = ({
           if (dateRef.getMonth() === currentMonth && dateRef.getFullYear() === currentYear) {
             totalReceivedMonth += amount;
           }
+          if (toBrtDateStr(dateRef) === today) totalReceivedToday += amount;
         } else {
           const dueDate = new Date(inv.due_date + "T00:00:00");
           const amount = Number(inv.amount);
@@ -214,6 +229,7 @@ const MoneyCard = ({
           if (createdAt.getMonth() === currentMonth && createdAt.getFullYear() === currentYear) {
             totalReceivedMonth += amount;
           }
+          if (toBrtDateStr(createdAt) === today) totalReceivedToday += amount;
         }
       }
 
@@ -225,11 +241,13 @@ const MoneyCard = ({
           const dateRef = new Date(cf.entry_date + "T00:00:00");
           const monthKey = getMonthKey(dateRef);
           const inMonth = dateRef.getMonth() === currentMonth && dateRef.getFullYear() === currentYear;
+          const isToday = cf.entry_date === today;
 
           if (cf.type === "income") {
             totalReceivedAllTime += amount;
             sumByMonth(receivedByMonth, monthKey, amount);
             if (inMonth) totalReceivedMonth += amount;
+            if (isToday) totalReceivedToday += amount;
           } else if (cf.type === "expense") {
             totalExpensesAllTime += amount;
             if (inMonth) totalExpensesMonth += amount;
@@ -237,7 +255,7 @@ const MoneyCard = ({
         }
       }
 
-      setFinancial({ totalReceivedAllTime, totalReceivedMonth, totalToReceiveMonth, totalExpensesMonth, totalExpensesAllTime });
+      setFinancial({ totalReceivedAllTime, totalReceivedMonth, totalReceivedToday, totalToReceiveMonth, totalExpensesMonth, totalExpensesAllTime });
       setFinancialChart(buildMonthlyFinancialChart(receivedByMonth, pendingByMonth, currentMonthKey));
     };
 
@@ -281,6 +299,12 @@ const MoneyCard = ({
           icon={Wallet}
           label="Total Recebido (Geral)"
           value={financial.totalReceivedAllTime}
+          accent="bg-emerald-500/10 text-emerald-500"
+        />
+        <MoneyCard
+          icon={CalendarCheck}
+          label="Recebido Hoje"
+          value={financial.totalReceivedToday}
           accent="bg-emerald-500/10 text-emerald-500"
         />
         <MoneyCard
