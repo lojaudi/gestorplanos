@@ -300,6 +300,7 @@ const MoneyCard = ({
           label="Total Recebido (Geral)"
           value={financial.totalReceivedAllTime}
           accent="bg-emerald-500/10 text-emerald-500"
+        />
         <MoneyCard
           icon={CalendarCheck}
           label="Recebido Hoje"
