@@ -19,7 +19,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, TrendingUp, TrendingDown, Wallet, Crown } from "lucide-react";
+import { Plus, Pencil, Trash2, TrendingUp, TrendingDown, Wallet, Crown, Tags } from "lucide-react";
 
 interface Entry {
   id: string;
@@ -28,6 +28,12 @@ interface Entry {
   description: string;
   category: string | null;
   entry_date: string;
+}
+
+interface Category {
+  id: string;
+  name: string;
+  type: "income" | "expense";
 }
 
 const todayBRT = () => {
@@ -52,6 +58,7 @@ const CashFlow = () => {
   const { enabled, loading: accessLoading } = useCashflowAccess();
 
   const [entries, setEntries] = useState<Entry[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Entry | null>(null);
@@ -62,20 +69,27 @@ const CashFlow = () => {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 
-  const fetchEntries = async () => {
+  // categories management
+  const [catDialogOpen, setCatDialogOpen] = useState(false);
+  const [catForm, setCatForm] = useState({ name: "", type: "income" as "income" | "expense" });
+  const [editingCat, setEditingCat] = useState<Category | null>(null);
+  const [savingCat, setSavingCat] = useState(false);
+  const [deleteCatId, setDeleteCatId] = useState<string | null>(null);
+
+  const fetchAll = async () => {
     if (!user) return;
-    const { data } = await supabase
-      .from("cash_flow_entries")
-      .select("*")
-      .eq("user_id", user.id)
-      .order("entry_date", { ascending: false })
-      .order("created_at", { ascending: false });
-    setEntries((data as Entry[]) || []);
+    const [{ data: entriesData }, { data: catData }] = await Promise.all([
+      supabase.from("cash_flow_entries").select("*").eq("user_id", user.id)
+        .order("entry_date", { ascending: false }).order("created_at", { ascending: false }),
+      supabase.from("cash_flow_categories").select("*").eq("user_id", user.id).order("name"),
+    ]);
+    setEntries((entriesData as Entry[]) || []);
+    setCategories((catData as Category[]) || []);
     setLoading(false);
   };
 
   useEffect(() => {
-    if (enabled && user) fetchEntries();
+    if (enabled && user) fetchAll();
   }, [enabled, user]);
 
   const filtered = useMemo(() => {
@@ -107,6 +121,11 @@ const CashFlow = () => {
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  const filteredCategories = useMemo(
+    () => categories.filter((c) => c.type === form.type),
+    [categories, form.type],
+  );
 
   const openCreate = () => {
     setEditing(null);
@@ -157,7 +176,7 @@ const CashFlow = () => {
         toast({ title: "Lançamento criado!" });
       }
       setDialogOpen(false);
-      fetchEntries();
+      fetchAll();
     } catch (err: any) {
       toast({ title: "Erro", description: err.message, variant: "destructive" });
     } finally {
@@ -172,9 +191,67 @@ const CashFlow = () => {
       toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Lançamento excluído!" });
-      fetchEntries();
+      fetchAll();
     }
     setDeleteId(null);
+  };
+
+  // Categories CRUD
+  const openCatCreate = () => {
+    setEditingCat(null);
+    setCatForm({ name: "", type: "income" });
+  };
+
+  const openCatEdit = (c: Category) => {
+    setEditingCat(c);
+    setCatForm({ name: c.name, type: c.type });
+  };
+
+  const handleSaveCategory = async () => {
+    if (!user) return;
+    const name = catForm.name.trim();
+    if (!name) {
+      toast({ title: "Nome obrigatório", variant: "destructive" });
+      return;
+    }
+    setSavingCat(true);
+    try {
+      if (editingCat) {
+        const { error } = await supabase.from("cash_flow_categories")
+          .update({ name, type: catForm.type })
+          .eq("id", editingCat.id);
+        if (error) throw error;
+        toast({ title: "Categoria atualizada!" });
+      } else {
+        const { error } = await supabase.from("cash_flow_categories")
+          .insert({ user_id: user.id, name, type: catForm.type });
+        if (error) throw error;
+        toast({ title: "Categoria criada!" });
+      }
+      setEditingCat(null);
+      setCatForm({ name: "", type: catForm.type });
+      fetchAll();
+    } catch (err: any) {
+      toast({
+        title: "Erro",
+        description: err.message?.includes("duplicate") ? "Já existe uma categoria com esse nome e tipo." : err.message,
+        variant: "destructive",
+      });
+    } finally {
+      setSavingCat(false);
+    }
+  };
+
+  const handleDeleteCategory = async () => {
+    if (!deleteCatId) return;
+    const { error } = await supabase.from("cash_flow_categories").delete().eq("id", deleteCatId);
+    if (error) {
+      toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Categoria excluída!" });
+      fetchAll();
+    }
+    setDeleteCatId(null);
   };
 
   const fmt = (n: number) =>
@@ -212,9 +289,14 @@ const CashFlow = () => {
           <h1 className="text-2xl font-bold tracking-tight">Fluxo de Caixa</h1>
           <p className="text-sm text-muted-foreground">Cadastre proventos e gastos manualmente</p>
         </div>
-        <Button onClick={openCreate}>
-          <Plus className="mr-2 h-4 w-4" /> Novo Lançamento
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => { openCatCreate(); setCatDialogOpen(true); }}>
+            <Tags className="mr-2 h-4 w-4" /> Categorias
+          </Button>
+          <Button onClick={openCreate}>
+            <Plus className="mr-2 h-4 w-4" /> Novo Lançamento
+          </Button>
+        </div>
       </div>
 
       {/* Resumo */}
@@ -340,7 +422,7 @@ const CashFlow = () => {
         </CardContent>
       </Card>
 
-      {/* Dialog */}
+      {/* Dialog Lançamento */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="w-[calc(100%-2rem)] sm:max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
@@ -351,7 +433,7 @@ const CashFlow = () => {
               <Label>Tipo</Label>
               <select
                 value={form.type}
-                onChange={(e) => setForm({ ...form, type: e.target.value as "income" | "expense" })}
+                onChange={(e) => setForm({ ...form, type: e.target.value as "income" | "expense", category: "" })}
                 className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
               >
                 <option value="income">Provento (entrada)</option>
@@ -389,13 +471,23 @@ const CashFlow = () => {
               />
             </div>
             <div className="space-y-2">
-              <Label>Categoria (opcional)</Label>
-              <Input
+              <Label>Categoria</Label>
+              <select
                 value={form.category}
                 onChange={(e) => setForm({ ...form, category: e.target.value })}
-                placeholder="Ex: Marketing, Aluguel, Outros"
-                maxLength={80}
-              />
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="">— Sem categoria —</option>
+                {filteredCategories.map((c) => (
+                  <option key={c.id} value={c.name}>{c.name}</option>
+                ))}
+                {form.category && !filteredCategories.some((c) => c.name === form.category) && (
+                  <option value={form.category}>{form.category} (antiga)</option>
+                )}
+              </select>
+              <p className="text-xs text-muted-foreground">
+                Gerencie as categorias clicando em "Categorias" no topo da página.
+              </p>
             </div>
           </div>
           <DialogFooter>
@@ -403,6 +495,89 @@ const CashFlow = () => {
             <Button onClick={handleSave} disabled={saving}>
               {saving ? "Salvando..." : "Salvar"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog Categorias */}
+      <Dialog open={catDialogOpen} onOpenChange={setCatDialogOpen}>
+        <DialogContent className="w-[calc(100%-2rem)] sm:max-w-2xl max-h-[85vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Gerenciar Categorias</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3 border rounded-md p-3 bg-muted/30">
+            <p className="text-sm font-medium">{editingCat ? "Editar categoria" : "Nova categoria"}</p>
+            <div className="grid gap-3 sm:grid-cols-[1fr_180px_auto]">
+              <Input
+                placeholder="Nome (ex: Aluguel, Marketing)"
+                value={catForm.name}
+                onChange={(e) => setCatForm({ ...catForm, name: e.target.value })}
+                maxLength={80}
+              />
+              <select
+                value={catForm.type}
+                onChange={(e) => setCatForm({ ...catForm, type: e.target.value as "income" | "expense" })}
+                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="income">Provento</option>
+                <option value="expense">Gasto</option>
+              </select>
+              <div className="flex gap-2">
+                <Button onClick={handleSaveCategory} disabled={savingCat}>
+                  {savingCat ? "..." : editingCat ? "Atualizar" : "Adicionar"}
+                </Button>
+                {editingCat && (
+                  <Button variant="outline" onClick={() => { setEditingCat(null); setCatForm({ name: "", type: "income" }); }}>
+                    Cancelar
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="border rounded-md">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead className="w-24 text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {categories.length === 0 ? (
+                  <TableRow><TableCell colSpan={3} className="text-center py-6 text-muted-foreground">Nenhuma categoria cadastrada</TableCell></TableRow>
+                ) : (
+                  categories.map((c) => (
+                    <TableRow key={c.id}>
+                      <TableCell className="font-medium">{c.name}</TableCell>
+                      <TableCell>
+                        {c.type === "income" ? (
+                          <Badge className="bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20">Provento</Badge>
+                        ) : (
+                          <Badge variant="destructive" className="bg-destructive/10 text-destructive hover:bg-destructive/20">Gasto</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex justify-end gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => openCatEdit(c)}>
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => setDeleteCatId(c.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCatDialogOpen(false)}>Fechar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -416,6 +591,21 @@ const CashFlow = () => {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete}>Excluir</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={!!deleteCatId} onOpenChange={() => setDeleteCatId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir categoria?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Os lançamentos existentes manterão o nome da categoria, mas ela não estará mais disponível para seleção.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteCategory}>Excluir</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
