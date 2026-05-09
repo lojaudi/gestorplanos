@@ -487,12 +487,18 @@ const CashFlow = () => {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => openEdit(e)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => setDeleteId(e.id)}>
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
+                        {e.source === "manual" || !e.source ? (
+                          <>
+                            <Button variant="ghost" size="icon" onClick={() => openEdit(e)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => setDeleteId(e.id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </>
+                        ) : (
+                          <span className="text-[10px] text-muted-foreground italic pr-2">auto</span>
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>
