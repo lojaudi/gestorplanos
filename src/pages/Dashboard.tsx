@@ -276,7 +276,7 @@ const MoneyCard = ({
       </div>
 
       {/* Financial Cards */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         <MoneyCard
           icon={Wallet}
           label="Total Recebido (Geral)"
@@ -294,6 +294,18 @@ const MoneyCard = ({
           label="A Receber este Mês"
           value={financial.totalToReceiveMonth}
           accent="bg-amber-500/10 text-amber-500"
+        />
+        <MoneyCard
+          icon={DollarSign}
+          label="Gastos este Mês"
+          value={financial.totalExpensesMonth}
+          accent="bg-destructive/10 text-destructive"
+        />
+        <MoneyCard
+          icon={DollarSign}
+          label="Gastos Total (Plataforma)"
+          value={financial.totalExpensesAllTime}
+          accent="bg-destructive/10 text-destructive"
         />
       </div>
 
