@@ -96,10 +96,28 @@ const CashFlow = () => {
   const filtered = useMemo(() => {
     return entries.filter((e) => {
       if (filter !== "all" && e.type !== filter) return false;
+      if (categoryFilter !== "all") {
+        if (categoryFilter === "__none__") {
+          if (e.category && e.category.trim() !== "") return false;
+        } else if ((e.category ?? "") !== categoryFilter) {
+          return false;
+        }
+      }
       if (search && !`${e.description} ${e.category ?? ""}`.toLowerCase().includes(search.toLowerCase())) return false;
       return true;
     });
-  }, [entries, filter, search]);
+  }, [entries, filter, categoryFilter, search]);
+
+  const availableCategoryOptions = useMemo(() => {
+    const set = new Set<string>();
+    categories.forEach((c) => {
+      if (filter === "all" || c.type === filter) set.add(c.name);
+    });
+    entries.forEach((e) => {
+      if (e.category && (filter === "all" || e.type === filter)) set.add(e.category);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [categories, entries, filter]);
 
   const totals = useMemo(() => {
     const now = new Date();
