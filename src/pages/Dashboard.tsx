@@ -77,6 +77,7 @@ const Dashboard = () => {
   const [financial, setFinancial] = useState<FinancialStats>({
     totalReceivedAllTime: 0,
     totalReceivedMonth: 0,
+    totalReceivedToday: 0,
     totalToReceiveMonth: 0,
     totalExpensesMonth: 0,
     totalExpensesAllTime: 0,
