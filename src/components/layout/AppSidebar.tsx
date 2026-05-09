@@ -25,7 +25,9 @@ import {
   UserPlus,
   BarChart3,
   ChevronLeft,
+  TrendingUp,
 } from "lucide-react";
+import { useCashflowAccess } from "@/hooks/useCashflowAccess";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
@@ -55,29 +57,37 @@ function isGroup(entry: NavEntry): entry is NavGroup {
   return "items" in entry;
 }
 
-const userNav: NavEntry[] = [
-  { icon: LayoutDashboard, label: "Dashboard", path: "/" },
-  { icon: Users, label: "Clientes", path: "/clients" },
-  { icon: ClipboardList, label: "Logs de Envio", path: "/logs" },
-  { icon: CreditCard, label: "Faturamento", path: "/billing" },
-  { icon: BarChart3, label: "Relatórios", path: "/reports" },
-  { icon: Megaphone, label: "Campanhas", path: "/campaign" },
-  {
-    label: "Configurações",
-    icon: Settings,
-    items: [
-      { icon: UserCog, label: "Meu Perfil", path: "/profile" },
-      { icon: CreditCard, label: "Planos", path: "/plans" },
-      { icon: FileText, label: "Templates", path: "/templates" },
-      { icon: MessageSquare, label: "WhatsApp", path: "/whatsapp" },
-      { icon: Wallet, label: "Gateway Pagamentos", path: "/payment-gateway" },
-      { icon: ClipboardList, label: "Serviços", path: "/services" },
-    ],
-  },
-  { icon: Video, label: "Tutoriais", path: "/tutorials" },
-  { icon: BookOpen, label: "Material de Apoio", path: "/support-materials" },
-  { icon: Crown, label: "Meu Plano", path: "/subscribe" },
-];
+function buildUserNav(showCashflow: boolean): NavEntry[] {
+  const nav: NavEntry[] = [
+    { icon: LayoutDashboard, label: "Dashboard", path: "/" },
+    { icon: Users, label: "Clientes", path: "/clients" },
+    { icon: ClipboardList, label: "Logs de Envio", path: "/logs" },
+    { icon: CreditCard, label: "Faturamento", path: "/billing" },
+  ];
+  if (showCashflow) {
+    nav.push({ icon: TrendingUp, label: "Fluxo de Caixa", path: "/cashflow" });
+  }
+  nav.push(
+    { icon: BarChart3, label: "Relatórios", path: "/reports" },
+    { icon: Megaphone, label: "Campanhas", path: "/campaign" },
+    {
+      label: "Configurações",
+      icon: Settings,
+      items: [
+        { icon: UserCog, label: "Meu Perfil", path: "/profile" },
+        { icon: CreditCard, label: "Planos", path: "/plans" },
+        { icon: FileText, label: "Templates", path: "/templates" },
+        { icon: MessageSquare, label: "WhatsApp", path: "/whatsapp" },
+        { icon: Wallet, label: "Gateway Pagamentos", path: "/payment-gateway" },
+        { icon: ClipboardList, label: "Serviços", path: "/services" },
+      ],
+    },
+    { icon: Video, label: "Tutoriais", path: "/tutorials" },
+    { icon: BookOpen, label: "Material de Apoio", path: "/support-materials" },
+    { icon: Crown, label: "Meu Plano", path: "/subscribe" },
+  );
+  return nav;
+}
 
 const adminNav: NavEntry[] = [
   { icon: UserCog, label: "Meu Perfil", path: "/profile" },
@@ -207,8 +217,10 @@ export function AppSidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const platform = usePlatformSettings();
+  const { enabled: cashflowEnabled } = useCashflowAccess();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [fullName, setFullName] = useState("");
+  const userNav = buildUserNav(cashflowEnabled);
 
   useEffect(() => {
     if (!user) return;

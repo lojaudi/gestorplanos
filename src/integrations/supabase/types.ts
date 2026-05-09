@@ -24,6 +24,7 @@ export type Database = {
           max_clients: number
           module_banners: boolean
           module_campaigns: boolean
+          module_cashflow: boolean
           module_games: boolean
           name: string
           price: number
@@ -38,6 +39,7 @@ export type Database = {
           max_clients?: number
           module_banners?: boolean
           module_campaigns?: boolean
+          module_cashflow?: boolean
           module_games?: boolean
           name: string
           price?: number
@@ -52,6 +54,7 @@ export type Database = {
           max_clients?: number
           module_banners?: boolean
           module_campaigns?: boolean
+          module_cashflow?: boolean
           module_games?: boolean
           name?: string
           price?: number
@@ -133,6 +136,42 @@ export type Database = {
           notification_type?: string
           sent_at?: string
           status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      cash_flow_entries: {
+        Row: {
+          amount: number
+          category: string | null
+          created_at: string
+          description: string
+          entry_date: string
+          id: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          category?: string | null
+          created_at?: string
+          description: string
+          entry_date?: string
+          id?: string
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          category?: string | null
+          created_at?: string
+          description?: string
+          entry_date?: string
+          id?: string
+          type?: string
+          updated_at?: string
           user_id?: string
         }
         Relationships: []

@@ -18,7 +18,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Crown, Users, Megaphone, Calendar } from "lucide-react";
+import { Plus, Pencil, Trash2, Crown, Users, Megaphone, Calendar, Wallet } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -33,6 +33,7 @@ interface AdminPlan {
   module_campaigns: boolean;
   module_games: boolean;
   module_banners: boolean;
+  module_cashflow: boolean;
   is_active: boolean;
   duration_months: number;
   created_at: string;
@@ -56,6 +57,7 @@ const defaultForm = {
   module_campaigns: false,
   module_games: false,
   module_banners: false,
+  module_cashflow: false,
   is_active: true,
 };
 
@@ -100,6 +102,7 @@ const AdminPlans = () => {
       module_campaigns: p.module_campaigns,
       module_games: p.module_games,
       module_banners: p.module_banners,
+      module_cashflow: p.module_cashflow,
       is_active: p.is_active,
     });
     setDialogOpen(true);
@@ -118,6 +121,7 @@ const AdminPlans = () => {
       module_campaigns: form.module_campaigns,
       module_games: form.module_games,
       module_banners: form.module_banners,
+      module_cashflow: form.module_cashflow,
       is_active: form.is_active,
     };
     try {
@@ -163,6 +167,7 @@ const AdminPlans = () => {
   const modulesList = (p: AdminPlan) => {
     const modules: string[] = [];
     if (p.module_campaigns) modules.push("Campanha");
+    if (p.module_cashflow) modules.push("Fluxo de Caixa");
     return modules;
   };
 
@@ -342,6 +347,16 @@ const AdminPlans = () => {
                   <Switch
                     checked={form.module_campaigns}
                     onCheckedChange={(v) => setForm({ ...form, module_campaigns: v })}
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Wallet className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">Fluxo de Caixa</span>
+                  </div>
+                  <Switch
+                    checked={form.module_cashflow}
+                    onCheckedChange={(v) => setForm({ ...form, module_cashflow: v })}
                   />
                 </div>
               </div>

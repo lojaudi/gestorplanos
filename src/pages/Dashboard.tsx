@@ -50,6 +50,8 @@ interface FinancialStats {
   totalReceivedAllTime: number;
   totalReceivedMonth: number;
   totalToReceiveMonth: number;
+  totalExpensesMonth: number;
+  totalExpensesAllTime: number;
 }
 
 const sumByMonth = (target: Record<string, number>, monthKey: string, amount: number) => {
@@ -64,6 +66,8 @@ const Dashboard = () => {
     totalReceivedAllTime: 0,
     totalReceivedMonth: 0,
     totalToReceiveMonth: 0,
+    totalExpensesMonth: 0,
+    totalExpensesAllTime: 0,
   });
   const [financialChart, setFinancialChart] = useState<MonthlyFinancialPoint[]>([]);
 
@@ -129,7 +133,7 @@ const MoneyCard = ({
       const currentYear = now.getFullYear();
       const currentMonthKey = getMonthKey(now);
 
-      const [{ data: clientsDataRaw }, { data: invoicesData }, { data: paidLinks }] = await Promise.all([
+      const [{ data: clientsDataRaw }, { data: invoicesData }, { data: paidLinks }, { data: cashflowData }] = await Promise.all([
         supabase
           .from("clients")
           .select("id, created_at, due_date, plan_id, plans(price, duration_months)")
@@ -143,6 +147,10 @@ const MoneyCard = ({
           .select("amount, created_at, status")
           .eq("user_id", user.id)
           .eq("status", "paid"),
+        supabase
+          .from("cash_flow_entries")
+          .select("type, amount, entry_date")
+          .eq("user_id", user.id),
       ]);
 
       const clients = (clientsDataRaw as ClientRevenueSnapshot[] | null) || [];
@@ -209,7 +217,27 @@ const MoneyCard = ({
         }
       }
 
-      setFinancial({ totalReceivedAllTime, totalReceivedMonth, totalToReceiveMonth });
+      let totalExpensesMonth = 0;
+      let totalExpensesAllTime = 0;
+      if (cashflowData) {
+        for (const cf of cashflowData) {
+          const amount = Number(cf.amount);
+          const dateRef = new Date(cf.entry_date + "T00:00:00");
+          const monthKey = getMonthKey(dateRef);
+          const inMonth = dateRef.getMonth() === currentMonth && dateRef.getFullYear() === currentYear;
+
+          if (cf.type === "income") {
+            totalReceivedAllTime += amount;
+            sumByMonth(receivedByMonth, monthKey, amount);
+            if (inMonth) totalReceivedMonth += amount;
+          } else if (cf.type === "expense") {
+            totalExpensesAllTime += amount;
+            if (inMonth) totalExpensesMonth += amount;
+          }
+        }
+      }
+
+      setFinancial({ totalReceivedAllTime, totalReceivedMonth, totalToReceiveMonth, totalExpensesMonth, totalExpensesAllTime });
       setFinancialChart(buildMonthlyFinancialChart(receivedByMonth, pendingByMonth, currentMonthKey));
     };
 
@@ -248,7 +276,7 @@ const MoneyCard = ({
       </div>
 
       {/* Financial Cards */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         <MoneyCard
           icon={Wallet}
           label="Total Recebido (Geral)"
@@ -266,6 +294,18 @@ const MoneyCard = ({
           label="A Receber este Mês"
           value={financial.totalToReceiveMonth}
           accent="bg-amber-500/10 text-amber-500"
+        />
+        <MoneyCard
+          icon={DollarSign}
+          label="Gastos este Mês"
+          value={financial.totalExpensesMonth}
+          accent="bg-destructive/10 text-destructive"
+        />
+        <MoneyCard
+          icon={DollarSign}
+          label="Gastos Total (Plataforma)"
+          value={financial.totalExpensesAllTime}
+          accent="bg-destructive/10 text-destructive"
         />
       </div>
 
