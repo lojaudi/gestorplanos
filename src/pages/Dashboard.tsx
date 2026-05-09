@@ -254,6 +254,7 @@ const MoneyCard = ({
           if (cf.type === "income") {
             totalReceivedAllTime += amount;
             sumByMonth(receivedByMonth, monthKey, amount);
+            byDate[cf.entry_date] = (byDate[cf.entry_date] ?? 0) + amount;
             if (inMonth) totalReceivedMonth += amount;
             if (isToday) totalReceivedToday += amount;
           } else if (cf.type === "expense") {
@@ -265,10 +266,21 @@ const MoneyCard = ({
 
       setFinancial({ totalReceivedAllTime, totalReceivedMonth, totalReceivedToday, totalToReceiveMonth, totalExpensesMonth, totalExpensesAllTime });
       setFinancialChart(buildMonthlyFinancialChart(receivedByMonth, pendingByMonth, currentMonthKey));
+      setReceivedByDate(byDate);
     };
 
     fetchStats();
   }, [user]);
+
+  const dailyChart = useMemo(() => {
+    const out: { name: string; received: number }[] = [];
+    for (let i = dailyRange - 1; i >= 0; i--) {
+      const iso = shiftDateBRT(-i);
+      const [y, m, d] = iso.split("-");
+      out.push({ name: `${d}/${m}`, received: receivedByDate[iso] ?? 0 });
+    }
+    return out;
+  }, [receivedByDate, dailyRange]);
 
   const quickActions = [
     { icon: Users, label: "Clientes", description: "Gerenciar base", path: "/clients" },
