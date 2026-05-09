@@ -188,6 +188,7 @@ const MoneyCard = ({
       const legacyRevenue = calculateLegacyRevenueBreakdown(clients, migrationDate);
       const receivedByMonth = { ...legacyRevenue.byMonth };
       const pendingByMonth: Record<string, number> = {};
+      const byDate: Record<string, number> = {};
 
       let totalReceivedAllTime = legacyRevenue.total;
       let totalReceivedMonth = legacyRevenue.byMonth[currentMonthKey] ?? 0;
