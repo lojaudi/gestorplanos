@@ -371,6 +371,17 @@ const CashFlow = () => {
           <p className="text-sm text-muted-foreground">Cadastre proventos e gastos manualmente</p>
         </div>
         <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            onClick={async () => {
+              setRecalculating(true);
+              try { await fetchAll(true); } finally { setRecalculating(false); }
+            }}
+            disabled={recalculating}
+          >
+            <RefreshCw className={`mr-2 h-4 w-4 ${recalculating ? "animate-spin" : ""}`} />
+            {recalculating ? "Recalculando..." : "Recalcular"}
+          </Button>
           <Button variant="outline" onClick={() => { openCatCreate(); setCatDialogOpen(true); }}>
             <Tags className="mr-2 h-4 w-4" /> Categorias
           </Button>
