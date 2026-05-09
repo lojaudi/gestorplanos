@@ -28,6 +28,7 @@ interface Entry {
   description: string;
   category: string | null;
   entry_date: string;
+  source?: "manual" | "invoice" | "payment_link";
 }
 
 interface Category {
