@@ -49,10 +49,22 @@ interface Stats {
 interface FinancialStats {
   totalReceivedAllTime: number;
   totalReceivedMonth: number;
+  totalReceivedToday: number;
   totalToReceiveMonth: number;
   totalExpensesMonth: number;
   totalExpensesAllTime: number;
 }
+
+const toBrtDateStr = (d: Date): string => {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(d);
+  const y = parts.find(p => p.type === "year")?.value ?? "1970";
+  const m = parts.find(p => p.type === "month")?.value ?? "01";
+  const day = parts.find(p => p.type === "day")?.value ?? "01";
+  return `${y}-${m}-${day}`;
+};
 
 const sumByMonth = (target: Record<string, number>, monthKey: string, amount: number) => {
   target[monthKey] = (target[monthKey] ?? 0) + amount;
