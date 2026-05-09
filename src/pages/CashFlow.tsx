@@ -19,7 +19,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, Trash2, TrendingUp, TrendingDown, Wallet, Crown, Tags } from "lucide-react";
+import { Plus, Pencil, Trash2, TrendingUp, TrendingDown, Wallet, Crown, Tags, RefreshCw } from "lucide-react";
 
 interface Entry {
   id: string;
