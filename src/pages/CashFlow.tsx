@@ -66,6 +66,7 @@ const CashFlow = () => {
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [filter, setFilter] = useState<"all" | "income" | "expense">("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
 
