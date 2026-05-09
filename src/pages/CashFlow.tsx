@@ -78,7 +78,7 @@ const CashFlow = () => {
   const [savingCat, setSavingCat] = useState(false);
   const [deleteCatId, setDeleteCatId] = useState<string | null>(null);
 
-  const fetchAll = async () => {
+  const fetchAll = async (notify = false) => {
     if (!user) return;
     const [
       { data: entriesData },
@@ -139,6 +139,15 @@ const CashFlow = () => {
     setEntries(all);
     setCategories((catData as Category[]) || []);
     setLoading(false);
+
+    if (notify) {
+      const total = invoiceEntries.length + linkEntries.length;
+      const sum = [...invoiceEntries, ...linkEntries].reduce((s, e) => s + e.amount, 0);
+      toast({
+        title: "Fluxo de caixa recalculado",
+        description: `${total} recebimento(s) de faturamento sincronizado(s) — total ${sum.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}.`,
+      });
+    }
   };
 
   useEffect(() => {
