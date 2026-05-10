@@ -603,7 +603,7 @@ export default function Billing() {
       // Also update client's due_date for backward compatibility
       await supabase.from("clients").update({ due_date: newDueDateStr }).eq("id", inv.client_id);
 
-      // Send confirmation message with the exact renewed due date
+      // Send confirmation message with the exact renewed due date (non-blocking)
       const confirmTemplate = templates.find((t) => t.type === "confirmacao_pagamento");
       const messageContent = confirmTemplate
         ? resolveTemplateFromInvoice(confirmTemplate, inv, undefined, undefined, {
@@ -611,11 +611,42 @@ export default function Billing() {
             paymentDate: paymentConfirmationDate,
           })
         : "";
-      await callEvolutionApi("send-bulk", {
-        messages: [{ phone: inv.clients?.phone, message: messageContent, client_id: inv.client_id, template_type: "confirmacao_pagamento" }],
-      });
 
-      toast({ title: "Pagamento confirmado!", description: `Próximo vencimento: ${new Date(newDueDateStr + "T12:00:00").toLocaleDateString("pt-BR")}` });
+      const phone = inv.clients?.phone?.trim() || "";
+      let sendError: string | null = null;
+
+      if (!confirmTemplate) {
+        sendError = "Template 'confirmacao_pagamento' não cadastrado.";
+      } else if (!phone) {
+        sendError = "Cliente sem telefone cadastrado.";
+      } else {
+        try {
+          await callEvolutionApi("send-bulk", {
+            messages: [{ phone, message: messageContent, client_id: inv.client_id, template_type: "confirmacao_pagamento" }],
+          });
+        } catch (sendErr: any) {
+          sendError = sendErr?.message || "Falha desconhecida no envio.";
+          // Log failure so it shows up in message_logs
+          await supabase.from("message_logs").insert({
+            user_id: user!.id,
+            client_id: inv.client_id,
+            template_type: "confirmacao_pagamento",
+            status: "error",
+            message_content: messageContent,
+            api_response: sendError,
+          });
+        }
+      }
+
+      if (sendError) {
+        toast({
+          title: "Pagamento confirmado, mas mensagem não enviada",
+          description: `Próximo vencimento: ${new Date(newDueDateStr + "T12:00:00").toLocaleDateString("pt-BR")}. Erro WhatsApp: ${sendError}${phone ? ` (número: ${phone})` : ""}`,
+          variant: "destructive",
+        });
+      } else {
+        toast({ title: "Pagamento confirmado!", description: `Próximo vencimento: ${new Date(newDueDateStr + "T12:00:00").toLocaleDateString("pt-BR")}` });
+      }
       fetchData();
     } catch (err: any) {
       toast({ title: "Erro ao confirmar pagamento", description: err.message, variant: "destructive" });
