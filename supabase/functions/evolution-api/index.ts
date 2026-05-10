@@ -108,6 +108,17 @@ async function evolutionFetch(
   return data;
 }
 
+// Format phone for WhatsApp: supports Brazil (default) and international numbers.
+// - 10 or 11 digits: assume Brazilian local (DDD + number) → prepend "55"
+// - starts with "55" and 12-13 digits: already Brazilian with country code
+// - otherwise (12+ digits, not "55"): assume international, use as-is
+function formatPhoneForWhatsApp(phone: string): string {
+  const clean = (phone || "").replace(/\D/g, "");
+  if (clean.length === 10 || clean.length === 11) return `55${clean}`;
+  if (clean.startsWith("55") && (clean.length === 12 || clean.length === 13)) return clean;
+  return clean;
+}
+
 function generateCode(): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
   let code = "";
@@ -690,7 +701,7 @@ serve(async (req) => {
       }
 
       const cleanPhone = phone.replace(/\D/g, "");
-      const formattedPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
+      const formattedPhone = formatPhoneForWhatsApp(cleanPhone);
 
       let status = "sent";
       let apiResponse = "";
@@ -734,7 +745,7 @@ serve(async (req) => {
 
       for (const msg of messages) {
         const cleanPhone = msg.phone.replace(/\D/g, "");
-        const formattedPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
+        const formattedPhone = formatPhoneForWhatsApp(cleanPhone);
 
         let status = "sent";
         let apiResponse = "";
@@ -782,7 +793,7 @@ serve(async (req) => {
 
       for (const msg of messages) {
         const cleanPhone = msg.phone.replace(/\D/g, "");
-        const formattedPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
+        const formattedPhone = formatPhoneForWhatsApp(cleanPhone);
 
         let status = "sent";
         let apiResponse = "";
