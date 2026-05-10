@@ -701,7 +701,7 @@ serve(async (req) => {
       }
 
       const cleanPhone = phone.replace(/\D/g, "");
-      const formattedPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
+      const formattedPhone = formatPhoneForWhatsApp(cleanPhone);
 
       let status = "sent";
       let apiResponse = "";
@@ -745,7 +745,7 @@ serve(async (req) => {
 
       for (const msg of messages) {
         const cleanPhone = msg.phone.replace(/\D/g, "");
-        const formattedPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
+        const formattedPhone = formatPhoneForWhatsApp(cleanPhone);
 
         let status = "sent";
         let apiResponse = "";
@@ -793,7 +793,7 @@ serve(async (req) => {
 
       for (const msg of messages) {
         const cleanPhone = msg.phone.replace(/\D/g, "");
-        const formattedPhone = cleanPhone.startsWith("55") ? cleanPhone : `55${cleanPhone}`;
+        const formattedPhone = formatPhoneForWhatsApp(cleanPhone);
 
         let status = "sent";
         let apiResponse = "";
