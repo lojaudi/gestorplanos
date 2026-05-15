@@ -646,14 +646,18 @@ export default function Billing() {
         }
       }
 
+      const nextDueLabel = isRecurring
+        ? `Próximo vencimento: ${new Date(newDueDateStr + "T12:00:00").toLocaleDateString("pt-BR")}`
+        : "Fatura avulsa — sem renovação automática.";
+
       if (sendError) {
         toast({
           title: "Pagamento confirmado, mas mensagem não enviada",
-          description: `Próximo vencimento: ${new Date(newDueDateStr + "T12:00:00").toLocaleDateString("pt-BR")}. Erro WhatsApp: ${sendError}${phone ? ` (número: ${phone})` : ""}`,
+          description: `${nextDueLabel} Erro WhatsApp: ${sendError}${phone ? ` (número: ${phone})` : ""}`,
           variant: "destructive",
         });
       } else {
-        toast({ title: "Pagamento confirmado!", description: `Próximo vencimento: ${new Date(newDueDateStr + "T12:00:00").toLocaleDateString("pt-BR")}` });
+        toast({ title: "Pagamento confirmado!", description: nextDueLabel });
       }
       fetchData();
     } catch (err: any) {
