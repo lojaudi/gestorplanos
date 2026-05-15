@@ -584,7 +584,8 @@ export default function Billing() {
         payment_method: gatewayEnabled ? "mercado_pago" : (fixedPixKey ? "pix_fixo" : "manual"),
       }).eq("id", inv.id);
 
-      // Create next invoice (recurrence)
+      // Create next invoice (recurrence) only if marked as recurring
+      const isRecurring = inv.is_recurring !== false;
       const plan = inv.plans || plans.find(p => p.id === inv.plan_id);
       const durationMonths = plan?.duration_months || 1;
       const currentDue = new Date(inv.due_date + "T12:00:00");
@@ -594,18 +595,21 @@ export default function Billing() {
       baseDate.setMonth(baseDate.getMonth() + durationMonths);
       const newDueDateStr = baseDate.toISOString().split("T")[0];
 
-      await supabase.from("invoices").insert({
-        user_id: user!.id,
-        client_id: inv.client_id,
-        plan_id: inv.plan_id,
-        amount: inv.amount,
-        due_date: newDueDateStr,
-        description: `Renovação automática`,
-        status: "pending",
-      });
+      if (isRecurring) {
+        await supabase.from("invoices").insert({
+          user_id: user!.id,
+          client_id: inv.client_id,
+          plan_id: inv.plan_id,
+          amount: inv.amount,
+          due_date: newDueDateStr,
+          description: `Renovação automática`,
+          status: "pending",
+          is_recurring: true,
+        });
 
-      // Also update client's due_date for backward compatibility
-      await supabase.from("clients").update({ due_date: newDueDateStr }).eq("id", inv.client_id);
+        // Also update client's due_date for backward compatibility
+        await supabase.from("clients").update({ due_date: newDueDateStr }).eq("id", inv.client_id);
+      }
 
       // Send confirmation message with the exact renewed due date (non-blocking)
       const confirmTemplate = templates.find((t) => t.type === "confirmacao_pagamento");
