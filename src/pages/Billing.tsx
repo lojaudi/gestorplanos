@@ -1216,6 +1216,19 @@ export default function Billing() {
                 <Input value={invoiceDescription} onChange={(e) => setInvoiceDescription(e.target.value)} placeholder="Ex: Mensalidade Março" />
               </div>
             </div>
+            <div className="rounded-md border border-input bg-muted/30 p-3 space-y-3">
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-0.5">
+                  <Label htmlFor="invoice-recurring" className="cursor-pointer">Fatura recorrente</Label>
+                  <p className="text-xs text-muted-foreground">
+                    {invoiceIsRecurring
+                      ? "Ao confirmar o pagamento, uma nova fatura será gerada automaticamente para o próximo mês."
+                      : "Fatura avulsa — não gera renovação automática após o pagamento."}
+                  </p>
+                </div>
+                <Switch id="invoice-recurring" checked={invoiceIsRecurring} onCheckedChange={setInvoiceIsRecurring} />
+              </div>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setInvoiceDialogOpen(false)}>Cancelar</Button>
