@@ -380,8 +380,9 @@ export default function Billing() {
         plan_id: invoicePlanId || null,
         amount,
         due_date: invoiceDueDate,
-        description: invoiceDescription || "Fatura manual",
+        description: invoiceDescription || (invoiceIsRecurring ? "Fatura manual" : "Fatura avulsa"),
         status: "pending",
+        is_recurring: invoiceIsRecurring,
       });
       if (error) throw error;
       toast({ title: "Fatura criada com sucesso!" });
@@ -391,6 +392,7 @@ export default function Billing() {
       setInvoiceAmount("");
       setInvoiceDueDate("");
       setInvoiceDescription("");
+      setInvoiceIsRecurring(true);
       fetchData();
     } catch (err: any) {
       toast({ title: "Erro ao criar fatura", description: err.message, variant: "destructive" });
