@@ -87,6 +87,7 @@ interface Invoice {
   payment_date: string | null;
   payment_method: string | null;
   created_at: string;
+  is_recurring?: boolean;
   clients?: { name: string; phone: string; username: string | null; plan_id: string | null; service_id: string | null } | null;
   plans?: { name: string; price: number | null; duration_months: number } | null;
 }
