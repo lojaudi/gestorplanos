@@ -134,6 +134,7 @@ export default function Billing() {
   const [invoiceAmount, setInvoiceAmount] = useState("");
   const [invoiceDueDate, setInvoiceDueDate] = useState("");
   const [invoiceDescription, setInvoiceDescription] = useState("");
+  const [invoiceIsRecurring, setInvoiceIsRecurring] = useState(true);
   const [savingInvoice, setSavingInvoice] = useState(false);
 
   // Pix
