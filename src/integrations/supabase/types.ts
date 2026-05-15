@@ -340,6 +340,7 @@ export type Database = {
           description: string | null
           due_date: string
           id: string
+          is_recurring: boolean
           payment_date: string | null
           payment_method: string | null
           plan_id: string | null
@@ -354,6 +355,7 @@ export type Database = {
           description?: string | null
           due_date?: string
           id?: string
+          is_recurring?: boolean
           payment_date?: string | null
           payment_method?: string | null
           plan_id?: string | null
@@ -368,6 +370,7 @@ export type Database = {
           description?: string | null
           due_date?: string
           id?: string
+          is_recurring?: boolean
           payment_date?: string | null
           payment_method?: string | null
           plan_id?: string | null

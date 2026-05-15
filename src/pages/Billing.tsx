@@ -87,6 +87,7 @@ interface Invoice {
   payment_date: string | null;
   payment_method: string | null;
   created_at: string;
+  is_recurring?: boolean;
   clients?: { name: string; phone: string; username: string | null; plan_id: string | null; service_id: string | null } | null;
   plans?: { name: string; price: number | null; duration_months: number } | null;
 }
@@ -133,6 +134,7 @@ export default function Billing() {
   const [invoiceAmount, setInvoiceAmount] = useState("");
   const [invoiceDueDate, setInvoiceDueDate] = useState("");
   const [invoiceDescription, setInvoiceDescription] = useState("");
+  const [invoiceIsRecurring, setInvoiceIsRecurring] = useState(true);
   const [savingInvoice, setSavingInvoice] = useState(false);
 
   // Pix
@@ -378,8 +380,9 @@ export default function Billing() {
         plan_id: invoicePlanId || null,
         amount,
         due_date: invoiceDueDate,
-        description: invoiceDescription || "Fatura manual",
+        description: invoiceDescription || (invoiceIsRecurring ? "Fatura manual" : "Fatura avulsa"),
         status: "pending",
+        is_recurring: invoiceIsRecurring,
       });
       if (error) throw error;
       toast({ title: "Fatura criada com sucesso!" });
@@ -389,6 +392,7 @@ export default function Billing() {
       setInvoiceAmount("");
       setInvoiceDueDate("");
       setInvoiceDescription("");
+      setInvoiceIsRecurring(true);
       fetchData();
     } catch (err: any) {
       toast({ title: "Erro ao criar fatura", description: err.message, variant: "destructive" });
@@ -580,7 +584,8 @@ export default function Billing() {
         payment_method: gatewayEnabled ? "mercado_pago" : (fixedPixKey ? "pix_fixo" : "manual"),
       }).eq("id", inv.id);
 
-      // Create next invoice (recurrence)
+      // Create next invoice (recurrence) only if marked as recurring
+      const isRecurring = inv.is_recurring !== false;
       const plan = inv.plans || plans.find(p => p.id === inv.plan_id);
       const durationMonths = plan?.duration_months || 1;
       const currentDue = new Date(inv.due_date + "T12:00:00");
@@ -590,18 +595,21 @@ export default function Billing() {
       baseDate.setMonth(baseDate.getMonth() + durationMonths);
       const newDueDateStr = baseDate.toISOString().split("T")[0];
 
-      await supabase.from("invoices").insert({
-        user_id: user!.id,
-        client_id: inv.client_id,
-        plan_id: inv.plan_id,
-        amount: inv.amount,
-        due_date: newDueDateStr,
-        description: `Renovação automática`,
-        status: "pending",
-      });
+      if (isRecurring) {
+        await supabase.from("invoices").insert({
+          user_id: user!.id,
+          client_id: inv.client_id,
+          plan_id: inv.plan_id,
+          amount: inv.amount,
+          due_date: newDueDateStr,
+          description: `Renovação automática`,
+          status: "pending",
+          is_recurring: true,
+        });
 
-      // Also update client's due_date for backward compatibility
-      await supabase.from("clients").update({ due_date: newDueDateStr }).eq("id", inv.client_id);
+        // Also update client's due_date for backward compatibility
+        await supabase.from("clients").update({ due_date: newDueDateStr }).eq("id", inv.client_id);
+      }
 
       // Send confirmation message with the exact renewed due date (non-blocking)
       const confirmTemplate = templates.find((t) => t.type === "confirmacao_pagamento");
@@ -638,14 +646,18 @@ export default function Billing() {
         }
       }
 
+      const nextDueLabel = isRecurring
+        ? `Próximo vencimento: ${new Date(newDueDateStr + "T12:00:00").toLocaleDateString("pt-BR")}`
+        : "Fatura avulsa — sem renovação automática.";
+
       if (sendError) {
         toast({
           title: "Pagamento confirmado, mas mensagem não enviada",
-          description: `Próximo vencimento: ${new Date(newDueDateStr + "T12:00:00").toLocaleDateString("pt-BR")}. Erro WhatsApp: ${sendError}${phone ? ` (número: ${phone})` : ""}`,
+          description: `${nextDueLabel} Erro WhatsApp: ${sendError}${phone ? ` (número: ${phone})` : ""}`,
           variant: "destructive",
         });
       } else {
-        toast({ title: "Pagamento confirmado!", description: `Próximo vencimento: ${new Date(newDueDateStr + "T12:00:00").toLocaleDateString("pt-BR")}` });
+        toast({ title: "Pagamento confirmado!", description: nextDueLabel });
       }
       fetchData();
     } catch (err: any) {
@@ -1202,6 +1214,19 @@ export default function Billing() {
               <div className="space-y-2">
                 <Label>Descrição</Label>
                 <Input value={invoiceDescription} onChange={(e) => setInvoiceDescription(e.target.value)} placeholder="Ex: Mensalidade Março" />
+              </div>
+            </div>
+            <div className="rounded-md border border-input bg-muted/30 p-3 space-y-3">
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-0.5">
+                  <Label htmlFor="invoice-recurring" className="cursor-pointer">Fatura recorrente</Label>
+                  <p className="text-xs text-muted-foreground">
+                    {invoiceIsRecurring
+                      ? "Ao confirmar o pagamento, uma nova fatura será gerada automaticamente para o próximo mês."
+                      : "Fatura avulsa — não gera renovação automática após o pagamento."}
+                  </p>
+                </div>
+                <Switch id="invoice-recurring" checked={invoiceIsRecurring} onCheckedChange={setInvoiceIsRecurring} />
               </div>
             </div>
           </div>
