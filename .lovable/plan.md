@@ -1,77 +1,65 @@
 
-# Plano: Módulo Fluxo de Caixa
+# Integração WHMCS → Sistema atual (importar clientes)
 
-## 1. Banco de dados (migration)
+## Visão geral
 
-**Nova coluna em `admin_plans`:**
-- `module_cashflow boolean NOT NULL DEFAULT false` — flag que libera o módulo por plano SaaS.
+Criar um módulo que conecta ao WHMCS (versão 8.2) usando a **API REST oficial** e importa os **clientes** para o sistema atual. Configuração **global** (apenas admin define as credenciais), com **importação manual sob demanda** disparada por qualquer usuário do CRM, que vira o "dono" dos clientes importados na sua conta.
 
-**Nova tabela `cash_flow_entries`:**
-- `id`, `user_id`, `created_at`, `updated_at` (padrão)
-- `type text NOT NULL` — `'income'` (provento) ou `'expense'` (gasto)
-- `amount numeric NOT NULL`
-- `description text NOT NULL`
-- `category text` — texto livre (ex.: "Aluguel", "Marketing")
-- `entry_date date NOT NULL DEFAULT CURRENT_DATE` — data da entrada/saída
-- Trigger `update_updated_at_column`
-- RLS: usuário só lê/insere/edita/deleta próprios registros (`auth.uid() = user_id`)
-- Validação via trigger: `type IN ('income','expense')` e `amount > 0`
+## Fluxo de uso
 
-Faturas pagas **não** geram registro físico — serão somadas por agregação na leitura (sem duplicar).
+1. **Admin** vai em *Admin → Configurações → Integração WHMCS* e cadastra:
+   - URL do WHMCS (ex: `https://meusite.com/whmcs`)
+   - API Identifier
+   - API Secret
+   - Clica em "Testar conexão" → valida com chamada `WhmcsDetails`
+2. **Usuário** (qualquer um) vai em *Clientes → Importar do WHMCS*
+   - Vê lista paginada de clientes do WHMCS (nome, telefone, email, status)
+   - Pode filtrar por status (Active, Closed, etc.) e buscar por nome
+   - Seleciona quais importar (ou "selecionar todos da página") e clica em "Importar selecionados"
+3. Sistema cria registros na tabela `clients` vinculados ao `user_id` do usuário logado
+   - Telefone formatado com prefixo `55` se for BR e não tiver código país
+   - Username = email do WHMCS (ou vazio)
+   - Plano e data de vencimento ficam em branco (usuário ajusta depois ou via bulk edit)
+4. **Deduplicação**: se já existir cliente com mesmo telefone para o mesmo `user_id`, pula e mostra no relatório de importação
 
-## 2. Controle de acesso por plano
+## O que NÃO está no escopo
 
-- Estender `PlanGuard` / contexto que já lê `admin_plans` para expor `module_cashflow`.
-- Página `/cashflow` envolvida em guard: se plano do usuário não tem a flag, mostra tela de upgrade (mesmo padrão dos módulos atuais).
-- Item no `AppSidebar` aparece somente quando o módulo está liberado.
-
-## 3. Admin — edição do plano
-
-- Em `AdminPlans.tsx`, adicionar switch **"Módulo Fluxo de Caixa"** junto aos demais módulos (campaigns, banners, games), salvando `module_cashflow`.
-
-## 4. Nova página `/cashflow`
-
-Estrutura:
-- Header com título e botão **"Novo lançamento"**.
-- Filtros: tipo (todos/proventos/gastos), período (mês atual / mês anterior / customizado), busca por descrição.
-- Resumo do período: Total Proventos, Total Gastos, Saldo.
-- Tabela paginada (20/pág.) com colunas: Data, Tipo (badge verde/vermelho), Descrição, Categoria, Valor, Ações (editar/excluir).
-- Modal de cadastro/edição: tipo (provento/gasto), valor (BRL), data, descrição, categoria (input livre).
-- Modais seguindo padrão responsivo do projeto (`w-[calc(100%-2rem)]`, `max-h-[85vh]`).
-
-Rota registrada em `App.tsx` dentro de `<ProtectedPage>`.
-
-## 5. Dashboard — novos cards
-
-Ajuste em `src/pages/Dashboard.tsx`:
-
-Cards financeiros existentes mantidos, com soma de proventos do `cash_flow_entries`:
-- **Total Recebido (Geral)** = faturas pagas + payment_links pagos + legado + **proventos (todos)**
-- **Recebido este Mês** = igual ao atual + **proventos do mês atual**
-- **A Receber este Mês** — sem alteração
-
-Novos cards:
-- **Gastos este Mês** (vermelho) — soma de `expense` do mês atual
-- **Gastos Total** (vermelho) — soma de `expense` desde sempre
-- (Opcional, se couber visualmente) **Saldo Líquido do Mês** = Recebido mês − Gastos mês
-
-Layout: grid de 3 colunas em `sm` vira 2 linhas (3+2 ou 3+3). Em mobile empilha.
-
-Carregamento: nova query paralela `supabase.from('cash_flow_entries').select('type, amount, entry_date').eq('user_id', user.id)` no `fetchStats`, com agregação em memória.
-
-## 6. Relatórios (escopo mínimo)
-
-- Em `Reports.tsx`, adicionar aba/seção **Fluxo de Caixa** com export CSV de `cash_flow_entries` filtrado por período. (Mantém o padrão atual de relatórios.)
-
-## 7. Memória
-
-Salvar `mem://features/cashflow` documentando:
-- Tabela `cash_flow_entries`, controle por flag `module_cashflow`, faturas pagas computadas por agregação (sem duplicar), cards do dashboard incluem proventos.
+- Não sincroniza faturas, produtos ou pagamentos
+- Não cria webhook (sem sincronização automática contínua) — é importação manual
+- Não envia dados de volta ao WHMCS
 
 ## Detalhes técnicos
 
-- Supabase types: regenerados automaticamente após migration.
-- Sem edge function — tudo client-side com RLS.
-- Categoria livre (texto), sem CRUD próprio.
-- BRL via `toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })`.
-- Datas no fuso `America/Sao_Paulo` (helpers existentes em `src/lib/date-brt.ts`).
+### Banco
+Nova tabela `whmcs_global_config` (apenas 1 linha, somente admin pode ler/escrever):
+- `api_url` (text)
+- `api_identifier` (text)
+- `api_secret` (text)
+- `is_enabled` (boolean)
+- timestamps
+
+RLS: somente `is_admin()` para SELECT/INSERT/UPDATE/DELETE.
+
+### Edge Function `whmcs-sync`
+- `verify_jwt = false` (validação JWT em código + checagem de role)
+- Ações:
+  - `test-connection` → chama `WhmcsDetails` da API WHMCS, retorna versão
+  - `list-clients` → chama `GetClients` (paginado, suporta `limitstart`, `limitnum`, `search`)
+  - `import-clients` → recebe lista de IDs WHMCS, busca dados completos via `GetClientsDetails`, insere em `clients` com `user_id = auth.uid()` do chamador
+- Autenticação WHMCS: usa `identifier` + `secret` no body (formato oficial da API WHMCS 8.x), `responsetype=json`
+- Lê config de `whmcs_global_config` usando service role
+
+### Frontend
+- Nova página `/admin/whmcs` (config global, sidebar admin)
+- Novo botão "Importar do WHMCS" em `/clients` abrindo modal com listagem + seleção
+- Componentes shadcn existentes (Dialog, Table, Checkbox, Pagination)
+- Toast de progresso e relatório final (importados / pulados / erros)
+
+### Segurança
+- Credenciais WHMCS ficam só no banco (não em secrets), mas em tabela protegida por RLS admin-only
+- Edge function valida que o caller é autenticado antes de importar
+- Sem exposição das credenciais ao cliente (frontend nunca vê o secret)
+
+## Pergunta única antes de começar
+
+Os clientes importados vão para a conta do **usuário que clicou em "Importar"**. Isso significa que se vários usuários do CRM importarem o mesmo cliente WHMCS, cada um terá uma cópia na sua própria base — isso é proposital (multi-tenant). Confirma essa lógica? Se preferir que o admin escolha "para qual usuário do CRM" importar cada lote, eu adiciono um seletor de destino no modal de importação.
