@@ -34,6 +34,7 @@ import AdminSupportMaterials from "./pages/AdminSupportMaterials";
 import SupportMaterialsPage from "./pages/SupportMaterials";
 import Reports from "./pages/Reports";
 import CashFlow from "./pages/CashFlow";
+import AdminWhmcs from "./pages/AdminWhmcs";
 
 const queryClient = new QueryClient();
 
