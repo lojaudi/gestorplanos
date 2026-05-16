@@ -989,6 +989,36 @@ export type Database = {
         }
         Relationships: []
       }
+      whmcs_global_config: {
+        Row: {
+          api_identifier: string
+          api_secret: string
+          api_url: string
+          created_at: string
+          id: string
+          is_enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          api_identifier?: string
+          api_secret?: string
+          api_url?: string
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          api_identifier?: string
+          api_secret?: string
+          api_url?: string
+          created_at?: string
+          id?: string
+          is_enabled?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       platform_settings_public: {

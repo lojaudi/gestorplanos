@@ -21,9 +21,10 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Users, Search, ChevronLeft, ChevronRight, PenLine } from "lucide-react";
+import { Plus, Pencil, Trash2, Users, Search, ChevronLeft, ChevronRight, PenLine, Download } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { BulkEditClientsDialog } from "@/components/clients/BulkEditClientsDialog";
+import { WhmcsImportDialog } from "@/components/clients/WhmcsImportDialog";
 import { editClientWithInvoiceSync } from "@/lib/client-edit-with-invoice";
 import { formatDateBRT, getTodayBRT, shiftDateBRT } from "@/lib/date-brt";
 
@@ -67,6 +68,7 @@ const Clients = () => {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [bulkDeleteMode, setBulkDeleteMode] = useState<"selected" | "expired" | null>(null);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [whmcsOpen, setWhmcsOpen] = useState(false);
   const [editing, setEditing] = useState<ClientWithRelations | null>(null);
   const [saving, setSaving] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -289,9 +291,14 @@ const Clients = () => {
           <h1 className="text-2xl font-bold text-foreground">Clientes</h1>
           <p className="text-muted-foreground">{clients.length} clientes cadastrados</p>
         </div>
-        <Button onClick={openCreate}>
-          <Plus className="mr-2 h-4 w-4" /> Novo Cliente
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setWhmcsOpen(true)}>
+            <Download className="mr-2 h-4 w-4" /> Importar WHMCS
+          </Button>
+          <Button onClick={openCreate}>
+            <Plus className="mr-2 h-4 w-4" /> Novo Cliente
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -586,6 +593,12 @@ const Clients = () => {
         services={services}
         plans={plans}
         onUpdated={() => { fetchData(); setSelected(new Set()); }}
+      />
+
+      <WhmcsImportDialog
+        open={whmcsOpen}
+        onClose={() => setWhmcsOpen(false)}
+        onImported={() => { fetchData(); }}
       />
     </div>
   );
