@@ -66,6 +66,7 @@ const App = () => (
               <Route path="/admin/settings" element={<ProtectedPage><AdminSettings /></ProtectedPage>} />
               <Route path="/admin/plans" element={<ProtectedPage><AdminPlans /></ProtectedPage>} />
               <Route path="/admin/tutorials" element={<ProtectedPage><AdminTutorials /></ProtectedPage>} />
+              <Route path="/admin/whmcs" element={<ProtectedPage><AdminWhmcs /></ProtectedPage>} />
               <Route path="/tutorials" element={<ProtectedPage><Tutorials /></ProtectedPage>} />
               <Route path="/campaign" element={<ProtectedPage><Campaign /></ProtectedPage>} />
               <Route path="/subscribe" element={<ProtectedPage><Subscribe /></ProtectedPage>} />
