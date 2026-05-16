@@ -291,10 +291,14 @@ const Clients = () => {
           <h1 className="text-2xl font-bold text-foreground">Clientes</h1>
           <p className="text-muted-foreground">{clients.length} clientes cadastrados</p>
         </div>
-        <Button onClick={openCreate}>
-          <Plus className="mr-2 h-4 w-4" /> Novo Cliente
-        </Button>
-      </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setWhmcsOpen(true)}>
+            <Download className="mr-2 h-4 w-4" /> Importar WHMCS
+          </Button>
+          <Button onClick={openCreate}>
+            <Plus className="mr-2 h-4 w-4" /> Novo Cliente
+          </Button>
+        </div>
 
       {/* Filters */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
