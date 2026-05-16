@@ -26,6 +26,7 @@ import {
   BarChart3,
   ChevronLeft,
   TrendingUp,
+  Plug,
 } from "lucide-react";
 import { useCashflowAccess } from "@/hooks/useCashflowAccess";
 import { cn } from "@/lib/utils";
