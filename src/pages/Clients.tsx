@@ -21,9 +21,10 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Users, Search, ChevronLeft, ChevronRight, PenLine } from "lucide-react";
+import { Plus, Pencil, Trash2, Users, Search, ChevronLeft, ChevronRight, PenLine, Download } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { BulkEditClientsDialog } from "@/components/clients/BulkEditClientsDialog";
+import { WhmcsImportDialog } from "@/components/clients/WhmcsImportDialog";
 import { editClientWithInvoiceSync } from "@/lib/client-edit-with-invoice";
 import { formatDateBRT, getTodayBRT, shiftDateBRT } from "@/lib/date-brt";
 
