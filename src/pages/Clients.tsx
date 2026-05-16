@@ -68,6 +68,7 @@ const Clients = () => {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [bulkDeleteMode, setBulkDeleteMode] = useState<"selected" | "expired" | null>(null);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
+  const [whmcsOpen, setWhmcsOpen] = useState(false);
   const [editing, setEditing] = useState<ClientWithRelations | null>(null);
   const [saving, setSaving] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
