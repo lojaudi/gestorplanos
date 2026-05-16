@@ -594,6 +594,12 @@ const Clients = () => {
         plans={plans}
         onUpdated={() => { fetchData(); setSelected(new Set()); }}
       />
+
+      <WhmcsImportDialog
+        open={whmcsOpen}
+        onClose={() => setWhmcsOpen(false)}
+        onImported={() => { fetchData(); }}
+      />
     </div>
   );
 };
