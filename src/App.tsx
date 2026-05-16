@@ -35,6 +35,7 @@ import SupportMaterialsPage from "./pages/SupportMaterials";
 import Reports from "./pages/Reports";
 import CashFlow from "./pages/CashFlow";
 import AdminWhmcs from "./pages/AdminWhmcs";
+import IptvServers from "./pages/IptvServers";
 
 const queryClient = new QueryClient();
 
@@ -60,6 +61,7 @@ const App = () => (
               <Route path="/cashflow" element={<ProtectedPage><CashFlow /></ProtectedPage>} />
               <Route path="/logs" element={<ProtectedPage><Logs /></ProtectedPage>} />
               <Route path="/payment-gateway" element={<ProtectedPage><PaymentGateway /></ProtectedPage>} />
+              <Route path="/iptv-servers" element={<ProtectedPage><IptvServers /></ProtectedPage>} />
               <Route path="/profile" element={<ProtectedPage><Profile /></ProtectedPage>} />
               <Route path="/admin/users" element={<ProtectedPage><AdminUsers /></ProtectedPage>} />
               <Route path="/admin/logs" element={<ProtectedPage><AdminLogs /></ProtectedPage>} />
