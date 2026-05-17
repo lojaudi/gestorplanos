@@ -27,7 +27,6 @@ import {
   ChevronLeft,
   TrendingUp,
   Plug,
-  Server,
 } from "lucide-react";
 import { useCashflowAccess } from "@/hooks/useCashflowAccess";
 import { cn } from "@/lib/utils";
@@ -82,7 +81,6 @@ function buildUserNav(showCashflow: boolean): NavEntry[] {
         { icon: MessageSquare, label: "WhatsApp", path: "/whatsapp" },
         { icon: Wallet, label: "Gateway Pagamentos", path: "/payment-gateway" },
         { icon: ClipboardList, label: "Serviços", path: "/services" },
-        { icon: Server, label: "Servidores IPTV", path: "/iptv-servers" },
       ],
     },
     { icon: Video, label: "Tutoriais", path: "/tutorials" },
