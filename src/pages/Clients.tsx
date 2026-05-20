@@ -337,6 +337,17 @@ const Clients = () => {
             ))}
           </SelectContent>
         </Select>
+        <Select value={serviceFilter} onValueChange={setServiceFilter}>
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue placeholder="Filtrar por serviço" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os Serviços</SelectItem>
+            {services.map((s) => (
+              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {(selected.size > 0 || expiredClients.length > 0) && (
