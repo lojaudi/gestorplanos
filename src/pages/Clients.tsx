@@ -126,7 +126,7 @@ const Clients = () => {
   }, [filteredClients.length, pageSize]);
 
   // Reset to page 1 when filters or pageSize change
-  useEffect(() => { setCurrentPage(1); }, [statusFilter, planFilter, searchQuery, pageSize]);
+  useEffect(() => { setCurrentPage(1); }, [statusFilter, planFilter, serviceFilter, searchQuery, pageSize]);
 
   const paginatedClients = useMemo(() => {
     if (pageSize === "all") return filteredClients;
