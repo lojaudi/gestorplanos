@@ -395,6 +395,164 @@ export type Database = {
           },
         ]
       }
+      iptv_client_lines: {
+        Row: {
+          bouquet_ids: Json
+          client_id: string
+          created_at: string
+          enabled: boolean
+          exp_date: string | null
+          id: string
+          is_trial: boolean
+          last_sync_at: string | null
+          last_sync_error: string | null
+          last_sync_status: string | null
+          max_connections: number
+          server_id: string
+          updated_at: string
+          user_id: string
+          xui_password: string
+          xui_user_id: number | null
+          xui_username: string
+        }
+        Insert: {
+          bouquet_ids?: Json
+          client_id: string
+          created_at?: string
+          enabled?: boolean
+          exp_date?: string | null
+          id?: string
+          is_trial?: boolean
+          last_sync_at?: string | null
+          last_sync_error?: string | null
+          last_sync_status?: string | null
+          max_connections?: number
+          server_id: string
+          updated_at?: string
+          user_id: string
+          xui_password: string
+          xui_user_id?: number | null
+          xui_username: string
+        }
+        Update: {
+          bouquet_ids?: Json
+          client_id?: string
+          created_at?: string
+          enabled?: boolean
+          exp_date?: string | null
+          id?: string
+          is_trial?: boolean
+          last_sync_at?: string | null
+          last_sync_error?: string | null
+          last_sync_status?: string | null
+          max_connections?: number
+          server_id?: string
+          updated_at?: string
+          user_id?: string
+          xui_password?: string
+          xui_user_id?: number | null
+          xui_username?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "iptv_client_lines_server_id_fkey"
+            columns: ["server_id"]
+            isOneToOne: false
+            referencedRelation: "iptv_servers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      iptv_servers: {
+        Row: {
+          admin_id: number
+          created_at: string
+          db_name: string
+          db_password_encrypted: string
+          db_user: string
+          host: string
+          id: string
+          is_active: boolean
+          last_test_at: string | null
+          last_test_message: string | null
+          last_test_ok: boolean | null
+          name: string
+          port: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_id?: number
+          created_at?: string
+          db_name?: string
+          db_password_encrypted: string
+          db_user: string
+          host: string
+          id?: string
+          is_active?: boolean
+          last_test_at?: string | null
+          last_test_message?: string | null
+          last_test_ok?: boolean | null
+          name: string
+          port?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_id?: number
+          created_at?: string
+          db_name?: string
+          db_password_encrypted?: string
+          db_user?: string
+          host?: string
+          id?: string
+          is_active?: boolean
+          last_test_at?: string | null
+          last_test_message?: string | null
+          last_test_ok?: boolean | null
+          name?: string
+          port?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      iptv_sync_logs: {
+        Row: {
+          action: string
+          client_id: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          payload: Json | null
+          server_id: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          action: string
+          client_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          payload?: Json | null
+          server_id?: string | null
+          status: string
+          user_id: string
+        }
+        Update: {
+          action?: string
+          client_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          payload?: Json | null
+          server_id?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       message_logs: {
         Row: {
           api_response: string | null
@@ -1074,6 +1232,14 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      iptv_decrypt_password: {
+        Args: { _cipher: string; _key: string }
+        Returns: string
+      }
+      iptv_encrypt_password: {
+        Args: { _key: string; _plain: string }
+        Returns: string
       }
       is_admin: { Args: never; Returns: boolean }
     }
