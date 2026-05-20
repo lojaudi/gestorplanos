@@ -107,6 +107,7 @@ const Clients = () => {
       const status = getStatus(c.due_date);
       if (statusFilter !== "all" && status !== statusFilter) return false;
       if (planFilter !== "all" && c.plan_id !== planFilter) return false;
+      if (serviceFilter !== "all" && c.service_id !== serviceFilter) return false;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         return (
@@ -117,7 +118,7 @@ const Clients = () => {
       }
       return true;
     });
-  }, [clients, statusFilter, planFilter, searchQuery]);
+  }, [clients, statusFilter, planFilter, serviceFilter, searchQuery]);
 
   const totalPages = useMemo(() => {
     if (pageSize === "all") return 1;
