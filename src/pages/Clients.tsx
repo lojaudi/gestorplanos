@@ -74,6 +74,7 @@ const Clients = () => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState("all");
   const [planFilter, setPlanFilter] = useState("all");
+  const [serviceFilter, setServiceFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [pageSize, setPageSize] = useState<string>("10");
   const [currentPage, setCurrentPage] = useState(1);
@@ -106,6 +107,7 @@ const Clients = () => {
       const status = getStatus(c.due_date);
       if (statusFilter !== "all" && status !== statusFilter) return false;
       if (planFilter !== "all" && c.plan_id !== planFilter) return false;
+      if (serviceFilter !== "all" && c.service_id !== serviceFilter) return false;
       if (searchQuery) {
         const q = searchQuery.toLowerCase();
         return (
@@ -116,7 +118,7 @@ const Clients = () => {
       }
       return true;
     });
-  }, [clients, statusFilter, planFilter, searchQuery]);
+  }, [clients, statusFilter, planFilter, serviceFilter, searchQuery]);
 
   const totalPages = useMemo(() => {
     if (pageSize === "all") return 1;
@@ -124,7 +126,7 @@ const Clients = () => {
   }, [filteredClients.length, pageSize]);
 
   // Reset to page 1 when filters or pageSize change
-  useEffect(() => { setCurrentPage(1); }, [statusFilter, planFilter, searchQuery, pageSize]);
+  useEffect(() => { setCurrentPage(1); }, [statusFilter, planFilter, serviceFilter, searchQuery, pageSize]);
 
   const paginatedClients = useMemo(() => {
     if (pageSize === "all") return filteredClients;
@@ -332,6 +334,17 @@ const Clients = () => {
             <SelectItem value="all">Todos os Planos</SelectItem>
             {plans.map((p) => (
               <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={serviceFilter} onValueChange={setServiceFilter}>
+          <SelectTrigger className="w-full sm:w-48">
+            <SelectValue placeholder="Filtrar por serviço" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">Todos os Serviços</SelectItem>
+            {services.map((s) => (
+              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
             ))}
           </SelectContent>
         </Select>
