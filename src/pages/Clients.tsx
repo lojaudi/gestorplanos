@@ -74,6 +74,7 @@ const Clients = () => {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [statusFilter, setStatusFilter] = useState("all");
   const [planFilter, setPlanFilter] = useState("all");
+  const [serviceFilter, setServiceFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [pageSize, setPageSize] = useState<string>("10");
   const [currentPage, setCurrentPage] = useState(1);
