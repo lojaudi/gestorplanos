@@ -77,7 +77,11 @@ Deno.serve(async (req) => {
     const { data, error } = await adminClient.auth.admin.updateUserById(user_id, updates);
     if (error) {
       console.error("[admin-update-user] supabase error:", error);
-      return new Response(JSON.stringify({ error: error.message }), {
+      let friendly = error.message;
+      if ((error as any).code === "weak_password" || /weak|pwned/i.test(error.message)) {
+        friendly = "Esta senha é muito fraca ou já vazou em incidentes de segurança conhecidos. Escolha uma senha diferente (evite sequências comuns como 123456, senhas óbvias ou repetidas).";
+      }
+      return new Response(JSON.stringify({ error: friendly }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
