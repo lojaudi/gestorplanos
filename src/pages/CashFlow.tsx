@@ -259,14 +259,30 @@ const CashFlow = () => {
       return;
     }
     setSaving(true);
+    let amountBRL = amount;
+    let description = form.description.trim();
+    if (form.currency !== "BRL") {
+      try {
+        const rates = await fetchRates();
+        const rate = rates[form.currency];
+        amountBRL = Math.round(amount * rate * 100) / 100;
+        const symbol = form.currency === "USD" ? "US$" : "€";
+        description += ` (${symbol} ${amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} @ R$ ${rate.toLocaleString("pt-BR", { minimumFractionDigits: 4 })})`;
+      } catch (err: any) {
+        setSaving(false);
+        toast({ title: "Erro ao obter cotação", description: "Tente novamente ou informe o valor em Reais.", variant: "destructive" });
+        return;
+      }
+    }
     const payload = {
       user_id: user.id,
       type: form.type,
-      amount,
-      description: form.description.trim(),
+      amount: amountBRL,
+      description,
       category: form.category.trim() || null,
       entry_date: form.entry_date,
     };
+
     try {
       if (editing) {
         const { error } = await supabase.from("cash_flow_entries").update(payload).eq("id", editing.id);
