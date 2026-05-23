@@ -270,10 +270,13 @@ const CashFlow = () => {
           return false;
         }
       }
+      if (monthFilter !== "all") {
+        if (!e.entry_date.startsWith(monthFilter)) return false;
+      }
       if (search && !`${e.description} ${e.category ?? ""}`.toLowerCase().includes(search.toLowerCase())) return false;
       return true;
     });
-  }, [entries, filter, categoryFilter, search]);
+  }, [entries, filter, categoryFilter, monthFilter, search]);
 
   const availableCategoryOptions = useMemo(() => {
     const set = new Set<string>();
