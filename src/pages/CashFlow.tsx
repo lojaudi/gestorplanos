@@ -129,6 +129,7 @@ const CashFlow = () => {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [recalculating, setRecalculating] = useState(false);
+  const [monthFilter, setMonthFilter] = useState<string>("all");
 
   // categories management
   const [catDialogOpen, setCatDialogOpen] = useState(false);
@@ -269,10 +270,34 @@ const CashFlow = () => {
           return false;
         }
       }
+      if (monthFilter !== "all") {
+        if (!e.entry_date.startsWith(monthFilter)) return false;
+      }
       if (search && !`${e.description} ${e.category ?? ""}`.toLowerCase().includes(search.toLowerCase())) return false;
       return true;
     });
-  }, [entries, filter, categoryFilter, search]);
+  }, [entries, filter, categoryFilter, monthFilter, search]);
+
+  const monthOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    const now = new Date();
+    for (let i = 0; i < 24; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const label = d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+      map.set(key, label.charAt(1).toUpperCase() + label.slice(1));
+    }
+    entries.forEach((e) => {
+      const k = e.entry_date.slice(0, 7);
+      if (!map.has(k)) {
+        const [y, m] = k.split("-").map(Number);
+        const d = new Date(y, m - 1, 1);
+        const label = d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+        map.set(k, label.charAt(1).toUpperCase() + label.slice(1));
+      }
+    });
+    return Array.from(map.entries()).sort((a, b) => (a[0] < b[0] ? 1 : -1));
+  }, [entries]);
 
   const availableCategoryOptions = useMemo(() => {
     const set = new Set<string>();
@@ -286,23 +311,38 @@ const CashFlow = () => {
   }, [categories, entries, filter]);
 
   const totals = useMemo(() => {
-    const now = new Date();
-    const m = now.getMonth();
-    const y = now.getFullYear();
-    let income = 0, expense = 0, monthIncome = 0, monthExpense = 0;
-    for (const e of entries) {
-      const d = new Date(e.entry_date + "T00:00:00");
-      const inMonth = d.getMonth() === m && d.getFullYear() === y;
-      if (e.type === "income") {
-        income += Number(e.amount);
-        if (inMonth) monthIncome += Number(e.amount);
-      } else {
-        expense += Number(e.amount);
-        if (inMonth) monthExpense += Number(e.amount);
+    let income = 0, expense = 0, monthIncome = 0, monthExpense = .0;
+    if (monthFilter === "all") {
+      const now = new Date();
+      const m = now.getMonth();
+      const y = now.getFullYear();
+      for (const e of entries) {
+        const d = new Date(e.entry_date + "T00:00:00");
+        const inMonth = d.getMonth() === m && d.getFullYear() === y;
+        if (e.type === "income") {
+          income += Number(e.amount);
+          if (inMonth) monthIncome += Number(e.amount);
+        } else {
+          expense += Number(e.amount);
+          if (inMonth) monthExpense += Number(e.amount);
+        }
+      }
+    } else {
+      const [fy, fm] = monthFilter.split("-").map(Number);
+      const cutoff = new Date(fy, fm, 1);
+      for (const e of entries) {
+        const d = new Date(e.entry_date + "T00:00:00");
+        if (e.type === "income") {
+          income += Number(e.amount);
+          if (d.getFullYear() === fy && d.getMonth() + 1 === fm) monthIncome += Number(e.amount);
+        } else {
+          expense += Number(e.amount);
+          if (d.getFullYear() === fy && d.getMonth() + 1 === fm) monthExpense += Number(e.amount);
+        }
       }
     }
     return { income, expense, monthIncome, monthExpense, balance: income - expense };
-  }, [entries]);
+  }, [entries, monthFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
@@ -521,7 +561,9 @@ const CashFlow = () => {
           <CardContent className="p-5">
             <div className="flex items-center gap-2 mb-2">
               <TrendingUp className="h-4 w-4 text-emerald-500" />
-              <span className="text-xs text-muted-foreground">Proventos (mês)</span>
+              <span className="text-xs text-muted-foreground">
+                Proventos {monthFilter === "all" ? "(mês)" : "(período)"}
+              </span>
             </div>
             <p className="text-xl font-bold">{fmt(totals.monthIncome)}</p>
           </CardContent>
@@ -530,7 +572,9 @@ const CashFlow = () => {
           <CardContent className="p-5">
             <div className="flex items-center gap-2 mb-2">
               <TrendingDown className="h-4 w-4 text-destructive" />
-              <span className="text-xs text-muted-foreground">Gastos (mês)</span>
+              <span className="text-xs text-muted-foreground">
+                Gastos {monthFilter === "all" ? "(mês)" : "(período)"}
+              </span>
             </div>
             <p className="text-xl font-bold">{fmt(totals.monthExpense)}</p>
           </CardContent>
@@ -539,7 +583,9 @@ const CashFlow = () => {
           <CardContent className="p-5">
             <div className="flex items-center gap-2 mb-2">
               <TrendingUp className="h-4 w-4 text-emerald-500" />
-              <span className="text-xs text-muted-foreground">Proventos total</span>
+              <span className="text-xs text-muted-foreground">
+                Proventos {monthFilter === "all" ? "total" : "acum."}
+              </span>
             </div>
             <p className="text-xl font-bold">{fmt(totals.income)}</p>
           </CardContent>
@@ -548,7 +594,9 @@ const CashFlow = () => {
           <CardContent className="p-5">
             <div className="flex items-center gap-2 mb-2">
               <Wallet className="h-4 w-4 text-primary" />
-              <span className="text-xs text-muted-foreground">Saldo total</span>
+              <span className="text-xs text-muted-foreground">
+                Saldo {monthFilter === "all" ? "total" : "acum."}
+              </span>
             </div>
             <p className="text-xl font-bold">{fmt(totals.balance)}</p>
           </CardContent>
@@ -558,6 +606,16 @@ const CashFlow = () => {
       {/* Filtros */}
       <Card>
         <CardContent className="p-4 flex flex-wrap gap-3">
+          <select
+            value={monthFilter}
+            onChange={(e) => { setMonthFilter(e.target.value); setPage(1); }}
+            className="h-10 rounded-md border border-input bg-background px-3 text-sm min-w-[180px]"
+          >
+            <option value="all">Todos os meses</option>
+            {monthOptions.map(([key, label]) => (
+              <option key={key} value={key}>{label}</option>
+            ))}
+          </select>
           <select
             value={filter}
             onChange={(e) => { setFilter(e.target.value as any); setCategoryFilter("all"); setPage(1); }}
@@ -584,10 +642,10 @@ const CashFlow = () => {
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             className="flex-1 min-w-[200px]"
           />
-          {(filter !== "all" || categoryFilter !== "all" || search) && (
+          {(filter !== "all" || categoryFilter !== "all" || search || monthFilter !== "all") && (
             <Button
               variant="ghost"
-              onClick={() => { setFilter("all"); setCategoryFilter("all"); setSearch(""); setPage(1); }}
+              onClick={() => { setFilter("all"); setCategoryFilter("all"); setSearch(""); setMonthFilter("all"); setPage(1); }}
             >
               Limpar
             </Button>
