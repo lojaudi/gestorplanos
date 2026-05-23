@@ -154,26 +154,69 @@ const CashFlow = () => {
       supabase.from("payment_links")
         .select("id, amount, description, created_at, clients(name)")
         .eq("user_id", user.id).eq("status", "paid"),
+  const ensureRecurring = async () => {
+    if (!user) return;
+    const { data: templates } = await supabase
+      .from("cash_flow_entries")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("is_recurring", true);
+    if (!templates || templates.length === 0) return;
+
+    const today = todayBRT();
+    const toInsert: any[] = [];
+
+    for (const t of templates as any[]) {
+      const anchor: string = t.entry_date;
+      const diff = monthsBetween(anchor, today);
+      if (diff <= 0) continue;
+
+      const { data: existingChildren } = await supabase
+        .from("cash_flow_entries")
+        .select("entry_date")
+        .eq("user_id", user.id)
+        .eq("recurrence_parent_id", t.id);
+      const existing = new Set(((existingChildren as any[]) || []).map((c) => c.entry_date));
+
+      for (let i = 1; i <= diff; i++) {
+        const date = addMonthsClamped(anchor, i);
+        if (existing.has(date)) continue;
+        toInsert.push({
+          user_id: user.id,
+          type: t.type,
+          amount: t.amount,
+          description: t.description,
+          category: t.category,
+          entry_date: date,
+          recurrence_parent_id: t.id,
+          is_recurring: false,
+        });
+      }
+    }
+    if (toInsert.length) {
+      await supabase.from("cash_flow_entries").insert(toInsert);
+    }
+  };
+
+  const fetchAll = async (notify = false) => {
+    if (!user) return;
+    await ensureRecurring();
+    const [
+      { data: entriesData },
+      { data: catData },
+      { data: paidInvoices },
+      { data: paidLinks },
+    ] = await Promise.all([
+      supabase.from("cash_flow_entries").select("*").eq("user_id", user.id)
+        .order("entry_date", { ascending: false }).order("created_at", { ascending: false }),
+      supabase.from("cash_flow_categories").select("*").eq("user_id", user.id).order("name"),
+      supabase.from("invoices")
+        .select("id, amount, description, payment_date, due_date, payment_method, clients(name)")
+        .eq("user_id", user.id).eq("status", "paid"),
+      supabase.from("payment_links")
+        .select("id, amount, description, created_at, clients(name)")
+        .eq("user_id", user.id).eq("status", "paid"),
     ]);
-
-    const manual: Entry[] = ((entriesData as any[]) || []).map((e) => ({
-      ...e,
-      source: "manual" as const,
-    }));
-
-    const invoiceEntries: Entry[] = ((paidInvoices as any[]) || []).map((inv) => {
-      const dateRef = inv.payment_date ? String(inv.payment_date).slice(0, 10) : inv.due_date;
-      const clientName = inv.clients?.name ? ` — ${inv.clients.name}` : "";
-      const desc = (inv.description && inv.description.trim()) || "Fatura paga";
-      return {
-        id: `invoice:${inv.id}`,
-        type: "income",
-        amount: Number(inv.amount),
-        description: `${desc}${clientName}`,
-        category: "Faturamento",
-        entry_date: dateRef,
-        source: "invoice" as const,
-      };
     });
 
     const linkEntries: Entry[] = ((paidLinks as any[]) || []).map((l) => {
