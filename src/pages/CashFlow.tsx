@@ -68,6 +68,28 @@ const fetchRates = async (): Promise<Rates> => {
   return data;
 };
 
+const ConversionPreview = ({ amount, currency }: { amount: number; currency: "USD" | "EUR" }) => {
+  const [rate, setRate] = useState<number | null>(null);
+  const [err, setErr] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    setErr(false);
+    fetchRates()
+      .then((r) => alive && setRate(r[currency]))
+      .catch(() => alive && setErr(true));
+    return () => { alive = false; };
+  }, [currency]);
+  if (err) return <p className="text-xs text-destructive">Falha ao obter cotação.</p>;
+  if (!rate) return <p className="text-xs text-muted-foreground">Obtendo cotação...</p>;
+  const brl = amount * rate;
+  return (
+    <p className="text-xs text-muted-foreground">
+      ≈ {brl.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} (cotação: R$ {rate.toLocaleString("pt-BR", { minimumFractionDigits: 4 })})
+    </p>
+  );
+};
+
+
 
 const PAGE_SIZE = 20;
 
