@@ -293,7 +293,7 @@ const CashFlow = () => {
         const [y, m] = k.split("-").map(Number);
         const d = new Date(y, m - 1, 1);
         const label = d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
-        map.set(k, label.charAt(1).toUpperCase() + label.slice(1));
+        map.set(k, label.charAt(0).toUpperCase() + label.slice(1));
       }
     });
     return Array.from(map.entries()).sort((a, b) => (a[0] < b[0] ? 1 : -1));
