@@ -596,16 +596,32 @@ const CashFlow = () => {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label>Valor (R$)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  value={form.amount}
-                  onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                  placeholder="0,00"
-                />
+                <Label>Valor</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={form.amount}
+                    onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                    placeholder="0,00"
+                    className="flex-1"
+                  />
+                  <select
+                    value={form.currency}
+                    onChange={(e) => setForm({ ...form, currency: e.target.value as "BRL" | "USD" | "EUR" })}
+                    className="h-10 rounded-md border border-input bg-background px-2 text-sm"
+                  >
+                    <option value="BRL">R$</option>
+                    <option value="USD">US$</option>
+                    <option value="EUR">€</option>
+                  </select>
+                </div>
+                {form.currency !== "BRL" && form.amount && parseFloat(form.amount) > 0 && (
+                  <ConversionPreview amount={parseFloat(form.amount)} currency={form.currency} />
+                )}
               </div>
+
               <div className="space-y-2">
                 <Label>Data</Label>
                 <Input
