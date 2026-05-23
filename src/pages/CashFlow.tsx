@@ -45,10 +45,51 @@ const todayBRT = () => {
 const defaultForm = {
   type: "income" as "income" | "expense",
   amount: "",
+  currency: "BRL" as "BRL" | "USD" | "EUR",
   description: "",
   category: "",
   entry_date: todayBRT(),
 };
+
+type Rates = { USD: number; EUR: number };
+let ratesCache: { at: number; data: Rates } | null = null;
+
+const fetchRates = async (): Promise<Rates> => {
+  if (ratesCache && Date.now() - ratesCache.at < 10 * 60 * 1000) return ratesCache.data;
+  const res = await fetch("https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL");
+  if (!res.ok) throw new Error("Falha ao obter cotação");
+  const j = await res.json();
+  const data: Rates = {
+    USD: parseFloat(j?.USDBRL?.bid ?? "0"),
+    EUR: parseFloat(j?.EURBRL?.bid ?? "0"),
+  };
+  if (!data.USD || !data.EUR) throw new Error("Cotação indisponível");
+  ratesCache = { at: Date.now(), data };
+  return data;
+};
+
+const ConversionPreview = ({ amount, currency }: { amount: number; currency: "USD" | "EUR" }) => {
+  const [rate, setRate] = useState<number | null>(null);
+  const [err, setErr] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    setErr(false);
+    fetchRates()
+      .then((r) => alive && setRate(r[currency]))
+      .catch(() => alive && setErr(true));
+    return () => { alive = false; };
+  }, [currency]);
+  if (err) return <p className="text-xs text-destructive">Falha ao obter cotação.</p>;
+  if (!rate) return <p className="text-xs text-muted-foreground">Obtendo cotação...</p>;
+  const brl = amount * rate;
+  return (
+    <p className="text-xs text-muted-foreground">
+      ≈ {brl.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })} (cotação: R$ {rate.toLocaleString("pt-BR", { minimumFractionDigits: 4 })})
+    </p>
+  );
+};
+
+
 
 const PAGE_SIZE = 20;
 
@@ -219,10 +260,12 @@ const CashFlow = () => {
     setForm({
       type: e.type,
       amount: String(e.amount),
+      currency: "BRL",
       description: e.description,
       category: e.category ?? "",
       entry_date: e.entry_date,
     });
+
     setDialogOpen(true);
   };
 
@@ -238,14 +281,30 @@ const CashFlow = () => {
       return;
     }
     setSaving(true);
+    let amountBRL = amount;
+    let description = form.description.trim();
+    if (form.currency !== "BRL") {
+      try {
+        const rates = await fetchRates();
+        const rate = rates[form.currency];
+        amountBRL = Math.round(amount * rate * 100) / 100;
+        const symbol = form.currency === "USD" ? "US$" : "€";
+        description += ` (${symbol} ${amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} @ R$ ${rate.toLocaleString("pt-BR", { minimumFractionDigits: 4 })})`;
+      } catch (err: any) {
+        setSaving(false);
+        toast({ title: "Erro ao obter cotação", description: "Tente novamente ou informe o valor em Reais.", variant: "destructive" });
+        return;
+      }
+    }
     const payload = {
       user_id: user.id,
       type: form.type,
-      amount,
-      description: form.description.trim(),
+      amount: amountBRL,
+      description,
       category: form.category.trim() || null,
       entry_date: form.entry_date,
     };
+
     try {
       if (editing) {
         const { error } = await supabase.from("cash_flow_entries").update(payload).eq("id", editing.id);
@@ -559,16 +618,32 @@ const CashFlow = () => {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label>Valor (R$)</Label>
-                <Input
-                  type="number"
-                  step="0.01"
-                  min="0.01"
-                  value={form.amount}
-                  onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                  placeholder="0,00"
-                />
+                <Label>Valor</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={form.amount}
+                    onChange={(e) => setForm({ ...form, amount: e.target.value })}
+                    placeholder="0,00"
+                    className="flex-1"
+                  />
+                  <select
+                    value={form.currency}
+                    onChange={(e) => setForm({ ...form, currency: e.target.value as "BRL" | "USD" | "EUR" })}
+                    className="h-10 rounded-md border border-input bg-background px-2 text-sm"
+                  >
+                    <option value="BRL">R$</option>
+                    <option value="USD">US$</option>
+                    <option value="EUR">€</option>
+                  </select>
+                </div>
+                {form.currency !== "BRL" && form.amount && parseFloat(form.amount) > 0 && (
+                  <ConversionPreview amount={parseFloat(form.amount)} currency={form.currency} />
+                )}
               </div>
+
               <div className="space-y-2">
                 <Label>Data</Label>
                 <Input
