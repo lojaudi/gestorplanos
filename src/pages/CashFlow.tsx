@@ -561,7 +561,9 @@ const CashFlow = () => {
           <CardContent className="p-5">
             <div className="flex items-center gap-2 mb-2">
               <TrendingUp className="h-4 w-4 text-emerald-500" />
-              <span className="text-xs text-muted-foreground">Proventos (mês)</span>
+              <span className="text-xs text-muted-foreground">
+                Proventos {monthFilter === "all" ? "(mês)" : "(período)"}
+              </span>
             </div>
             <p className="text-xl font-bold">{fmt(totals.monthIncome)}</p>
           </CardContent>
@@ -570,7 +572,9 @@ const CashFlow = () => {
           <CardContent className="p-5">
             <div className="flex items-center gap-2 mb-2">
               <TrendingDown className="h-4 w-4 text-destructive" />
-              <span className="text-xs text-muted-foreground">Gastos (mês)</span>
+              <span className="text-xs text-muted-foreground">
+                Gastos {monthFilter === "all" ? "(mês)" : "(período)"}
+              </span>
             </div>
             <p className="text-xl font-bold">{fmt(totals.monthExpense)}</p>
           </CardContent>
@@ -579,7 +583,9 @@ const CashFlow = () => {
           <CardContent className="p-5">
             <div className="flex items-center gap-2 mb-2">
               <TrendingUp className="h-4 w-4 text-emerald-500" />
-              <span className="text-xs text-muted-foreground">Proventos total</span>
+              <span className="text-xs text-muted-foreground">
+                Proventos {monthFilter === "all" ? "total" : "acum."}
+              </span>
             </div>
             <p className="text-xl font-bold">{fmt(totals.income)}</p>
           </CardContent>
@@ -588,7 +594,9 @@ const CashFlow = () => {
           <CardContent className="p-5">
             <div className="flex items-center gap-2 mb-2">
               <Wallet className="h-4 w-4 text-primary" />
-              <span className="text-xs text-muted-foreground">Saldo total</span>
+              <span className="text-xs text-muted-foreground">
+                Saldo {monthFilter === "all" ? "total" : "acum."}
+              </span>
             </div>
             <p className="text-xl font-bold">{fmt(totals.balance)}</p>
           </CardContent>
