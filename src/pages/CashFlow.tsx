@@ -137,23 +137,6 @@ const CashFlow = () => {
   const [savingCat, setSavingCat] = useState(false);
   const [deleteCatId, setDeleteCatId] = useState<string | null>(null);
 
-  const fetchAll = async (notify = false) => {
-    if (!user) return;
-    const [
-      { data: entriesData },
-      { data: catData },
-      { data: paidInvoices },
-      { data: paidLinks },
-    ] = await Promise.all([
-      supabase.from("cash_flow_entries").select("*").eq("user_id", user.id)
-        .order("entry_date", { ascending: false }).order("created_at", { ascending: false }),
-      supabase.from("cash_flow_categories").select("*").eq("user_id", user.id).order("name"),
-      supabase.from("invoices")
-        .select("id, amount, description, payment_date, due_date, payment_method, clients(name)")
-        .eq("user_id", user.id).eq("status", "paid"),
-      supabase.from("payment_links")
-        .select("id, amount, description, created_at, clients(name)")
-        .eq("user_id", user.id).eq("status", "paid"),
   const ensureRecurring = async () => {
     if (!user) return;
     const { data: templates } = await supabase
@@ -217,7 +200,27 @@ const CashFlow = () => {
         .select("id, amount, description, created_at, clients(name)")
         .eq("user_id", user.id).eq("status", "paid"),
     ]);
+
+    const manual: Entry[] = ((entriesData as any[]) || []).map((e) => ({
+      ...e,
+      source: "manual" as const,
+    }));
+
+    const invoiceEntries: Entry[] = ((paidInvoices as any[]) || []).map((inv) => {
+      const dateRef = inv.payment_date ? String(inv.payment_date).slice(0, 10) : inv.due_date;
+      const clientName = inv.clients?.name ? ` — ${inv.clients.name}` : "";
+      const desc = (inv.description && inv.description.trim()) || "Fatura paga";
+      return {
+        id: `invoice:${inv.id}`,
+        type: "income",
+        amount: Number(inv.amount),
+        description: `${desc}${clientName}`,
+        category: "Faturamento",
+        entry_date: dateRef,
+        source: "invoice" as const,
+      };
     });
+
 
     const linkEntries: Entry[] = ((paidLinks as any[]) || []).map((l) => {
       const dateRef = String(l.created_at).slice(0, 10);
