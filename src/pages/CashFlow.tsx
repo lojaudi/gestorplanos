@@ -278,6 +278,27 @@ const CashFlow = () => {
     });
   }, [entries, filter, categoryFilter, monthFilter, search]);
 
+  const monthOptions = useMemo(() => {
+    const map = new Map<string, string>();
+    const now = new Date();
+    for (let i = 0; i < 24; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+      const label = d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+      map.set(key, label.charAt(1).toUpperCase() + label.slice(1));
+    }
+    entries.forEach((e) => {
+      const k = e.entry_date.slice(0, 7);
+      if (!map.has(k)) {
+        const [y, m] = k.split("-").map(Number);
+        const d = new Date(y, m - 1, 1);
+        const label = d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+        map.set(k, label.charAt(1).toUpperCase() + label.slice(1));
+      }
+    });
+    return Array.from(map.entries()).sort((a, b) => (a[0] < b[0] ? 1 : -1));
+  }, [entries]);
+
   const availableCategoryOptions = useMemo(() => {
     const set = new Set<string>();
     categories.forEach((c) => {
