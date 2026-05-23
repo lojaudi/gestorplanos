@@ -45,10 +45,29 @@ const todayBRT = () => {
 const defaultForm = {
   type: "income" as "income" | "expense",
   amount: "",
+  currency: "BRL" as "BRL" | "USD" | "EUR",
   description: "",
   category: "",
   entry_date: todayBRT(),
 };
+
+type Rates = { USD: number; EUR: number };
+let ratesCache: { at: number; data: Rates } | null = null;
+
+const fetchRates = async (): Promise<Rates> => {
+  if (ratesCache && Date.now() - ratesCache.at < 10 * 60 * 1000) return ratesCache.data;
+  const res = await fetch("https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL");
+  if (!res.ok) throw new Error("Falha ao obter cotação");
+  const j = await res.json();
+  const data: Rates = {
+    USD: parseFloat(j?.USDBRL?.bid ?? "0"),
+    EUR: parseFloat(j?.EURBRL?.bid ?? "0"),
+  };
+  if (!data.USD || !data.EUR) throw new Error("Cotação indisponível");
+  ratesCache = { at: Date.now(), data };
+  return data;
+};
+
 
 const PAGE_SIZE = 20;
 
