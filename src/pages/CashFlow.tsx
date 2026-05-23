@@ -49,6 +49,23 @@ const defaultForm = {
   description: "",
   category: "",
   entry_date: todayBRT(),
+  is_recurring: false,
+};
+
+const addMonthsClamped = (iso: string, months: number) => {
+  const [y, m, d] = iso.split("-").map(Number);
+  const target = new Date(y, m - 1 + months, 1);
+  const ty = target.getFullYear();
+  const tm = target.getMonth();
+  const lastDay = new Date(ty, tm + 1, 0).getDate();
+  const day = Math.min(d, lastDay);
+  return `${ty}-${String(tm + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+};
+
+const monthsBetween = (fromIso: string, toIso: string) => {
+  const [fy, fm] = fromIso.split("-").map(Number);
+  const [ty, tm] = toIso.split("-").map(Number);
+  return (ty - fy) * 12 + (tm - fm);
 };
 
 type Rates = { USD: number; EUR: number };
@@ -120,8 +137,53 @@ const CashFlow = () => {
   const [savingCat, setSavingCat] = useState(false);
   const [deleteCatId, setDeleteCatId] = useState<string | null>(null);
 
+  const ensureRecurring = async () => {
+    if (!user) return;
+    const { data: templates } = await supabase
+      .from("cash_flow_entries")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("is_recurring", true);
+    if (!templates || templates.length === 0) return;
+
+    const today = todayBRT();
+    const toInsert: any[] = [];
+
+    for (const t of templates as any[]) {
+      const anchor: string = t.entry_date;
+      const diff = monthsBetween(anchor, today);
+      if (diff <= 0) continue;
+
+      const { data: existingChildren } = await supabase
+        .from("cash_flow_entries")
+        .select("entry_date")
+        .eq("user_id", user.id)
+        .eq("recurrence_parent_id", t.id);
+      const existing = new Set(((existingChildren as any[]) || []).map((c) => c.entry_date));
+
+      for (let i = 1; i <= diff; i++) {
+        const date = addMonthsClamped(anchor, i);
+        if (existing.has(date)) continue;
+        toInsert.push({
+          user_id: user.id,
+          type: t.type,
+          amount: t.amount,
+          description: t.description,
+          category: t.category,
+          entry_date: date,
+          recurrence_parent_id: t.id,
+          is_recurring: false,
+        });
+      }
+    }
+    if (toInsert.length) {
+      await supabase.from("cash_flow_entries").insert(toInsert);
+    }
+  };
+
   const fetchAll = async (notify = false) => {
     if (!user) return;
+    await ensureRecurring();
     const [
       { data: entriesData },
       { data: catData },
@@ -158,6 +220,7 @@ const CashFlow = () => {
         source: "invoice" as const,
       };
     });
+
 
     const linkEntries: Entry[] = ((paidLinks as any[]) || []).map((l) => {
       const dateRef = String(l.created_at).slice(0, 10);
@@ -264,6 +327,7 @@ const CashFlow = () => {
       description: e.description,
       category: e.category ?? "",
       entry_date: e.entry_date,
+      is_recurring: !!(e as any).is_recurring,
     });
 
     setDialogOpen(true);
@@ -303,6 +367,7 @@ const CashFlow = () => {
       description,
       category: form.category.trim() || null,
       entry_date: form.entry_date,
+      is_recurring: form.is_recurring,
     };
 
     try {
@@ -681,6 +746,22 @@ const CashFlow = () => {
                 Gerencie as categorias clicando em "Categorias" no topo da página.
               </p>
             </div>
+            <label className="flex items-start gap-3 rounded-md border border-input bg-background p-3 cursor-pointer hover:bg-accent/30 transition-colors">
+              <input
+                type="checkbox"
+                checked={form.is_recurring}
+                onChange={(e) => setForm({ ...form, is_recurring: e.target.checked })}
+                className="mt-0.5 h-4 w-4 rounded border-input"
+              />
+              <div className="flex-1">
+                <p className="text-sm font-medium">Lançamento mensal recorrente</p>
+                <p className="text-xs text-muted-foreground">
+                  {form.is_recurring
+                    ? "Será lançado automaticamente todo mês a partir da data marcada."
+                    : "Será lançado apenas uma vez, na data marcada."}
+                </p>
+              </div>
+            </label>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>

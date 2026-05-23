@@ -175,6 +175,8 @@ export type Database = {
           description: string
           entry_date: string
           id: string
+          is_recurring: boolean
+          recurrence_parent_id: string | null
           type: string
           updated_at: string
           user_id: string
@@ -186,6 +188,8 @@ export type Database = {
           description: string
           entry_date?: string
           id?: string
+          is_recurring?: boolean
+          recurrence_parent_id?: string | null
           type: string
           updated_at?: string
           user_id: string
@@ -197,11 +201,21 @@ export type Database = {
           description?: string
           entry_date?: string
           id?: string
+          is_recurring?: boolean
+          recurrence_parent_id?: string | null
           type?: string
           updated_at?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "cash_flow_entries_recurrence_parent_id_fkey"
+            columns: ["recurrence_parent_id"]
+            isOneToOne: false
+            referencedRelation: "cash_flow_entries"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       clients: {
         Row: {
