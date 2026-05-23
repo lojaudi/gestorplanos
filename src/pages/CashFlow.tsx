@@ -367,6 +367,7 @@ const CashFlow = () => {
       description,
       category: form.category.trim() || null,
       entry_date: form.entry_date,
+      is_recurring: form.is_recurring,
     };
 
     try {
