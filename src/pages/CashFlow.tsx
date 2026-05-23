@@ -599,6 +599,16 @@ const CashFlow = () => {
       <Card>
         <CardContent className="p-4 flex flex-wrap gap-3">
           <select
+            value={monthFilter}
+            onChange={(e) => { setMonthFilter(e.target.value); setPage(1); }}
+            className="h-10 rounded-md border border-input bg-background px-3 text-sm min-w-[180px]"
+          >
+            <option value="all">Todos os meses</option>
+            {monthOptions.map(([key, label]) => (
+              <option key={key} value={key}>{label}</option>
+            ))}
+          </select>
+          <select
             value={filter}
             onChange={(e) => { setFilter(e.target.value as any); setCategoryFilter("all"); setPage(1); }}
             className="h-10 rounded-md border border-input bg-background px-3 text-sm"
@@ -624,10 +634,10 @@ const CashFlow = () => {
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             className="flex-1 min-w-[200px]"
           />
-          {(filter !== "all" || categoryFilter !== "all" || search) && (
+          {(filter !== "all" || categoryFilter !== "all" || search || monthFilter !== "all") && (
             <Button
               variant="ghost"
-              onClick={() => { setFilter("all"); setCategoryFilter("all"); setSearch(""); setPage(1); }}
+              onClick={() => { setFilter("all"); setCategoryFilter("all"); setSearch(""); setMonthFilter("all"); setPage(1); }}
             >
               Limpar
             </Button>
