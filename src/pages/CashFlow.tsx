@@ -238,10 +238,12 @@ const CashFlow = () => {
     setForm({
       type: e.type,
       amount: String(e.amount),
+      currency: "BRL",
       description: e.description,
       category: e.category ?? "",
       entry_date: e.entry_date,
     });
+
     setDialogOpen(true);
   };
 
