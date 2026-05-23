@@ -327,6 +327,7 @@ const CashFlow = () => {
       description: e.description,
       category: e.category ?? "",
       entry_date: e.entry_date,
+      is_recurring: !!(e as any).is_recurring,
     });
 
     setDialogOpen(true);
