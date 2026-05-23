@@ -290,23 +290,38 @@ const CashFlow = () => {
   }, [categories, entries, filter]);
 
   const totals = useMemo(() => {
-    const now = new Date();
-    const m = now.getMonth();
-    const y = now.getFullYear();
-    let income = 0, expense = 0, monthIncome = 0, monthExpense = 0;
-    for (const e of entries) {
-      const d = new Date(e.entry_date + "T00:00:00");
-      const inMonth = d.getMonth() === m && d.getFullYear() === y;
-      if (e.type === "income") {
-        income += Number(e.amount);
-        if (inMonth) monthIncome += Number(e.amount);
-      } else {
-        expense += Number(e.amount);
-        if (inMonth) monthExpense += Number(e.amount);
+    let income = 0, expense = 0, monthIncome = 0, monthExpense = .0;
+    if (monthFilter === "all") {
+      const now = new Date();
+      const m = now.getMonth();
+      const y = now.getFullYear();
+      for (const e of entries) {
+        const d = new Date(e.entry_date + "T00:00:00");
+        const inMonth = d.getMonth() === m && d.getFullYear() === y;
+        if (e.type === "income") {
+          income += Number(e.amount);
+          if (inMonth) monthIncome += Number(e.amount);
+        } else {
+          expense += Number(e.amount);
+          if (inMonth) monthExpense += Number(e.amount);
+        }
+      }
+    } else {
+      const [fy, fm] = monthFilter.split("-").map(Number);
+      const cutoff = new Date(fy, fm, 1);
+      for (const e of entries) {
+        const d = new Date(e.entry_date + "T00:00:00");
+        if (e.type === "income") {
+          income += Number(e.amount);
+          if (d.getFullYear() === fy && d.getMonth() + 1 === fm) monthIncome += Number(e.amount);
+        } else {
+          expense += Number(e.amount);
+          if (d.getFullYear() === fy && d.getMonth() + 1 === fm) monthExpense += Number(e.amount);
+        }
       }
     }
     return { income, expense, monthIncome, monthExpense, balance: income - expense };
-  }, [entries]);
+  }, [entries, monthFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const pageItems = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
