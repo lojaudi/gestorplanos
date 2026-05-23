@@ -49,6 +49,23 @@ const defaultForm = {
   description: "",
   category: "",
   entry_date: todayBRT(),
+  is_recurring: false,
+};
+
+const addMonthsClamped = (iso: string, months: number) => {
+  const [y, m, d] = iso.split("-").map(Number);
+  const target = new Date(y, m - 1 + months, 1);
+  const ty = target.getFullYear();
+  const tm = target.getMonth();
+  const lastDay = new Date(ty, tm + 1, 0).getDate();
+  const day = Math.min(d, lastDay);
+  return `${ty}-${String(tm + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+};
+
+const monthsBetween = (fromIso: string, toIso: string) => {
+  const [fy, fm] = fromIso.split("-").map(Number);
+  const [ty, tm] = toIso.split("-").map(Number);
+  return (ty - fy) * 12 + (tm - fm);
 };
 
 type Rates = { USD: number; EUR: number };
