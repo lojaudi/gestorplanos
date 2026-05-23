@@ -129,6 +129,7 @@ const CashFlow = () => {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [recalculating, setRecalculating] = useState(false);
+  const [monthFilter, setMonthFilter] = useState<string>("all");
 
   // categories management
   const [catDialogOpen, setCatDialogOpen] = useState(false);
