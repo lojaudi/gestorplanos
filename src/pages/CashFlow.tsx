@@ -746,6 +746,22 @@ const CashFlow = () => {
                 Gerencie as categorias clicando em "Categorias" no topo da página.
               </p>
             </div>
+            <label className="flex items-start gap-3 rounded-md border border-input bg-background p-3 cursor-pointer hover:bg-accent/30 transition-colors">
+              <input
+                type="checkbox"
+                checked={form.is_recurring}
+                onChange={(e) => setForm({ ...form, is_recurring: e.target.checked })}
+                className="mt-0.5 h-4 w-4 rounded border-input"
+              />
+              <div className="flex-1">
+                <p className="text-sm font-medium">Lançamento mensal recorrente</p>
+                <p className="text-xs text-muted-foreground">
+                  {form.is_recurring
+                    ? "Será lançado automaticamente todo mês a partir da data marcada."
+                    : "Será lançado apenas uma vez, na data marcada."}
+                </p>
+              </div>
+            </label>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancelar</Button>
