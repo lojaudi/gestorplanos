@@ -285,7 +285,7 @@ const CashFlow = () => {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       const label = d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
-      map.set(key, label.charAt(1).toUpperCase() + label.slice(1));
+      map.set(key, label.charAt(0).toUpperCase() + label.slice(1));
     }
     entries.forEach((e) => {
       const k = e.entry_date.slice(0, 7);
@@ -293,7 +293,7 @@ const CashFlow = () => {
         const [y, m] = k.split("-").map(Number);
         const d = new Date(y, m - 1, 1);
         const label = d.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
-        map.set(k, label.charAt(1).toUpperCase() + label.slice(1));
+        map.set(k, label.charAt(0).toUpperCase() + label.slice(1));
       }
     });
     return Array.from(map.entries()).sort((a, b) => (a[0] < b[0] ? 1 : -1));
