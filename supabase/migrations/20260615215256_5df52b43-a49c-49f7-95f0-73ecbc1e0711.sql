@@ -1,0 +1,1 @@
+CREATE POLICY "Admins can view all notification logs" ON public.billing_notifications_log FOR SELECT USING (public.has_role(auth.uid(), 'admin'));
