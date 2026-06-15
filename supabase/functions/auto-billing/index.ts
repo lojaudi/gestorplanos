@@ -354,6 +354,8 @@ serve(async (req) => {
           console.error(`[auto-billing] Send error for ${client.name}:`, sendErr);
           totalErrors++;
 
+          const errMsg = sendErr instanceof Error ? sendErr.message : String(sendErr);
+
           await supabase.from("billing_notifications_log").insert({
             user_id: userId,
             client_id: n.invoice.client_id,
@@ -361,6 +363,15 @@ serve(async (req) => {
             due_date: n.invoice.due_date,
             status: "error",
             message_content: message,
+          });
+
+          await supabase.from("message_logs").insert({
+            user_id: userId,
+            client_id: n.invoice.client_id,
+            message_content: message,
+            status: "error",
+            template_type: `auto_${n.type}`,
+            api_response: errMsg,
           });
         }
       }
