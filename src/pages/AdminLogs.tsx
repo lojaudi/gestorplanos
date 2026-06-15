@@ -16,62 +16,64 @@ import {
 import { RefreshCw, Loader2, ClipboardList } from "lucide-react";
 import { formatDateTimeBRT } from "@/lib/date-brt";
 
-interface MessageLog {
+interface NotificationLog {
   id: string;
-  message_content: string;
+  message_content: string | null;
   status: string;
-  template_type: string;
+  notification_type: string;
   sent_at: string;
-  api_response: string | null;
   client_id: string | null;
   user_id: string;
+  due_date: string | null;
   user_email?: string;
   client_name?: string;
 }
 
+const TYPE_LABEL: Record<string, string> = {
+  before_due: "Antes do vencimento",
+  on_due: "No vencimento",
+  after_due: "Após vencimento",
+  payment_confirmed: "Pagamento confirmado",
+};
+
 export default function AdminLogs() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, user } = useAuth();
   const [searchParams] = useSearchParams();
   const filterUserId = searchParams.get("userId");
-  const [logs, setLogs] = useState<MessageLog[]>([]);
+  const [logs, setLogs] = useState<NotificationLog[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchLogs = useCallback(async () => {
-    if (!isAdmin) return;
     setLoading(true);
-
     try {
       let query = supabase
-        .from("message_logs")
+        .from("billing_notifications_log")
         .select("*")
         .order("sent_at", { ascending: false })
-        .limit(200);
+        .limit(300);
 
       if (filterUserId) {
         query = query.eq("user_id", filterUserId);
+      } else if (!isAdmin && user) {
+        query = query.eq("user_id", user.id);
       }
 
       const { data: logsData, error } = await query;
-
       if (error) throw error;
 
       if (logsData && logsData.length > 0) {
-        // Get user emails
         const userIds = [...new Set(logsData.map((l) => l.user_id))];
         const { data: profiles } = await supabase
           .from("profiles")
           .select("user_id, email")
           .in("user_id", userIds);
-
         const profileMap = new Map(profiles?.map((p) => [p.user_id, p.email]) || []);
 
-        // Get client names
         const clientIds = [...new Set(logsData.filter((l) => l.client_id).map((l) => l.client_id!))];
         const { data: clients } = await supabase
           .from("clients")
           .select("id, name")
-          .in("id", clientIds.length > 0 ? clientIds : ["none"]);
-
+          .in("id", clientIds.length > 0 ? clientIds : ["00000000-0000-0000-0000-000000000000"]);
         const clientMap = new Map(clients?.map((c) => [c.id, c.name]) || []);
 
         setLogs(
@@ -89,7 +91,7 @@ export default function AdminLogs() {
     } finally {
       setLoading(false);
     }
-  }, [isAdmin]);
+  }, [isAdmin, filterUserId, user]);
 
   useEffect(() => {
     fetchLogs();
@@ -103,23 +105,26 @@ export default function AdminLogs() {
     );
   }
 
+  const sentCount = logs.filter((l) => l.status === "sent").length;
+  const errorCount = logs.filter((l) => l.status !== "sent").length;
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
           <ClipboardList className="h-6 w-6 text-primary" />
-          {filterUserId ? "Logs do Usuário" : "Logs Globais de Envio"}
+          Logs de Notificações Automáticas
         </h1>
         <p className="text-muted-foreground">
-          {filterUserId 
-            ? `Mostrando histórico de mensagens para o usuário selecionado` 
-            : "Histórico de todas as mensagens enviadas via WhatsApp na plataforma"}
+          Histórico de cobranças e confirmações de pagamento enviadas automaticamente pelo sistema.
         </p>
       </div>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Mensagens Enviadas ({logs.length})</CardTitle>
+          <CardTitle>
+            Notificações ({logs.length}) · Enviadas: {sentCount} · Erros: {errorCount}
+          </CardTitle>
           <Button variant="outline" size="sm" onClick={fetchLogs}>
             <RefreshCw className="mr-2 h-4 w-4" />
             Atualizar
@@ -130,9 +135,10 @@ export default function AdminLogs() {
             <TableHeader>
               <TableRow>
                 <TableHead>Data/Hora</TableHead>
-                <TableHead>Usuário</TableHead>
+                {isAdmin && <TableHead>Usuário</TableHead>}
                 <TableHead>Cliente</TableHead>
                 <TableHead>Tipo</TableHead>
+                <TableHead>Vencimento</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="max-w-xs">Mensagem</TableHead>
               </TableRow>
@@ -143,28 +149,35 @@ export default function AdminLogs() {
                   <TableCell className="whitespace-nowrap">
                     {formatDateTimeBRT(log.sent_at)}
                   </TableCell>
-                  <TableCell className="max-w-[150px] truncate" title={log.user_email}>
-                    {log.user_email}
-                  </TableCell>
+                  {isAdmin && (
+                    <TableCell className="max-w-[150px] truncate" title={log.user_email}>
+                      {log.user_email}
+                    </TableCell>
+                  )}
                   <TableCell>{log.client_name}</TableCell>
                   <TableCell>
-                    <Badge variant="outline">{log.template_type}</Badge>
+                    <Badge variant="outline">
+                      {TYPE_LABEL[log.notification_type] || log.notification_type}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {log.due_date ? new Date(log.due_date + "T00:00:00").toLocaleDateString("pt-BR") : "—"}
                   </TableCell>
                   <TableCell>
                     <Badge variant={log.status === "sent" ? "default" : "destructive"}>
                       {log.status === "sent" ? "Enviado" : "Erro"}
                     </Badge>
                   </TableCell>
-                  <TableCell className="max-w-xs truncate" title={log.message_content}>
-                    {log.message_content.substring(0, 80)}
-                    {log.message_content.length > 80 ? "..." : ""}
+                  <TableCell className="max-w-xs truncate" title={log.message_content || ""}>
+                    {(log.message_content || "").substring(0, 80)}
+                    {(log.message_content || "").length > 80 ? "..." : ""}
                   </TableCell>
                 </TableRow>
               ))}
               {logs.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground py-10">
-                    Nenhuma mensagem enviada ainda
+                  <TableCell colSpan={isAdmin ? 7 : 6} className="text-center text-muted-foreground py-10">
+                    Nenhuma notificação automática registrada ainda
                   </TableCell>
                 </TableRow>
               )}
