@@ -105,6 +105,15 @@ async function evolutionFetch(
       `Evolution API [${res.status}]: ${JSON.stringify(data)}`
     );
   }
+  // Evolution pode responder 2xx mesmo quando a mensagem não foi aceita.
+  if (path.startsWith("/message/")) {
+    const d = data as Record<string, unknown>;
+    const statusStr = String(d?.status ?? "").toUpperCase();
+    const hasKey = !!(d?.key as { id?: string } | undefined)?.id;
+    if (statusStr === "ERROR" || d?.error || (!hasKey && !d?.messageTimestamp)) {
+      throw new Error(`Evolution API não confirmou o envio: ${JSON.stringify(data)}`);
+    }
+  }
   return data;
 }
 
@@ -703,7 +712,7 @@ serve(async (req) => {
       const cleanPhone = phone.replace(/\D/g, "");
       const formattedPhone = formatPhoneForWhatsApp(cleanPhone);
 
-      let status = "sent";
+      let status = "success";
       let apiResponse = "";
 
       try {
@@ -730,7 +739,7 @@ serve(async (req) => {
         api_response: apiResponse,
       });
 
-      return jsonResponse({ success: status === "sent", status, api_response: apiResponse });
+      return jsonResponse({ success: status === "success", status, api_response: apiResponse });
     }
 
     if (action === "send-bulk") {
@@ -747,7 +756,7 @@ serve(async (req) => {
         const cleanPhone = msg.phone.replace(/\D/g, "");
         const formattedPhone = formatPhoneForWhatsApp(cleanPhone);
 
-        let status = "sent";
+        let status = "success";
         let apiResponse = "";
 
         try {
@@ -795,7 +804,7 @@ serve(async (req) => {
         const cleanPhone = msg.phone.replace(/\D/g, "");
         const formattedPhone = formatPhoneForWhatsApp(cleanPhone);
 
-        let status = "sent";
+        let status = "success";
         let apiResponse = "";
 
         try {

@@ -161,7 +161,7 @@ export default function Campaign() {
       await supabase.from("message_logs").insert({
         user_id: user.id,
         message_content: `[Campanha - ${targetLabel}] ${message.trim().slice(0, 200)}`,
-        status: "sent",
+        status: "success",
         template_type: "campanha",
       });
     } catch (err: any) {
