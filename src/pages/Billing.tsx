@@ -475,7 +475,7 @@ export default function Billing() {
       }
 
       const result = await callEvolutionApi("send-bulk", { messages });
-      const sent = result.results?.filter((r: any) => r.status === "sent").length || 0;
+      const sent = result.results?.filter((r: any) => (r.status === "sent" || r.status === "success")).length || 0;
       const errors = result.results?.filter((r: any) => r.status === "error").length || 0;
 
       toast({

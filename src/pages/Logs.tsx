@@ -302,7 +302,7 @@ export default function Logs() {
         formatDateTimeBRT(l.sent_at),
         l.client_name || "—",
         l.template_type,
-        l.status === "sent" ? "Enviado" : "Erro",
+        (l.status === "sent" || l.status === "success") ? "Enviado" : "Erro",
         l.message_content,
       ]
         .map(escape)
@@ -508,8 +508,8 @@ export default function Logs() {
                     <Badge variant="outline">{log.template_type}</Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={log.status === "sent" ? "default" : "destructive"}>
-                      {log.status === "sent" ? "Enviado" : "Erro"}
+                    <Badge variant={(log.status === "sent" || log.status === "success") ? "default" : "destructive"}>
+                      {(log.status === "sent" || log.status === "success") ? "Enviado" : "Erro"}
                     </Badge>
                   </TableCell>
                   <TableCell className="max-w-xs truncate" title={log.message_content}>
