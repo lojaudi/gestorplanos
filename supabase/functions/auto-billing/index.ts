@@ -40,7 +40,21 @@ async function evolutionFetch(apiUrl: string, apiKey: string, path: string, meth
   };
   if (body) opts.body = JSON.stringify(body);
   const res = await fetch(url, opts);
-  return res.json();
+  const text = await res.text();
+  if (!res.ok) {
+    throw new Error(`Evolution API [${res.status}]: ${text}`);
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { raw: text };
+  }
+}
+
+function formatPhoneForWhatsApp(phone: string): string {
+  const digits = (phone || "").replace(/\D/g, "");
+  if (digits.length >= 10 && digits.length <= 11) return `55${digits}`;
+  return digits;
 }
 
 serve(async (req) => {
