@@ -336,12 +336,12 @@ serve(async (req) => {
         const message = resolveTemplate(template, n.invoice, pixCode, paymentLinkId);
 
         try {
-          await evolutionFetch(
+          const sendRes = await evolutionFetch(
             globalWa.api_url,
             globalWa.api_key,
             `/message/sendText/${waConfig.instance_name}`,
             "POST",
-            { number: client.phone, text: message }
+            { number: formatPhoneForWhatsApp(client.phone), text: message }
           );
 
           await supabase.from("billing_notifications_log").insert({
@@ -353,13 +353,16 @@ serve(async (req) => {
             message_content: message,
           });
 
-          await supabase.from("message_logs").insert({
+          const { error: logErr } = await supabase.from("message_logs").insert({
             user_id: userId,
             client_id: n.invoice.client_id,
             message_content: message,
-            status: "sent",
+            status: "success",
             template_type: `auto_${n.type}`,
+            api_response: JSON.stringify(sendRes).slice(0, 1000),
           });
+          if (logErr) console.error("[auto-billing] message_logs insert error:", logErr);
+
 
           totalSent++;
           console.log(`[auto-billing] Sent ${n.type} to ${client.name}`);
