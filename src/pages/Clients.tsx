@@ -21,7 +21,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Pencil, Trash2, Users, Search, ChevronLeft, ChevronRight, PenLine, Download } from "lucide-react";
+import { Plus, Pencil, Trash2, Users, Search, ChevronLeft, ChevronRight, PenLine, Download, FileText, FileSpreadsheet } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { BulkEditClientsDialog } from "@/components/clients/BulkEditClientsDialog";
 import { WhmcsImportDialog } from "@/components/clients/WhmcsImportDialog";
@@ -36,6 +36,8 @@ type ClientWithRelations = Client & {
   services: { name: string } | null;
   plans: { name: string; duration_months: number; price: number | null } | null;
 };
+
+type ExportFormat = "csv" | "pdf";
 
 const getStatus = (dueDate: string) => {
   if (!dueDate) return "sem_fatura";
@@ -55,6 +57,19 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
   sem_fatura: { label: "Sem Fatura", variant: "outline" },
 };
 
+const escapeCsv = (value: string | number) => {
+  const text = String(value ?? "");
+  const safeText = /^[=+\-@]/.test(text) ? `'${text}` : text;
+  return `"${safeText.replace(/"/g, '""')}"`;
+};
+
+const escapeHtml = (value: string | number) => String(value ?? "")
+  .replace(/&/g, "&amp;")
+  .replace(/</g, "&lt;")
+  .replace(/>/g, "&gt;")
+  .replace(/"/g, "&quot;")
+  .replace(/'/g, "&#039;");
+
 const PAGE_SIZE_OPTIONS = ["10", "25", "50", "100", "all"] as const;
 
 const Clients = () => {
@@ -69,6 +84,7 @@ const Clients = () => {
   const [bulkDeleteMode, setBulkDeleteMode] = useState<"selected" | "expired" | null>(null);
   const [bulkEditOpen, setBulkEditOpen] = useState(false);
   const [whmcsOpen, setWhmcsOpen] = useState(false);
+  const [exportFormat, setExportFormat] = useState<ExportFormat | null>(null);
   const [editing, setEditing] = useState<ClientWithRelations | null>(null);
   const [saving, setSaving] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -286,14 +302,103 @@ const Clients = () => {
     }
   };
 
+  const selectAllClients = () => setSelected(new Set(clients.map((client) => client.id)));
+
+  const formatCurrency = (value: number | null | undefined) => value == null
+    ? "—"
+    : value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+  const getExportRows = (scope: "selected" | "all") => {
+    if (scope === "selected") return clients.filter((client) => selected.has(client.id));
+    return clients;
+  };
+
+  const exportCsv = (rows: ClientWithRelations[]) => {
+    const headers = ["Nome", "Nome de usuário", "Telefone/WhatsApp", "Tipo de serviço", "Plano", "Valor do plano", "Data de cadastro", "Data de vencimento", "Status"];
+    const body = rows.map((client) => [
+      client.name,
+      client.username || "—",
+      client.phone,
+      client.services?.name || "—",
+      client.plans?.name || "—",
+      formatCurrency(client.plans?.price),
+      formatDateBRT(client.registration_date),
+      formatDateBRT(client.due_date),
+      statusConfig[getStatus(client.due_date)].label,
+    ].map(escapeCsv).join(";"));
+    const csv = [headers.map(escapeCsv).join(";"), ...body].join("\n");
+    const blob = new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `clientes_${getTodayBRT()}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const exportPdf = (rows: ClientWithRelations[]) => {
+    const printWindow = window.open("", "_blank");
+    if (!printWindow) {
+      toast({ title: "Não foi possível abrir o PDF", description: "Permita pop-ups no navegador e tente novamente.", variant: "destructive" });
+      return false;
+    }
+    const tableRows = rows.map((client) => `
+      <tr>
+        <td>${escapeHtml(client.name)}</td>
+        <td>${escapeHtml(client.username || "—")}</td>
+        <td>${escapeHtml(client.phone)}</td>
+        <td>${escapeHtml(client.services?.name || "—")}</td>
+        <td>${escapeHtml(client.plans?.name || "—")}</td>
+        <td>${escapeHtml(formatCurrency(client.plans?.price))}</td>
+        <td>${escapeHtml(formatDateBRT(client.registration_date))}</td>
+        <td>${escapeHtml(formatDateBRT(client.due_date))}</td>
+        <td>${escapeHtml(statusConfig[getStatus(client.due_date)].label)}</td>
+      </tr>`).join("");
+
+    printWindow.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Relatório de Clientes</title>
+      <style>
+        @page{size:A4 landscape;margin:12mm}*{box-sizing:border-box}body{font-family:Arial,sans-serif;color:#111;margin:0}
+        h1{font-size:20px;margin:0 0 4px}p{font-size:11px;color:#555;margin:0 0 16px}
+        table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:9px}
+        th,td{border:1px solid #ccc;padding:5px;vertical-align:top;overflow-wrap:anywhere}
+        th{background:#f1f5f9;text-align:left;font-weight:700}tr{page-break-inside:avoid}
+      </style></head><body>
+      <h1>Relatório de Clientes</h1>
+      <p>Gerado em ${escapeHtml(new Date().toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" }))} · ${rows.length} cliente(s)</p>
+      <table><thead><tr><th>Nome</th><th>Usuário</th><th>Telefone</th><th>Serviço</th><th>Plano</th><th>Valor</th><th>Cadastro</th><th>Vencimento</th><th>Status</th></tr></thead>
+      <tbody>${tableRows}</tbody></table></body></html>`);
+    printWindow.document.close();
+    setTimeout(() => printWindow.print(), 500);
+    return true;
+  };
+
+  const handleExport = (scope: "selected" | "all") => {
+    if (!exportFormat) return;
+    const rows = getExportRows(scope);
+    if (rows.length === 0) {
+      toast({ title: "Nenhum cliente para exportar", variant: "destructive" });
+      return;
+    }
+    const succeeded = exportFormat === "csv" ? (exportCsv(rows), true) : exportPdf(rows);
+    if (!succeeded) return;
+    toast({ title: `${rows.length} cliente(s) preparado(s) para exportação!` });
+    setExportFormat(null);
+  };
+
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Clientes</h1>
           <p className="text-muted-foreground">{clients.length} clientes cadastrados</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={() => setExportFormat("csv")} disabled={clients.length === 0}>
+            <FileSpreadsheet className="mr-2 h-4 w-4" /> Exportar CSV
+          </Button>
+          <Button variant="outline" onClick={() => setExportFormat("pdf")} disabled={clients.length === 0}>
+            <FileText className="mr-2 h-4 w-4" /> Exportar PDF
+          </Button>
           <Button variant="outline" onClick={() => setWhmcsOpen(true)}>
             <Download className="mr-2 h-4 w-4" /> Importar WHMCS
           </Button>
@@ -364,6 +469,11 @@ const Clients = () => {
               <Button variant="outline" size="sm" onClick={() => setSelected(new Set())}>
                 Limpar seleção
               </Button>
+              {selected.size < clients.length && (
+                <Button variant="outline" size="sm" onClick={selectAllClients}>
+                  Selecionar todos ({clients.length})
+                </Button>
+              )}
             </>
           )}
           {expiredClients.length > 0 && (
@@ -499,6 +609,29 @@ const Clients = () => {
           </div>
         )}
       </div>
+
+      {/* Create/Edit Dialog */}
+      <Dialog open={exportFormat !== null} onOpenChange={(open) => { if (!open) setExportFormat(null); }}>
+        <DialogContent className="w-[calc(100%-2rem)] max-w-md">
+          <DialogHeader>
+            <DialogTitle>Exportar clientes em {exportFormat?.toUpperCase()}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">Escolha quais clientes deseja incluir no arquivo.</p>
+            <Button className="w-full justify-between" variant="outline" onClick={() => handleExport("selected")} disabled={selected.size === 0}>
+              <span>Clientes selecionados</span>
+              <span>{selected.size}</span>
+            </Button>
+            <Button className="w-full justify-between" variant="outline" onClick={() => handleExport("all")}>
+              <span>Todos os clientes</span>
+              <span>{clients.length}</span>
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setExportFormat(null)}>Cancelar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
