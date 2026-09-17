@@ -1,36 +1,44 @@
 ## Objetivo
 
-Adicionar um seletor de moedas (BRL, USD, EUR) ao campo "Valor" do modal **Novo Lançamento** em `/cashflow`. Quando o usuário escolher USD ou EUR, o sistema converte automaticamente para Real usando a cotação do dia e salva o valor já convertido — mantendo o fluxo de caixa sempre em BRL como hoje.
+Adicionar na página **Clientes** exportação em **CSV** e **PDF**, permitindo baixar apenas os clientes marcados ou todos os clientes cadastrados.
 
 ## Alterações
 
-### 1. `src/pages/CashFlow.tsx` — modal de lançamento
-- Adicionar `currency` ao estado `form` (default: `"BRL"`).
-- Junto ao input de valor, colocar um pequeno `<select>` nativo (BRL / USD / EUR) — mesmo padrão dos outros selects da página, evitando scroll-lock.
-- Ao salvar:
-  - Se `currency === "BRL"` → comportamento atual.
-  - Se `USD` ou `EUR` → buscar cotação do dia, calcular `amount_brl = valor * cotação`, e salvar em `cash_flow_entries.amount` esse valor já convertido.
-  - Anexar à `description` um sufixo automático: `" (USD 50,00 @ R$ 5,12)"` para o usuário saber a origem.
-- Mostrar uma linha pequena abaixo do campo com a prévia: *"≈ R$ 256,00 (cotação de hoje: 5,12)"* assim que o usuário digitar.
-- Mensagens de erro/toast amigáveis se a cotação falhar (com opção de digitar manualmente em BRL).
+### Seleção para exportação
+- Reaproveitar as caixas de seleção já existentes em cada cliente.
+- Manter o seletor do cabeçalho para marcar ou desmarcar os clientes visíveis na página atual.
+- Adicionar uma ação clara de **Selecionar todos os clientes** quando houver filtros ou mais de uma página.
+- Mostrar a quantidade escolhida antes da exportação.
 
-### 2. Cotação do dia
-- Usar a API pública **AwesomeAPI** (`https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL`) — gratuita, sem chave, com CORS liberado, ideal para uso direto no frontend.
-- Buscar a cotação uma vez quando o modal abre (e cachear por sessão durante 10 min para evitar requests repetidos).
-- Campo de bid (compra) será usado como referência.
+### Botões e escolha do conteúdo
+- Adicionar os botões **Exportar CSV** e **Exportar PDF** no topo da página.
+- Ao clicar, abrir uma confirmação com duas opções:
+  - **Clientes selecionados** — disponível quando houver pelo menos um marcado.
+  - **Todos os clientes** — inclui todos os cadastrados, independentemente da página atual.
+- Não alterar nem excluir dados durante a exportação.
 
-### 3. Comportamento dos dados existentes
-- Nada muda no banco. Continua tudo em BRL na coluna `amount`.
-- Lançamentos antigos permanecem inalterados.
-- Faturas e links de pagamento (que já vêm em BRL) seguem como estão.
+### Dados incluídos
+Cada arquivo terá:
+- Nome do cliente
+- Nome de usuário
+- Telefone/WhatsApp
+- Tipo de serviço
+- Plano
+- Valor do plano
+- Data de cadastro
+- Data de vencimento
+- Status atual
 
-## Pontos técnicos
+### Formatos
+- **CSV:** separado por ponto e vírgula, com acentuação compatível com Excel e valores/datas no padrão brasileiro.
+- **PDF:** relatório pronto para imprimir ou salvar em PDF, com título, data de geração, total de clientes e tabela completa.
+- Proteger os textos inseridos pelos usuários para que nomes e outros dados não quebrem o CSV ou o PDF.
 
-- Sem novas tabelas, sem migration, sem edge function — conversão acontece no cliente no momento do save.
-- A taxa é "congelada" no momento do lançamento (padrão contábil correto): se você lançar US$ 100 hoje a 5,12, o valor em reais não muda amanhã quando a cotação variar.
-- Edição de um lançamento existente abrirá com BRL selecionado (já está convertido); se o usuário quiser re-converter, basta trocar a moeda novamente.
+## Validação
+- Testar exportação de alguns clientes marcados e de todos os clientes.
+- Confirmar que serviço, plano, telefone, datas, valores e status aparecem corretamente.
+- Verificar o uso em tela grande e celular, inclusive quando nenhum cliente estiver selecionado.
 
 ## Fora do escopo
-
-- Não vou adicionar histórico de cotações nem coluna `original_currency`/`original_amount` no banco (poderia ser feito depois se você quiser auditoria — me avise).
-- Não vou alterar gráficos, relatórios ou exports — todos continuam em BRL.
+- Nenhuma alteração no cadastro dos clientes ou no banco de dados.
+- Nenhum envio automático dos arquivos por WhatsApp ou e-mail.
